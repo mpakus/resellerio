@@ -15,7 +15,8 @@
 
 - Completed: Step 1 API foundation.
 - Commit: `509c712` (`Add API v1 foundation`)
-- Current API endpoint: `GET /api/v1/health`
+- Current API endpoints: `GET /api/v1` and `GET /api/v1/health`
+- API reference: `docs/API.md`
 - Next target: Step 2 accounts foundation.
 
 ## Working Rules

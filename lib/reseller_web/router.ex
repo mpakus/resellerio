@@ -24,6 +24,7 @@ defmodule ResellerWeb.Router do
     pipe_through :api
 
     scope "/v1", API.V1 do
+      get "/", RootController, :show
       get "/health", HealthController, :show
     end
   end

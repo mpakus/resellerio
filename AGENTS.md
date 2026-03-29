@@ -53,6 +53,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 
 - Treat this app as an API-first backend for a mobile client.
 - Prefer JSON APIs under a versioned `/api/v1` namespace for core product features.
+- Update `docs/API.md` whenever API routes or payloads change.
 - Keep browser-rendered Phoenix pages minimal unless they serve admin or operational needs.
 - Put business logic in contexts, not controllers.
 - Use background jobs for all long-running work: AI recognition, image processing, ZIP export generation, email delivery fan-out, and large imports.

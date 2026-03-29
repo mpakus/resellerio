@@ -40,6 +40,7 @@ Not implemented yet:
 ## Project Docs
 
 - Implementation plan and progress tracker: `docs/PLANS.md`
+- API reference: `docs/API.md`
 - Project-specific coding guidance for agents and contributors: `AGENTS.md`
 
 ## Workflow
