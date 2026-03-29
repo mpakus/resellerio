@@ -7,7 +7,7 @@
 - [x] Step 3.1: Product and product image schemas plus signed upload intent generation.
 - [x] Step 3.2: Finalize-upload endpoint and uploaded-image state transitions.
 - [x] Step 4.1: Product processing run records and lightweight async worker foundation.
-- [ ] Step 4.2: Connect processing runs to the real AI/media worker pipeline.
+- [x] Step 4.2: Connect processing runs to the real AI/media worker pipeline.
 - [ ] Step 5: AI recognition and marketplace listing generation.
 - [ ] Step 6: Photoroom-powered image processing variants.
 - [ ] Step 7: ZIP export generation and export-ready email flow.
@@ -15,12 +15,13 @@
 
 ## Latest Progress
 
-- Completed: Step 4.1 processing run and async worker foundation.
+- Completed: Step 4.2 real AI-backed processing pipeline wiring.
 - Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
-- Next target: Step 4.2 connect processing runs to the real AI/media worker pipeline.
+- Product processing: `Reseller.Workers.AIProductProcessor` now turns finalized uploads into persisted product AI fields and closes image states to `ready` or `failed`
+- Next target: Step 5 add structured description generation and marketplace listing foundations.
 
 ## Working Rules
 

@@ -4,6 +4,8 @@ defmodule Reseller.Workers.ProductProcessingWorker do
   """
 
   alias Reseller.Catalog.Product
+  alias Reseller.Catalog
+  alias Reseller.Media
   alias Reseller.Media.ProductImage
   alias Reseller.Repo
   alias Reseller.Workers
@@ -77,6 +79,9 @@ defmodule Reseller.Workers.ProductProcessingWorker do
   end
 
   defp fail_run(run, code, message, payload) do
+    {:ok, _count} = Media.mark_product_images_failed(run.product)
+    {:ok, _product} = Catalog.mark_processing_failed(run.product)
+
     run
     |> ProductProcessingRun.update_changeset(%{
       "status" => "failed",

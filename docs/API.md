@@ -353,8 +353,8 @@ Response:
       "status": "processing",
       "latest_processing_run": {
         "id": 12,
-        "status": "completed",
-        "step": "awaiting_ai"
+        "status": "queued",
+        "step": "queued"
       },
       "images": [
         {
@@ -374,21 +374,22 @@ Response:
     ],
     "processing_run": {
       "id": 12,
-      "status": "completed",
-      "step": "awaiting_ai",
-      "payload": {
-        "message": "Background processing foundation executed"
-      }
+      "status": "queued",
+      "step": "queued",
+      "payload": {}
     }
   }
 }
 ```
 
-Current behavior note:
+Current behavior notes:
 
 - the finalize endpoint immediately creates a `product_processing_run`
-- in the current test and foundation setup, the lightweight background worker completes quickly and moves finalized images from `uploaded` to `processing`
-- the real AI/image-processing pipeline will attach to this run system in the next Step 4 slice
+- in production-style async execution, the returned run is typically still `queued` or `running`
+- the worker uses finalized original uploads as Gemini and SerpApi inputs, using `TIGRIS_BUCKET_URL` as the public image base
+- when recognition finishes, the product moves to `ready` or `review`
+- on success, in-flight images move from `processing` to `ready`
+- on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
 
 ### Product Processing Status
 
@@ -401,13 +402,21 @@ Example:
   "latest_processing_run": {
     "id": 12,
     "status": "completed",
-    "step": "awaiting_ai",
+    "step": "recognition_completed",
     "started_at": "2026-03-29T20:30:00Z",
     "finished_at": "2026-03-29T20:30:01Z",
     "error_code": null,
     "error_message": null,
     "payload": {
-      "message": "Background processing foundation executed"
+      "pipeline_status": "recognized",
+      "review_required": false,
+      "final": {
+        "brand": "Nike",
+        "category": "Sneakers",
+        "possible_model": "Air Max 90",
+        "confidence_score": 0.91,
+        "needs_review": false
+      }
     }
   }
 }
@@ -420,7 +429,7 @@ Run status values currently used:
 - `completed`
 - `failed`
 
-The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, and `awaiting_ai`.
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, and `recognition_completed`.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

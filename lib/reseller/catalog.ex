@@ -68,6 +68,26 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def apply_recognition_result(%Product{} = product, result) when is_map(result) do
+    product
+    |> Product.update_changeset(recognition_result_attrs(product, result))
+    |> Repo.update()
+    |> case do
+      {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  def mark_processing_failed(%Product{} = product) do
+    product
+    |> Product.update_changeset(%{"status" => "review"})
+    |> Repo.update()
+    |> case do
+      {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
   defp product_changeset(%User{} = user, attrs) do
     %Product{}
     |> Product.create_changeset(attrs)
@@ -92,4 +112,67 @@ defmodule Reseller.Catalog do
   defp maybe_start_processing(_product), do: {:ok, nil}
 
   defp refresh_product(product), do: Repo.preload(product, product_preload(), force: true)
+
+  defp recognition_result_attrs(%Product{} = product, result) do
+    generated_title = generated_title(result)
+    generated_summary = generated_summary(result)
+
+    %{
+      "status" => if(result["needs_review"], do: "review", else: "ready"),
+      "title" => prefer_existing(product.title, generated_title),
+      "brand" => prefer_existing(product.brand, result["brand"]),
+      "category" => prefer_existing(product.category, result["category"]),
+      "color" => prefer_existing(product.color, result["color"]),
+      "material" => prefer_existing(product.material, result["material"]),
+      "ai_summary" => generated_summary || product.ai_summary,
+      "ai_confidence" =>
+        normalized_confidence(result["confidence_score"]) || product.ai_confidence
+    }
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp generated_title(result) do
+    cond do
+      present?(result["short_card_description"]) ->
+        result["short_card_description"]
+
+      present?(result["brand"]) and present?(result["possible_model"]) ->
+        result["brand"] <> " " <> result["possible_model"]
+
+      present?(result["brand"]) and present?(result["category"]) ->
+        result["brand"] <> " " <> result["category"]
+
+      true ->
+        nil
+    end
+  end
+
+  defp generated_summary(result) do
+    cond do
+      present?(result["short_card_description"]) ->
+        result["short_card_description"]
+
+      match?([_ | _], result["distinguishing_features"]) ->
+        result["distinguishing_features"]
+        |> Enum.take(3)
+        |> Enum.join(", ")
+
+      present?(result["possible_model"]) and present?(result["category"]) ->
+        result["possible_model"] <> " " <> result["category"]
+
+      true ->
+        nil
+    end
+  end
+
+  defp prefer_existing(existing, generated) do
+    if present?(existing), do: existing, else: generated
+  end
+
+  defp normalized_confidence(value) when is_number(value), do: value * 1.0
+  defp normalized_confidence(_value), do: nil
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(_value), do: false
 end

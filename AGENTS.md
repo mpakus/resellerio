@@ -47,7 +47,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
 - Product and image persistence plus upload finalization foundations now exist.
 - Lightweight processing-run and async worker orchestration now exist.
-- No real AI/media worker orchestration is connected yet beyond the placeholder processor.
+- `Reseller.Workers.AIProductProcessor` now connects finalized uploads to `Reseller.AI.RecognitionPipeline` and persists normalized AI fields back to `products`.
 - No export or marketplace contexts yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
@@ -122,6 +122,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
+- The current AI worker builds public object URLs from `TIGRIS_BUCKET_URL`. Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.
 - Upload finalization should go through `Reseller.Media.finalize_product_uploads/3` or `Reseller.Catalog.finalize_product_uploads_for_user/3`, not custom controller logic.
 - Product processing should be queued through `Reseller.Workers.start_product_processing/2`, not by spawning ad hoc tasks from controllers.
 
@@ -166,6 +167,7 @@ Build in this order unless a task explicitly says otherwise:
 - When naming things, use `Product`, not `Production`, unless you are touching a user-facing string that explicitly requires different wording.
 - Design APIs for mobile reliability: idempotent creation endpoints, resumable upload flows where possible, and explicit processing states.
 - Add tests alongside each new context and endpoint. For async pipelines, test both the synchronous enqueue step and the worker behavior. Security-facing changes should also get explicit regression tests.
+- For AI worker changes, cover both `ready` and `review` success paths plus failure recovery that marks runs and images correctly.
 - When introducing auth, keep API and browser auth concerns separate so mobile clients are not forced through browser-centric flows.
 - If passkeys are implemented, document both registration and authentication ceremonies and keep the server challenge flow small and explicit.
 

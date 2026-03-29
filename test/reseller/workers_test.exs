@@ -63,9 +63,12 @@ defmodule Reseller.WorkersTest do
              )
 
     failed_run = Workers.latest_product_processing_run(finalized_product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
 
     assert failed_run.status == "failed"
     assert failed_run.error_code == "processor_failed"
     assert failed_run.error_message == "AI service unavailable"
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "failed"))
   end
 end

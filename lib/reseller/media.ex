@@ -9,6 +9,8 @@ defmodule Reseller.Media do
   alias Reseller.Media.UploadBatch
   alias Reseller.Repo
 
+  @processable_image_statuses ~w(uploaded processing ready)
+
   @spec prepare_product_uploads(module(), Product.t(), [map()], keyword()) ::
           {:ok, %{images: [ProductImage.t()], upload_instructions: [map()]}}
           | {:error, Ecto.Changeset.t() | term()}
@@ -69,6 +71,49 @@ defmodule Reseller.Media do
           {:error, reason}
       end
     end
+  end
+
+  @spec recognition_inputs_for_product(Product.t(), keyword()) ::
+          {:ok, [map()]} | {:error, term()}
+  def recognition_inputs_for_product(%Product{} = product, opts \\ []) do
+    images =
+      product.images
+      |> List.wrap()
+      |> Enum.filter(&(&1.processing_status in @processable_image_statuses))
+
+    if images == [] do
+      {:error, :no_recognition_images}
+    else
+      with {:ok, base_url} <- public_base_url(opts) do
+        {:ok, Enum.map(images, &recognition_input(&1, base_url))}
+      end
+    end
+  end
+
+  @spec mark_product_images_ready(Product.t()) :: {:ok, non_neg_integer()}
+  def mark_product_images_ready(%Product{id: product_id}) do
+    {count, _rows} =
+      ProductImage
+      |> where(
+        [image],
+        image.product_id == ^product_id and image.processing_status == "processing"
+      )
+      |> Repo.update_all(set: [processing_status: "ready"])
+
+    {:ok, count}
+  end
+
+  @spec mark_product_images_failed(Product.t()) :: {:ok, non_neg_integer()}
+  def mark_product_images_failed(%Product{id: product_id}) do
+    {count, _rows} =
+      ProductImage
+      |> where(
+        [image],
+        image.product_id == ^product_id and image.processing_status == "processing"
+      )
+      |> Repo.update_all(set: [processing_status: "failed"])
+
+    {:ok, count}
   end
 
   defp upload_multi(product, upload_specs, opts) do
@@ -258,5 +303,68 @@ defmodule Reseller.Media do
     else
       "uploading"
     end
+  end
+
+  defp recognition_input(%ProductImage{} = image, base_url) do
+    public_url = build_public_url(base_url, image.storage_key)
+
+    %{
+      kind: image.kind,
+      position: image.position,
+      mime_type: image.content_type,
+      uri: public_url,
+      external_url: public_url,
+      storage_key: image.storage_key
+    }
+  end
+
+  defp public_base_url(opts) do
+    case configured_public_base_url(opts) do
+      nil ->
+        {:error, :missing_public_base_url}
+
+      base_url when is_binary(base_url) ->
+        case URI.parse(base_url) do
+          %URI{scheme: scheme, host: host} when is_binary(scheme) and is_binary(host) ->
+            {:ok, base_url}
+
+          _ ->
+            {:error, :invalid_public_base_url}
+        end
+    end
+  end
+
+  defp configured_public_base_url(opts) do
+    Keyword.get(opts, :public_base_url) ||
+      Application.fetch_env!(:reseller, __MODULE__)[:public_base_url] ||
+      Application.fetch_env!(:reseller, Reseller.Media.Storage.Tigris)[:base_url]
+  end
+
+  defp build_public_url(base_url, storage_key) do
+    base_uri = URI.parse(base_url)
+
+    path =
+      [base_uri.path || "/", storage_key]
+      |> Enum.join("/")
+      |> String.replace(~r{/+}, "/")
+      |> encode_path()
+
+    %URI{base_uri | path: path, query: nil}
+    |> URI.to_string()
+  end
+
+  defp encode_path(path) do
+    path
+    |> String.split("/", trim: false)
+    |> Enum.map_join("/", fn segment ->
+      URI.encode(segment, fn char -> URI.char_unreserved?(char) end)
+    end)
+    |> normalize_path()
+  end
+
+  defp normalize_path(""), do: "/"
+
+  defp normalize_path(path) do
+    if String.starts_with?(path, "/"), do: path, else: "/" <> path
   end
 end

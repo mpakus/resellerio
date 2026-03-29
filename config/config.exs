@@ -42,7 +42,7 @@ config :reseller, Reseller.Media.Storage.Tigris,
 
 config :reseller, Reseller.Workers,
   processing_mode: :async,
-  product_processor: Reseller.Workers.NoopProductProcessor
+  product_processor: Reseller.Workers.AIProductProcessor
 
 config :backpex,
   pubsub_server: Reseller.PubSub,

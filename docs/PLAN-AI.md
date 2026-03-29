@@ -4,7 +4,7 @@
 
 - [x] Step AI1: Add Gemini and SerpApi configuration, client modules, and test doubles.
 - [x] Step AI2.1: Add image selection and confidence-based recognition orchestration.
-- [ ] Step AI2.2: Wire recognition pipeline into product/image records and background workers.
+- [x] Step AI2.2: Wire recognition pipeline into product/image records and background workers.
 - [ ] Step AI3: Add structured product description generation.
 - [ ] Step AI4: Add grounded price research with Gemini plus SerpApi comparables.
 - [ ] Step AI5: Add marketplace-specific listing generation.
@@ -12,9 +12,9 @@
 
 ## Latest AI Planning Status
 
-- Current status: AI foundation plus recognition orchestration implemented with image selection, confidence gating, SerpApi Lens fallback, and reconciliation.
-- Depends on: the real AI/media worker implementation from `docs/PLANS.md`.
-- Next implementation target: Step AI2.2 worker and product/image wiring once product/media foundations are ready.
+- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, and marks image states `ready` or `failed`.
+- Current limitation: this step uses finalized uploaded originals as the AI input source via `TIGRIS_BUCKET_URL`; normalization variants and Photoroom derivatives are still future work.
+- Next implementation target: Step AI3 structured description generation from the recognized product record.
 
 ## 1. Goal
 

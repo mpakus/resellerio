@@ -33,14 +33,16 @@ Implemented already:
 - Product and product-image schemas plus signed upload intent generation
 - Uploaded-image finalization and product state transitions into `processing`
 - Product processing run records and lightweight background worker execution
+- Real AI-backed product processing that persists recognition fields and closes image states
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
 Not implemented yet:
 
-- Product schemas and CRUD
-- Background jobs
-- Product-level AI pipeline wiring
+- Product edit/delete/sold lifecycle endpoints
+- Passkey authentication
+- Photoroom-powered image variants
+- Marketplace-specific listing generation
 - Import/export
 
 ## Local Development
@@ -60,12 +62,16 @@ Not implemented yet:
 
 ## AI Provider Setup
 
-The first AI integration layer is in place, but it is not wired into products yet.
+The recognition pipeline is now wired into product processing runs.
 
 - Gemini API key: `GEMINI_API_KEY`
 - Optional Gemini model overrides: `GEMINI_MODEL_RECOGNITION`, `GEMINI_MODEL_DESCRIPTION`, `GEMINI_MODEL_PRICE_RESEARCH`, `GEMINI_MODEL_RECONCILIATION`
 - SerpApi key: `SERPAPI_API_KEY`
-- Tigris upload signing config: `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET_URL`
+- Tigris upload signing and public image base: `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET_URL`
+
+Current implementation note:
+
+- `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
 
 ## Admin Access
 
