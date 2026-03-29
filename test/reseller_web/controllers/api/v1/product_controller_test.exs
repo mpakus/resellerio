@@ -156,17 +156,22 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
              "data" => %{
                "product" => %{
                  "status" => "processing",
+                 "latest_processing_run" => %{
+                   "status" => "completed",
+                   "step" => "awaiting_ai"
+                 },
                  "images" => [
                    %{
                      "id" => image_id,
-                     "processing_status" => "uploaded",
+                     "processing_status" => "processing",
                      "checksum" => "abc123",
                      "width" => 1200,
                      "height" => 1600
                    }
                  ]
                },
-               "finalized_images" => [%{"id" => finalized_id, "processing_status" => "uploaded"}]
+               "finalized_images" => [%{"id" => finalized_id, "processing_status" => "uploaded"}],
+               "processing_run" => %{"status" => "completed", "step" => "awaiting_ai"}
              }
            } = json_response(conn, 200)
 

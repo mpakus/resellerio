@@ -56,3 +56,7 @@ config :reseller, Reseller.Search, provider: Reseller.Support.Fakes.SearchProvid
 config :reseller, Reseller.Search.Providers.SerpApi, api_key: "test-serpapi-api-key"
 
 config :reseller, Reseller.Media, storage: Reseller.Support.Fakes.MediaStorage
+
+config :reseller, Reseller.Workers,
+  processing_mode: :inline,
+  product_processor: Reseller.Support.Fakes.ProductProcessor

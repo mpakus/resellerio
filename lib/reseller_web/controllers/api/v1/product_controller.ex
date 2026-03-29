@@ -59,11 +59,13 @@ defmodule ResellerWeb.API.V1.ProductController do
     uploads = Map.get(params, "uploads", [])
 
     case Catalog.finalize_product_uploads_for_user(conn.assigns.current_user, product_id, uploads) do
-      {:ok, %{product: product, finalized_images: finalized_images}} ->
+      {:ok,
+       %{product: product, finalized_images: finalized_images, processing_run: processing_run}} ->
         json(conn, %{
           data: %{
             product: product_json(product),
-            finalized_images: Enum.map(finalized_images, &image_json/1)
+            finalized_images: Enum.map(finalized_images, &image_json/1),
+            processing_run: processing_run && processing_run_json(processing_run)
           }
         })
 
@@ -121,6 +123,13 @@ defmodule ResellerWeb.API.V1.ProductController do
       archived_at: datetime_to_iso8601(product.archived_at),
       inserted_at: datetime_to_iso8601(product.inserted_at),
       updated_at: datetime_to_iso8601(product.updated_at),
+      latest_processing_run:
+        product.processing_runs
+        |> List.first()
+        |> case do
+          nil -> nil
+          run -> processing_run_json(run)
+        end,
       images: Enum.map(product.images || [], &image_json/1)
     }
   end
@@ -148,4 +157,19 @@ defmodule ResellerWeb.API.V1.ProductController do
   defp datetime_to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
   defp decimal_to_string(nil), do: nil
   defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp processing_run_json(run) do
+    %{
+      id: run.id,
+      status: run.status,
+      step: run.step,
+      started_at: datetime_to_iso8601(run.started_at),
+      finished_at: datetime_to_iso8601(run.finished_at),
+      error_code: run.error_code,
+      error_message: run.error_message,
+      inserted_at: datetime_to_iso8601(run.inserted_at),
+      updated_at: datetime_to_iso8601(run.updated_at),
+      payload: run.payload
+    }
+  end
 end

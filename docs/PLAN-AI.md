@@ -13,7 +13,7 @@
 ## Latest AI Planning Status
 
 - Current status: AI foundation plus recognition orchestration implemented with image selection, confidence gating, SerpApi Lens fallback, and reconciliation.
-- Depends on: background jobs from `docs/PLANS.md`.
+- Depends on: the real AI/media worker implementation from `docs/PLANS.md`.
 - Next implementation target: Step AI2.2 worker and product/image wiring once product/media foundations are ready.
 
 ## 1. Goal
@@ -44,11 +44,12 @@ The repo already has:
 - `Reseller.Catalog.Product` and `Reseller.Media.ProductImage`
 - signed upload intent generation for product images
 - upload finalization and uploaded-image state transitions
+- `Reseller.Workers.ProductProcessingRun` plus lightweight async worker orchestration
 
 The repo does not yet have:
 
-- background workers
 - product-level AI pipeline wiring
+- the real AI/media processing worker implementation
 
 So the orchestration layer now exists, but the persistence and background-job pieces for real uploaded product photos are still pending.
 

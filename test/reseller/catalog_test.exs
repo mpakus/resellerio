@@ -84,7 +84,12 @@ defmodule Reseller.CatalogTest do
 
     [image_one, image_two] = product.images
 
-    assert {:ok, %{product: finalized_product, finalized_images: finalized_images}} =
+    assert {:ok,
+            %{
+              product: finalized_product,
+              finalized_images: finalized_images,
+              processing_run: processing_run
+            }} =
              Catalog.finalize_product_uploads_for_user(user, product.id, [
                %{"id" => image_one.id, "checksum" => "abc", "width" => 1200, "height" => 1600},
                %{"id" => image_two.id, "checksum" => "def", "width" => 1201, "height" => 1601}
@@ -92,7 +97,8 @@ defmodule Reseller.CatalogTest do
 
     assert finalized_product.status == "processing"
     assert Enum.all?(finalized_images, &(&1.processing_status == "uploaded"))
-    assert Enum.all?(finalized_product.images, &(&1.processing_status == "uploaded"))
+    assert Enum.all?(finalized_product.images, &(&1.processing_status == "processing"))
+    assert processing_run.status == "completed"
   end
 
   test "finalize_product_uploads_for_user/3 rejects another user's image ids" do

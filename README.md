@@ -32,6 +32,7 @@ Implemented already:
 - Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
 - Product and product-image schemas plus signed upload intent generation
 - Uploaded-image finalization and product state transitions into `processing`
+- Product processing run records and lightweight background worker execution
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 

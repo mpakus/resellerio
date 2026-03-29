@@ -6,6 +6,7 @@ defmodule Reseller.Catalog do
   alias Reseller.Catalog.Product
   alias Reseller.Media
   alias Reseller.Repo
+  alias Reseller.Workers
 
   def list_products_for_user(%User{id: user_id}) do
     Product
@@ -54,7 +55,16 @@ defmodule Reseller.Catalog do
         {:error, :not_found}
 
       product ->
-        Media.finalize_product_uploads(Repo, product, uploads)
+        with {:ok, %{product: product, finalized_images: finalized_images}} <-
+               Media.finalize_product_uploads(Repo, product, uploads),
+             {:ok, processing_run} <- maybe_start_processing(product) do
+          {:ok,
+           %{
+             product: refresh_product(product),
+             finalized_images: finalized_images,
+             processing_run: processing_run
+           }}
+        end
     end
   end
 
@@ -67,7 +77,19 @@ defmodule Reseller.Catalog do
   defp product_preload do
     [
       images:
-        from(image in Reseller.Media.ProductImage, order_by: [asc: image.position, asc: image.id])
+        from(image in Reseller.Media.ProductImage, order_by: [asc: image.position, asc: image.id]),
+      processing_runs:
+        from(run in Reseller.Workers.ProductProcessingRun,
+          order_by: [desc: run.inserted_at, desc: run.id]
+        )
     ]
   end
+
+  defp maybe_start_processing(%Product{status: "processing"} = product) do
+    Workers.start_product_processing(product)
+  end
+
+  defp maybe_start_processing(_product), do: {:ok, nil}
+
+  defp refresh_product(product), do: Repo.preload(product, product_preload(), force: true)
 end

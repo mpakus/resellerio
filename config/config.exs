@@ -40,6 +40,10 @@ config :reseller, Reseller.Media.Storage.Tigris,
   region: "auto",
   expires_in: 900
 
+config :reseller, Reseller.Workers,
+  processing_mode: :async,
+  product_processor: Reseller.Workers.NoopProductProcessor
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

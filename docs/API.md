@@ -202,6 +202,7 @@ Response:
         "title": "Vintage blazer",
         "brand": "Ralph Lauren",
         "category": "Blazers",
+        "latest_processing_run": null,
         "images": []
       }
     ]
@@ -263,6 +264,7 @@ Response:
       "title": "Nike Air Max",
       "brand": "Nike",
       "category": "Sneakers",
+      "latest_processing_run": null,
       "images": [
         {
           "id": 1,
@@ -349,10 +351,15 @@ Response:
     "product": {
       "id": 1,
       "status": "processing",
+      "latest_processing_run": {
+        "id": 12,
+        "status": "completed",
+        "step": "awaiting_ai"
+      },
       "images": [
         {
           "id": 1,
-          "processing_status": "uploaded",
+          "processing_status": "processing",
           "checksum": "abc123",
           "width": 1200,
           "height": 1600
@@ -364,10 +371,56 @@ Response:
         "id": 1,
         "processing_status": "uploaded"
       }
-    ]
+    ],
+    "processing_run": {
+      "id": 12,
+      "status": "completed",
+      "step": "awaiting_ai",
+      "payload": {
+        "message": "Background processing foundation executed"
+      }
+    }
   }
 }
 ```
+
+Current behavior note:
+
+- the finalize endpoint immediately creates a `product_processing_run`
+- in the current test and foundation setup, the lightweight background worker completes quickly and moves finalized images from `uploaded` to `processing`
+- the real AI/image-processing pipeline will attach to this run system in the next Step 4 slice
+
+### Product Processing Status
+
+Product payloads now expose `latest_processing_run` so clients can track background progress without a separate worker endpoint yet.
+
+Example:
+
+```json
+{
+  "latest_processing_run": {
+    "id": 12,
+    "status": "completed",
+    "step": "awaiting_ai",
+    "started_at": "2026-03-29T20:30:00Z",
+    "finished_at": "2026-03-29T20:30:01Z",
+    "error_code": null,
+    "error_message": null,
+    "payload": {
+      "message": "Background processing foundation executed"
+    }
+  }
+}
+```
+
+Run status values currently used:
+
+- `queued`
+- `running`
+- `completed`
+- `failed`
+
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, and `awaiting_ai`.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

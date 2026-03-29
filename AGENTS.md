@@ -37,6 +37,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Media` context with `product_images` and signed upload intent generation.
 - Uploaded-image finalization via `POST /api/v1/products/:id/finalize_uploads`.
 - Authenticated product API endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`.
+- `Reseller.Workers` context with `ProductProcessingRun` records and lightweight async task execution.
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
@@ -44,9 +45,9 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
-- Product and image persistence plus upload finalization foundations now exist, but worker orchestration does not yet.
-- No product/image-to-worker orchestration from finalized uploads into AI processing yet.
-- No background-worker orchestration for AI yet.
+- Product and image persistence plus upload finalization foundations now exist.
+- Lightweight processing-run and async worker orchestration now exist.
+- No real AI/media worker orchestration is connected yet beyond the placeholder processor.
 - No export or marketplace contexts yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
@@ -122,6 +123,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 - Upload finalization should go through `Reseller.Media.finalize_product_uploads/3` or `Reseller.Catalog.finalize_product_uploads_for_user/3`, not custom controller logic.
+- Product processing should be queued through `Reseller.Workers.start_product_processing/2`, not by spawning ad hoc tasks from controllers.
 
 ## Testing guidance
 
@@ -136,6 +138,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - For AI pipeline logic, keep orchestration in small, composable modules like image selection, normalization, and pipeline runners so worker integration stays thin later.
 - For product/upload work, test both the context transaction and the authenticated API response shape, especially image placeholders and upload instructions.
 - For finalize-upload work, also test ownership checks, duplicate image IDs, and product/image status transitions.
+- For worker foundations, test both the success and failure run states, and keep processors behind a behaviour so the real AI pipeline can be swapped in later.
 
 ## Delivery priorities
 

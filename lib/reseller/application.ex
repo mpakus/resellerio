@@ -12,8 +12,7 @@ defmodule Reseller.Application do
       Reseller.Repo,
       {DNSCluster, query: Application.get_env(:reseller, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Reseller.PubSub},
-      # Start a worker by calling: Reseller.Worker.start_link(arg)
-      # {Reseller.Worker, arg},
+      {Task.Supervisor, name: Reseller.Workers.TaskSupervisor},
       # Start to serve requests, typically the last entry
       ResellerWeb.Endpoint
     ]
