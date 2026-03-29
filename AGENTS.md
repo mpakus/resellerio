@@ -23,11 +23,14 @@ The backend also needs:
 
 ## Current repo status
 
-The project is currently an almost empty Phoenix skeleton:
+The project is currently a mostly empty Phoenix application with the first API foundation slice implemented:
 
-- Default landing page route only.
+- Default landing page route.
+- Versioned `/api/v1` namespace.
+- `GET /api/v1/health` endpoint.
+- Stable JSON API error shape.
 - No auth system yet.
-- No domain schemas, contexts, or API endpoints yet.
+- No domain schemas or business contexts yet.
 - No background job system yet.
 - No storage, AI, or marketplace integrations yet.
 
@@ -108,6 +111,9 @@ Build in this order unless a task explicitly says otherwise:
 
 ## Implementation notes for future agents
 
+- Update `docs/PLANS.md` before or during each feature so progress stays visible in-repo.
+- Keep one feature per git commit whenever practical.
+- Run `mix precommit` before closing out a feature.
 - Prefer additive, well-scoped migrations. This project will likely evolve quickly as product requirements settle.
 - When naming things, use `Product`, not `Production`, unless you are touching a user-facing string that explicitly requires different wording.
 - Design APIs for mobile reliability: idempotent creation endpoints, resumable upload flows where possible, and explicit processing states.

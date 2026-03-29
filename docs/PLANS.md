@@ -11,14 +11,29 @@
 - [ ] Step 7: ZIP export generation and export-ready email flow.
 - [ ] Step 8: ZIP import flow.
 
+## Latest Progress
+
+- Completed: Step 1 API foundation.
+- Commit: `509c712` (`Add API v1 foundation`)
+- Current API endpoint: `GET /api/v1/health`
+- Next target: Step 2 accounts foundation.
+
+## Working Rules
+
+- Update this file before creating each feature commit.
+- Keep one feature per git commit.
+- Run `mix precommit` before finishing the feature branch or checkpoint.
+
 ## 1. Current State
 
-This repository is a fresh Phoenix 1.8 application with:
+This repository is a Phoenix 1.8 application with early API foundation already in place:
 
 - Phoenix, Ecto, Bandit, Swoosh, Req, LiveView, and Tailwind already present.
 - A default browser pipeline and landing page.
+- A versioned `/api/v1` namespace.
+- A health endpoint at `GET /api/v1/health`.
+- A stable JSON error response shape for API requests.
 - No authentication.
-- No API routes.
 - No Ecto schemas beyond the repo itself.
 - No background job infrastructure.
 - No storage or AI integrations.
@@ -484,6 +499,7 @@ Implementation notes:
 
 - Step 1 is now complete in the codebase.
 - Each completed feature should update this tracker before its commit is created.
+- The next implementation milestone is Step 2: accounts foundation.
 
 ## 14. Working Assumptions
 
