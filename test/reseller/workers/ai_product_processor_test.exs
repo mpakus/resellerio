@@ -46,14 +46,43 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                       "key_features" => ["Visible air unit", "Mesh upper"],
                       "seo_keywords" => ["nike air max 90", "white sneakers"]
                     }
+                  }},
+               shopping_result:
+                 {:ok,
+                  %{
+                    provider: :serp_api,
+                    matches: [
+                      %{"title" => "Nike Air Max 90", "price" => 129.0, "source" => "GOAT"}
+                    ]
+                  }},
+               price_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-pricing",
+                    output: %{
+                      "currency" => "USD",
+                      "suggested_min_price" => 110,
+                      "suggested_target_price" => 125,
+                      "suggested_max_price" => 145,
+                      "suggested_median_price" => 126,
+                      "pricing_confidence" => 0.82,
+                      "rationale_summary" =>
+                        "Recent comparable sales center around the mid-120s.",
+                      "market_signals" => ["Strong sneaker demand"],
+                      "comparable_results" => [
+                        %{"title" => "Nike Air Max 90", "price" => 129.0, "source" => "GOAT"}
+                      ]
+                    }
                   }}
              )
 
     assert run.status == "completed"
-    assert run.step == "description_generated"
+    assert run.step == "price_researched"
     assert run.payload["pipeline_status"] == "recognized"
     assert run.payload["final"]["brand"] == "Nike"
     assert run.payload["description_draft"]["suggested_title"] == "Nike Air Max 90"
+    assert run.payload["price_research"]["suggested_target_price"] == "125"
 
     refreshed_product = Catalog.get_product_for_user(user, product.id)
 
@@ -67,6 +96,12 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert refreshed_product.ai_confidence == 0.91
     assert refreshed_product.description_draft.suggested_title == "Nike Air Max 90"
     assert refreshed_product.description_draft.short_description =~ "Classic Nike Air Max 90"
+    assert refreshed_product.price_research.currency == "USD"
+
+    assert Decimal.to_string(refreshed_product.price_research.suggested_target_price, :normal) ==
+             "125.00"
+
+    assert refreshed_product.price_research.rationale_summary =~ "mid-120s"
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
     assert_received {:ai_provider_called, :recognize_images, [image_input], metadata, _opts}
@@ -77,6 +112,11 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert_received {:ai_provider_called, :generate_description, description_attrs, _opts}
     assert description_attrs["brand"] == "Nike"
     assert description_attrs["recognition"]["possible_model"] == "Air Max 90"
+    assert_received {:search_provider_called, :shopping_matches, shopping_query, _opts}
+    assert shopping_query == "Nike Nike Air Max 90 Sneakers"
+    assert_received {:ai_provider_called, :research_price, pricing_attrs, search_results, _opts}
+    assert pricing_attrs["title"] == "Nike Air Max 90"
+    assert length(search_results["shopping_matches"]) == 1
 
     refute_received {:search_provider_called, :lens_matches, _, _}
   end
@@ -143,11 +183,43 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                       "missing_details_warning" =>
                         "Verify hardware finish and strap details before listing."
                     }
+                  }},
+               shopping_result:
+                 {:ok,
+                  %{
+                    provider: :serp_api,
+                    matches: [
+                      %{"title" => "Coach Tabby 26", "price" => 210.0, "source" => "Fashionphile"}
+                    ]
+                  }},
+               price_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-pricing",
+                    output: %{
+                      "currency" => "USD",
+                      "suggested_min_price" => 180,
+                      "suggested_target_price" => 205,
+                      "suggested_max_price" => 235,
+                      "suggested_median_price" => 208,
+                      "pricing_confidence" => 0.58,
+                      "rationale_summary" =>
+                        "Comparable resale listings vary by hardware and condition.",
+                      "market_signals" => ["Luxury bag pricing varies by condition"],
+                      "comparable_results" => [
+                        %{
+                          "title" => "Coach Tabby 26",
+                          "price" => 210.0,
+                          "source" => "Fashionphile"
+                        }
+                      ]
+                    }
                   }}
              )
 
     assert run.status == "completed"
-    assert run.step == "description_generated"
+    assert run.step == "price_researched"
     assert run.payload["pipeline_status"] == "reconciled"
     assert length(run.payload["search_matches"]) == 1
     assert run.payload["final"]["possible_model"] == "Tabby 26"
@@ -161,6 +233,11 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert refreshed_product.ai_summary == "Coach Tabby 26 shoulder bag"
     assert refreshed_product.description_draft.status == "review"
     assert refreshed_product.description_draft.missing_details_warning =~ "Verify hardware finish"
+    assert refreshed_product.price_research.status == "review"
+
+    assert Decimal.to_string(refreshed_product.price_research.suggested_median_price, :normal) ==
+             "208.00"
+
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
     assert_received {:search_provider_called, :lens_matches,
@@ -216,6 +293,39 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert refreshed_product.title == "User-entered title"
     assert refreshed_product.description_draft.id == draft.id
     assert refreshed_product.description_draft.suggested_title == "Generated title"
+  end
+
+  test "upsert_product_price_research/2 stores generated pricing separately from product fields" do
+    user = user_fixture()
+    product = product_fixture(user, %{"price" => Decimal.new("300.00")})
+
+    assert {:ok, price_research} =
+             AI.upsert_product_price_research(product, %{
+               provider: :gemini,
+               model: "gemini-pricing",
+               output: %{
+                 "currency" => "USD",
+                 "suggested_min_price" => 110,
+                 "suggested_target_price" => 125,
+                 "suggested_max_price" => 145,
+                 "suggested_median_price" => 126,
+                 "pricing_confidence" => 0.81,
+                 "rationale_summary" => "Comparable sales support a mid-range price.",
+                 "market_signals" => ["Steady demand"],
+                 "comparable_results" => [%{"title" => "Comparable item", "price" => 129.0}]
+               }
+             })
+
+    assert price_research.currency == "USD"
+    assert Decimal.equal?(price_research.suggested_target_price, Decimal.new("125"))
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert Decimal.to_string(refreshed_product.price, :normal) == "300.00"
+    assert refreshed_product.price_research.id == price_research.id
+
+    assert Decimal.to_string(refreshed_product.price_research.suggested_median_price, :normal) ==
+             "126.00"
   end
 
   defp finalized_product_fixture(user) do

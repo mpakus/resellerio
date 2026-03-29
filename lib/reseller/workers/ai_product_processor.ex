@@ -10,6 +10,7 @@ defmodule Reseller.Workers.AIProductProcessor do
   alias Reseller.Catalog
   alias Reseller.Catalog.Product
   alias Reseller.Media
+  alias Reseller.Search
 
   @impl true
   def process(%Product{} = product, opts) do
@@ -20,11 +21,15 @@ defmodule Reseller.Workers.AIProductProcessor do
            AI.generate_description(description_input(updated_product, result.final), opts),
          {:ok, description_draft} <-
            AI.upsert_product_description_draft(updated_product, description_result),
+         {:ok, search_results} <- price_search_results(updated_product, result, opts),
+         {:ok, price_result} <-
+           AI.research_price(price_input(updated_product, result.final), search_results, opts),
+         {:ok, price_research} <- AI.upsert_product_price_research(updated_product, price_result),
          {:ok, _updated_count} <- Media.mark_product_images_ready(updated_product) do
       {:ok,
        %{
-         step: "description_generated",
-         payload: build_payload(updated_product, result, description_draft)
+         step: "price_researched",
+         payload: build_payload(updated_product, result, description_draft, price_research)
        }}
     else
       {:error, reason} -> {:error, format_error(reason)}
@@ -57,7 +62,22 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
-  defp build_payload(%Product{} = product, result, description_draft) do
+  defp price_input(%Product{} = product, final_result) do
+    %{
+      "product_id" => product.id,
+      "title" => product.title,
+      "brand" => product.brand,
+      "category" => product.category,
+      "condition" => product.condition,
+      "color" => product.color,
+      "size" => product.size,
+      "material" => product.material,
+      "ai_summary" => product.ai_summary,
+      "recognition" => final_result
+    }
+  end
+
+  defp build_payload(%Product{} = product, result, description_draft, price_research) do
     %{
       "pipeline_status" => Atom.to_string(result.status),
       "selected_image_count" => length(result.selected_images),
@@ -71,6 +91,14 @@ defmodule Reseller.Workers.AIProductProcessor do
         "suggested_title" => description_draft.suggested_title,
         "short_description" => description_draft.short_description
       },
+      "price_research" => %{
+        "id" => price_research.id,
+        "status" => price_research.status,
+        "currency" => price_research.currency,
+        "suggested_target_price" => decimal_to_string(price_research.suggested_target_price),
+        "suggested_median_price" => decimal_to_string(price_research.suggested_median_price),
+        "pricing_confidence" => price_research.pricing_confidence
+      },
       "product" => %{
         "id" => product.id,
         "status" => product.status,
@@ -82,6 +110,48 @@ defmodule Reseller.Workers.AIProductProcessor do
         "ai_confidence" => product.ai_confidence
       }
     }
+  end
+
+  defp price_search_results(%Product{} = product, result, opts) do
+    shopping_query = price_query(product, result.final)
+
+    with {:ok, shopping_matches} <- maybe_fetch_shopping_matches(shopping_query, opts) do
+      {:ok,
+       %{
+         "lens_matches" => search_matches(result.search),
+         "shopping_matches" => shopping_matches,
+         "shopping_query" => shopping_query
+       }}
+    end
+  end
+
+  defp price_query(%Product{} = product, final_result) do
+    [
+      product.brand || final_result["brand"],
+      product.title,
+      product.category || final_result["category"]
+    ]
+    |> Enum.filter(&present?/1)
+    |> Enum.uniq()
+    |> Enum.join(" ")
+  end
+
+  defp maybe_fetch_shopping_matches("", _opts), do: {:ok, []}
+
+  defp maybe_fetch_shopping_matches(query, opts) do
+    case Search.shopping_matches(query, search_opts(opts)) do
+      {:ok, %{matches: matches}} when is_list(matches) ->
+        {:ok, Enum.map(matches, &stringify_map/1)}
+
+      {:ok, %{"matches" => matches}} when is_list(matches) ->
+        {:ok, Enum.map(matches, &stringify_map/1)}
+
+      {:ok, _result} ->
+        {:ok, []}
+
+      {:error, reason} ->
+        {:error, {:shopping_search_failed, reason}}
+    end
   end
 
   defp search_matches(nil), do: []
@@ -118,12 +188,26 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
+  defp format_error({:shopping_search_failed, reason}) do
+    %{
+      code: "shopping_search_failed",
+      message: "External shopping search failed: #{inspect(reason)}",
+      payload: %{"reason" => inspect(reason)}
+    }
+  end
+
   defp format_error(reason) do
     %{
       code: "processor_error",
       message: "AI product processing failed: #{inspect(reason)}",
       payload: %{"reason" => inspect(reason)}
     }
+  end
+
+  defp search_opts(opts) do
+    opts
+    |> Keyword.take([:request_fun, :config, :query, :hl, :gl, :shopping_result, :lens_result])
+    |> Keyword.put_new(:provider, Keyword.get(opts, :search_provider, Search.provider()))
   end
 
   defp stringify_map(map) when is_map(map) do
@@ -136,4 +220,10 @@ defmodule Reseller.Workers.AIProductProcessor do
 
   defp stringify_value(value) when is_map(value), do: stringify_map(value)
   defp stringify_value(value), do: value
+
+  defp decimal_to_string(nil), do: nil
+  defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(_value), do: false
 end

@@ -6,15 +6,15 @@
 - [x] Step AI2.1: Add image selection and confidence-based recognition orchestration.
 - [x] Step AI2.2: Wire recognition pipeline into product/image records and background workers.
 - [x] Step AI3: Add structured product description generation.
-- [ ] Step AI4: Add grounded price research with Gemini plus SerpApi comparables.
+- [x] Step AI4: Add grounded price research with Gemini plus SerpApi comparables.
 - [ ] Step AI5: Add marketplace-specific listing generation.
 - [ ] Step AI6: Add admin observability, retries, and cost controls.
 
 ## Latest AI Planning Status
 
-- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, and marks image states `ready` or `failed`.
+- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, and marks image states `ready` or `failed`.
 - Current limitation: this step uses finalized uploaded originals as the AI input source via `TIGRIS_BUCKET_URL`; normalization variants and Photoroom derivatives are still future work.
-- Next implementation target: Step AI4 grounded price research from recognized products plus SerpApi comparables.
+- Next implementation target: Step AI5 marketplace-specific listing generation from the recognized product, description draft, and price research record.
 
 ## 1. Goal
 

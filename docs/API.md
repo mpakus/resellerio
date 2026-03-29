@@ -204,6 +204,7 @@ Response:
         "category": "Blazers",
         "latest_processing_run": null,
         "description_draft": null,
+        "price_research": null,
         "images": []
       }
     ]
@@ -267,6 +268,7 @@ Response:
       "category": "Sneakers",
       "latest_processing_run": null,
       "description_draft": null,
+      "price_research": null,
       "images": [
         {
           "id": 1,
@@ -359,6 +361,7 @@ Response:
         "step": "queued"
       },
       "description_draft": null,
+      "price_research": null,
       "images": [
         {
           "id": 1,
@@ -392,6 +395,7 @@ Current behavior notes:
 - the worker uses finalized original uploads as Gemini and SerpApi inputs, using `TIGRIS_BUCKET_URL` as the public image base
 - when recognition finishes, the product moves to `ready` or `review`
 - when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
+- when price research finishes, the product may also include a `price_research` object with grounded price ranges and comparables
 - on success, in-flight images move from `processing` to `ready`
 - on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
 
@@ -406,7 +410,7 @@ Example:
   "latest_processing_run": {
     "id": 12,
     "status": "completed",
-    "step": "description_generated",
+    "step": "price_researched",
     "started_at": "2026-03-29T20:30:00Z",
     "finished_at": "2026-03-29T20:30:01Z",
     "error_code": null,
@@ -419,6 +423,14 @@ Example:
         "status": "generated",
         "suggested_title": "Nike Air Max 90",
         "short_description": "Classic Nike Air Max 90 sneakers in white mesh."
+      },
+      "price_research": {
+        "id": 4,
+        "status": "generated",
+        "currency": "USD",
+        "suggested_target_price": "125.00",
+        "suggested_median_price": "126.00",
+        "pricing_confidence": 0.82
       },
       "final": {
         "brand": "Nike",
@@ -439,7 +451,7 @@ Run status values currently used:
 - `completed`
 - `failed`
 
-The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, and `description_generated`.
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, and `price_researched`.
 
 ### Description Drafts
 
@@ -463,6 +475,38 @@ Product payloads may include a `description_draft` object after AI processing co
 ```
 
 These drafts are AI-authored base copy and are stored separately from editable product fields.
+
+### Price Research
+
+Product payloads may include a `price_research` object after AI processing completes:
+
+```json
+{
+  "price_research": {
+    "id": 4,
+    "status": "generated",
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "currency": "USD",
+    "suggested_min_price": "110.00",
+    "suggested_target_price": "125.00",
+    "suggested_max_price": "145.00",
+    "suggested_median_price": "126.00",
+    "pricing_confidence": 0.82,
+    "rationale_summary": "Recent comparable sales center around the mid-120s.",
+    "market_signals": ["Strong sneaker demand"],
+    "comparable_results": [
+      {
+        "title": "Nike Air Max 90",
+        "price": 129.0,
+        "source": "GOAT"
+      }
+    ]
+  }
+}
+```
+
+This record is advisory pricing data and is stored separately from any user-entered sale price on the product.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

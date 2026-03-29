@@ -35,6 +35,7 @@ Implemented already:
 - Product processing run records and lightweight background worker execution
 - Real AI-backed product processing that persists recognition fields and closes image states
 - AI-generated base description drafts stored separately from editable product fields
+- AI-generated price research stored separately from editable product pricing
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -74,6 +75,7 @@ Current implementation note:
 
 - `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
+- recognized products can now also receive a generated `product_price_research` during the same processing run
 
 ## Admin Access
 

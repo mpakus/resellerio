@@ -6,6 +6,7 @@ defmodule Reseller.AI do
 
   alias Reseller.AI.Provider
   alias Reseller.AI.ProductDescriptionDraft
+  alias Reseller.AI.ProductPriceResearch
   alias Reseller.Catalog.Product
   alias Reseller.Repo
 
@@ -62,6 +63,31 @@ defmodule Reseller.AI do
     end
   end
 
+  @spec get_product_price_research(pos_integer()) :: ProductPriceResearch.t() | nil
+  def get_product_price_research(product_id) when is_integer(product_id) do
+    Repo.get_by(ProductPriceResearch, product_id: product_id)
+  end
+
+  @spec upsert_product_price_research(Product.t(), map()) ::
+          {:ok, ProductPriceResearch.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_product_price_research(%Product{} = product, price_result)
+      when is_map(price_result) do
+    attrs = price_research_attrs(price_result)
+
+    case get_product_price_research(product.id) do
+      nil ->
+        %ProductPriceResearch{}
+        |> ProductPriceResearch.create_changeset(attrs)
+        |> Ecto.Changeset.put_assoc(:product, product)
+        |> Repo.insert()
+
+      price_research ->
+        price_research
+        |> ProductPriceResearch.update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
   @spec provider(keyword()) :: module()
   def provider(opts \\ []) do
     Keyword.get(opts, :provider, Application.fetch_env!(:reseller, __MODULE__)[:provider])
@@ -88,6 +114,51 @@ defmodule Reseller.AI do
       "raw_payload" => stringify_keys(output)
     }
   end
+
+  defp price_research_attrs(result) do
+    output =
+      case result do
+        %{output: output} when is_map(output) -> output
+        %{"output" => output} when is_map(output) -> output
+        output when is_map(output) -> output
+      end
+
+    comparable_results =
+      output["comparable_results"]
+      |> normalize_comparable_results()
+
+    %{
+      "status" => price_research_status(output),
+      "provider" => provider_name(result),
+      "model" => model_name(result),
+      "currency" => output["currency"] || "USD",
+      "suggested_min_price" => output["suggested_min_price"],
+      "suggested_target_price" => output["suggested_target_price"],
+      "suggested_max_price" => output["suggested_max_price"],
+      "suggested_median_price" => output["suggested_median_price"],
+      "pricing_confidence" => output["pricing_confidence"],
+      "rationale_summary" => output["rationale_summary"],
+      "market_signals" => output["market_signals"] || [],
+      "comparable_results" => %{"items" => comparable_results},
+      "raw_payload" => stringify_keys(output)
+    }
+  end
+
+  defp price_research_status(output) do
+    if is_binary(output["rationale_summary"]) and String.trim(output["rationale_summary"]) != "" and
+         is_number(output["pricing_confidence"]) and output["pricing_confidence"] >= 0.6 do
+      "generated"
+    else
+      "review"
+    end
+  end
+
+  defp normalize_comparable_results(nil), do: []
+
+  defp normalize_comparable_results(results) when is_list(results),
+    do: Enum.map(results, &stringify_keys/1)
+
+  defp normalize_comparable_results(_results), do: []
 
   defp provider_name(%{provider: provider}) when is_atom(provider), do: Atom.to_string(provider)
   defp provider_name(%{"provider" => provider}) when is_binary(provider), do: provider

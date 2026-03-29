@@ -165,6 +165,50 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            } = json_response(conn, 200)
   end
 
+  test "GET /api/v1/products/:id includes price_research when pricing exists", %{
+    conn: conn,
+    user: user
+  } do
+    product = product_fixture(user, %{"title" => "Seller product"})
+
+    assert {:ok, _price_research} =
+             AI.upsert_product_price_research(product, %{
+               provider: :gemini,
+               model: "gemini-pricing",
+               output: %{
+                 "currency" => "USD",
+                 "suggested_min_price" => 100,
+                 "suggested_target_price" => 120,
+                 "suggested_max_price" => 140,
+                 "suggested_median_price" => 122,
+                 "pricing_confidence" => 0.79,
+                 "rationale_summary" => "Comparable listings cluster around 120 dollars.",
+                 "market_signals" => ["Strong demand", "Fast sell-through"],
+                 "comparable_results" => [%{"title" => "Comparable item", "price" => 119.0}]
+               }
+             })
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "price_research" => %{
+                   "status" => "generated",
+                   "provider" => "gemini",
+                   "model" => "gemini-pricing",
+                   "currency" => "USD",
+                   "suggested_target_price" => "120.00",
+                   "suggested_median_price" => "122.00",
+                   "pricing_confidence" => 0.79,
+                   "market_signals" => ["Strong demand", "Fast sell-through"],
+                   "comparable_results" => [%{"title" => "Comparable item", "price" => 119.0}]
+                 }
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "POST /api/v1/products/:id/finalize_uploads marks uploads as uploaded", %{
     conn: conn,
     user: user

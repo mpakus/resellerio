@@ -131,6 +131,7 @@ defmodule ResellerWeb.API.V1.ProductController do
           run -> processing_run_json(run)
         end,
       description_draft: description_draft_json(product.description_draft),
+      price_research: price_research_json(product.price_research),
       images: Enum.map(product.images || [], &image_json/1)
     }
   end
@@ -190,6 +191,28 @@ defmodule ResellerWeb.API.V1.ProductController do
       missing_details_warning: draft.missing_details_warning,
       inserted_at: datetime_to_iso8601(draft.inserted_at),
       updated_at: datetime_to_iso8601(draft.updated_at)
+    }
+  end
+
+  defp price_research_json(nil), do: nil
+
+  defp price_research_json(price_research) do
+    %{
+      id: price_research.id,
+      status: price_research.status,
+      provider: price_research.provider,
+      model: price_research.model,
+      currency: price_research.currency,
+      suggested_min_price: decimal_to_string(price_research.suggested_min_price),
+      suggested_target_price: decimal_to_string(price_research.suggested_target_price),
+      suggested_max_price: decimal_to_string(price_research.suggested_max_price),
+      suggested_median_price: decimal_to_string(price_research.suggested_median_price),
+      pricing_confidence: price_research.pricing_confidence,
+      rationale_summary: price_research.rationale_summary,
+      market_signals: price_research.market_signals,
+      comparable_results: Map.get(price_research.comparable_results || %{}, "items", []),
+      inserted_at: datetime_to_iso8601(price_research.inserted_at),
+      updated_at: datetime_to_iso8601(price_research.updated_at)
     }
   end
 end

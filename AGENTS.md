@@ -49,6 +49,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Lightweight processing-run and async worker orchestration now exist.
 - `Reseller.Workers.AIProductProcessor` now connects finalized uploads to `Reseller.AI.RecognitionPipeline` and persists normalized AI fields back to `products`.
 - `product_description_drafts` now store AI-authored base titles and descriptions separately from user-editable product fields.
+- `product_price_researches` now store AI-authored pricing guidance and comparable evidence separately from user-entered product pricing.
 - No export or marketplace contexts yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
@@ -80,6 +81,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Store both original and processed image variants; never overwrite the original upload.
 - AI output should be reviewable and editable by the user. Do not design flows that assume AI is always correct.
 - Keep generated base copy in dedicated draft records instead of overwriting user-edited product fields.
+- Keep generated pricing guidance in dedicated research records instead of overwriting any user-entered `products.price`.
 
 ## Suggested context boundaries
 
@@ -123,6 +125,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Capture external request IDs and normalized error payloads for observability.
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
 - Base description drafts should go through `Reseller.AI.upsert_product_description_draft/2` so generated copy stays separate from the core product record.
+- Price guidance should go through `Reseller.AI.upsert_product_price_research/2` so grounded pricing stays separate from the core product record.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 - The current AI worker builds public object URLs from `TIGRIS_BUCKET_URL`. Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.
