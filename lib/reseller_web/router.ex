@@ -22,9 +22,20 @@ defmodule ResellerWeb.Router do
   scope "/", ResellerWeb do
     pipe_through :browser
 
-    live "/", HomeLive
-    live "/sign-up", Auth.SignUpLive
-    live "/sign-in", Auth.SignInLive
+    live_session :current_user, on_mount: [{ResellerWeb.LiveUserAuth, :mount_current_user}] do
+      live "/", HomeLive
+    end
+
+    live_session :redirect_if_authenticated,
+      on_mount: [{ResellerWeb.LiveUserAuth, :redirect_if_authenticated}] do
+      live "/sign-up", Auth.SignUpLive
+      live "/sign-in", Auth.SignInLive
+    end
+
+    live_session :authenticated, on_mount: [{ResellerWeb.LiveUserAuth, :ensure_authenticated}] do
+      live "/app", WorkspaceLive
+    end
+
     post "/sign-up", RegistrationController, :create
     post "/sign-in", SessionController, :create
     delete "/sign-out", SessionController, :delete

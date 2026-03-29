@@ -23,7 +23,7 @@ defmodule ResellerWeb.SessionControllerTest do
         }
       })
 
-    assert redirected_to(conn) == ~p"/"
+    assert redirected_to(conn) == ~p"/app"
     assert get_session(conn, :user_id)
     assert Flash.get(conn.assigns.flash, :info) == "Welcome back."
   end

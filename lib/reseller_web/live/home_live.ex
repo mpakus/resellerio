@@ -9,7 +9,7 @@ defmodule ResellerWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} current_user={@current_user}>
       <section
         id="home-hero"
         class="relative overflow-hidden border-b border-base-300/60 bg-base-100"
@@ -36,13 +36,23 @@ defmodule ResellerWeb.HomeLive do
             </p>
 
             <div class="mt-10 flex flex-col gap-3 sm:flex-row">
-              <.link
-                id="hero-primary-cta"
-                navigate={~p"/sign-up"}
-                class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
-              >
-                Create account
-              </.link>
+              <%= if @current_user do %>
+                <.link
+                  id="hero-primary-cta"
+                  navigate={~p"/app"}
+                  class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
+                >
+                  Open workspace
+                </.link>
+              <% else %>
+                <.link
+                  id="hero-primary-cta"
+                  navigate={~p"/sign-up"}
+                  class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
+                >
+                  Create account
+                </.link>
+              <% end %>
               <a
                 id="hero-secondary-cta"
                 href="#launch"
@@ -219,9 +229,15 @@ defmodule ResellerWeb.HomeLive do
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row lg:flex-col">
-              <.link navigate={~p"/sign-up"} class="btn btn-primary rounded-full px-7">
-                Create account
-              </.link>
+              <%= if @current_user do %>
+                <.link navigate={~p"/app"} class="btn btn-primary rounded-full px-7">
+                  Open workspace
+                </.link>
+              <% else %>
+                <.link navigate={~p"/sign-up"} class="btn btn-primary rounded-full px-7">
+                  Create account
+                </.link>
+              <% end %>
               <a href="#home-hero" class="btn btn-ghost rounded-full px-7">Back to top</a>
             </div>
           </div>

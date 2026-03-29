@@ -10,7 +10,7 @@ defmodule ResellerWeb.SessionController do
         conn
         |> BrowserAuth.log_in_user(user)
         |> put_flash(:info, "Welcome back.")
-        |> redirect(to: ~p"/")
+        |> redirect(to: ~p"/app")
 
       {:error, :invalid_credentials} ->
         conn

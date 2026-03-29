@@ -14,7 +14,7 @@ defmodule ResellerWeb.Auth.SignUpLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} current_user={@current_user}>
       <section class="relative overflow-hidden bg-base-100">
         <div class="reseller-hero-grid absolute inset-0 opacity-60"></div>
         <div class="reseller-orb absolute -left-12 top-12 size-72 rounded-full bg-primary/12 blur-3xl">

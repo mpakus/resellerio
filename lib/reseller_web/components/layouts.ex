@@ -31,6 +31,8 @@ defmodule ResellerWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :current_user, :map, default: nil, doc: "the current signed in user"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -53,15 +55,29 @@ defmodule ResellerWeb.Layouts do
             <a href="#markets" class="btn btn-ghost btn-sm rounded-full">Markets</a>
             <a href="#launch" class="btn btn-ghost btn-sm rounded-full">Launch</a>
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API v1</a>
-            <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
-            <.link navigate={~p"/sign-up"} class="btn btn-primary btn-sm rounded-full">
-              Create account
-            </.link>
+            <%= if @current_user do %>
+              <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
+              <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm rounded-full">
+                Sign out
+              </.link>
+            <% else %>
+              <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
+              <.link navigate={~p"/sign-up"} class="btn btn-primary btn-sm rounded-full">
+                Create account
+              </.link>
+            <% end %>
             <.theme_toggle />
           </div>
 
           <div class="flex items-center gap-2 md:hidden">
-            <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
+            <%= if @current_user do %>
+              <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">App</.link>
+              <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm rounded-full">
+                Out
+              </.link>
+            <% else %>
+              <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
+            <% end %>
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API</a>
             <.theme_toggle />
           </div>
@@ -71,6 +87,65 @@ defmodule ResellerWeb.Layouts do
       <main>{render_slot(@inner_block)}</main>
 
       <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_user, :map, required: true, doc: "the current signed in user"
+  slot :inner_block, required: true
+
+  def app_shell(assigns) do
+    ~H"""
+    <div class="min-h-screen bg-base-200/45 text-base-content lg:grid lg:grid-cols-[280px_1fr]">
+      <aside class="hidden border-r border-base-300 bg-base-100 lg:flex lg:flex-col">
+        <div class="border-b border-base-300 px-6 py-6">
+          <p class="reseller-display text-3xl font-semibold tracking-[-0.03em]">Reseller</p>
+          <p class="mt-2 text-xs uppercase tracking-[0.3em] text-base-content/50">Workspace shell</p>
+        </div>
+
+        <nav class="flex-1 px-4 py-6">
+          <ul class="menu gap-2 rounded-box bg-base-100 p-0">
+            <li><a class="active rounded-2xl bg-base-200 font-medium">Dashboard</a></li>
+            <li><a class="rounded-2xl">Products</a></li>
+            <li><a class="rounded-2xl">Listings</a></li>
+            <li><a class="rounded-2xl">Exports</a></li>
+            <li><a class="rounded-2xl">Settings</a></li>
+          </ul>
+        </nav>
+
+        <div class="border-t border-base-300 px-6 py-6">
+          <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Signed in</p>
+          <p class="mt-3 text-sm font-semibold">{@current_user.email}</p>
+          <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm mt-5 rounded-full">
+            Sign out
+          </.link>
+        </div>
+      </aside>
+
+      <div class="min-w-0">
+        <header class="border-b border-base-300 bg-base-100/80 backdrop-blur">
+          <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <div>
+              <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Protected route</p>
+              <p class="mt-1 text-lg font-semibold">Authenticated web shell</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="hidden rounded-full border border-base-300 bg-base-200 px-3 py-1 text-sm text-base-content/70 sm:inline-flex">
+                {@current_user.email}
+              </span>
+              <.theme_toggle />
+            </div>
+          </div>
+        </header>
+
+        <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          {render_slot(@inner_block)}
+        </main>
+
+        <.flash_group flash={@flash} />
+      </div>
     </div>
     """
   end
