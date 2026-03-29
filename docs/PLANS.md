@@ -16,6 +16,7 @@
 - Completed: Step 2 accounts foundation.
 - Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, and `GET /api/v1/me`
 - API reference: `docs/API.md`
+- AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - Next target: Step 3 product and image schemas with signed upload flow.
 
 ## Working Rules

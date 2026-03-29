@@ -25,6 +25,8 @@ Implemented already:
 - Browser sign-in and sign-up LiveViews
 - Protected web workspace at `/app`
 - Backpex admin interface under `/admin` for admin users
+- AI foundation contexts `Reseller.AI` and `Reseller.Search`
+- Req-backed Gemini and SerpApi client modules with tests
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -33,7 +35,7 @@ Not implemented yet:
 - Product schemas and CRUD
 - Upload flow
 - Background jobs
-- AI integrations
+- Product-level AI pipeline wiring
 - Import/export
 
 ## Local Development
@@ -48,7 +50,16 @@ Not implemented yet:
 - Implementation plan and progress tracker: `docs/PLANS.md`
 - API reference: `docs/API.md`
 - Web implementation plan: `docs/PLAN-WEB.md`
+- AI implementation plan: `docs/PLAN-AI.md`
 - Project-specific coding guidance for agents and contributors: `AGENTS.md`
+
+## AI Provider Setup
+
+The first AI integration layer is in place, but it is not wired into products yet.
+
+- Gemini API key: `GEMINI_API_KEY`
+- Optional Gemini model overrides: `GEMINI_MODEL_RECOGNITION`, `GEMINI_MODEL_DESCRIPTION`, `GEMINI_MODEL_PRICE_RESEARCH`, `GEMINI_MODEL_RECONCILIATION`
+- SerpApi key: `SERPAPI_API_KEY`
 
 ## Admin Access
 

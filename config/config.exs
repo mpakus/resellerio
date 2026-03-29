@@ -13,6 +13,27 @@ config :reseller,
   password_hash_iterations: 100_000,
   api_token_ttl_days: 30
 
+config :reseller, Reseller.AI, provider: Reseller.AI.Providers.Gemini
+
+config :reseller, Reseller.AI.Providers.Gemini,
+  base_url: "https://generativelanguage.googleapis.com/v1beta",
+  timeout: 15_000,
+  models: %{
+    recognition: "gemini-2.5-flash",
+    description: "gemini-2.5-flash",
+    price_research: "gemini-2.5-flash",
+    reconciliation: "gemini-2.5-flash"
+  }
+
+config :reseller, Reseller.Search, provider: Reseller.Search.Providers.SerpApi
+
+config :reseller, Reseller.Search.Providers.SerpApi,
+  base_url: "https://serpapi.com/search",
+  shopping_engine: "google_shopping_light",
+  default_language: "en",
+  default_country: "us",
+  timeout: 10_000
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

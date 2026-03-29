@@ -33,12 +33,17 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
 - Stable JSON API error shape.
 - `Reseller.Accounts` context with `users` and `api_tokens`.
+- `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
+- `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
+- Req-backed Gemini and SerpApi production clients with test-only fake providers.
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
-- No product, media, AI, export, or marketplace contexts yet.
+- No product or media contexts yet.
+- No product-level AI pipeline or worker orchestration yet.
+- No export or marketplace contexts yet.
 - No background job system yet.
-- No storage, AI, or marketplace integrations yet.
+- No storage integration yet.
 
 Plan and implementation work should assume we are building the backend foundation from scratch.
 
@@ -81,6 +86,9 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - `Reseller.AI`
   Handles image recognition prompts, extraction normalization, confidence flags, and marketplace copy generation.
 
+- `Reseller.Search`
+  Handles external search providers such as SerpApi for Lens and shopping enrichment.
+
 - `Reseller.Marketplaces`
   Handles marketplace-specific listing payloads, formatting constraints, and export adapters if those arrive later.
 
@@ -104,6 +112,8 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - For Tigris object storage, prefer an S3-compatible integration that supports signed upload/download URLs and metadata storage cleanly.
 - Wrap external integrations behind behaviour-based modules so they can be mocked in tests and swapped later.
 - Capture external request IDs and normalized error payloads for observability.
+- Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
+- Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 
 ## Testing guidance
 
@@ -113,6 +123,8 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Admin route tests should cover unauthenticated, authenticated non-admin, and admin access paths.
 - Prefer shared fixtures from `Reseller.AccountsFixtures` instead of hand-rolling users and tokens in every test file.
 - When Backpex resources change, update tests for the routed surfaces under `/admin/...`, especially index, show, and edit flows that are actually reachable.
+- For AI/search providers, prefer pure request builders plus provider behaviours so request payloads can be tested without live network calls.
+- Keep test-only fake providers under `test/support` and use provider overrides or test config instead of real external requests.
 
 ## Delivery priorities
 
@@ -129,6 +141,7 @@ Build in this order unless a task explicitly says otherwise:
 
 - Update `docs/PLANS.md` before or during each feature so progress stays visible in-repo.
 - Update `docs/API.md` in the same commit whenever API routes, params, or response payloads change.
+- Update `docs/PLAN-AI.md` when AI/search milestones are completed or the pipeline shape changes.
 - Update `docs/PLAN-WEB.md` when web/admin LiveView milestones are completed.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.

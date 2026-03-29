@@ -20,6 +20,17 @@ if System.get_env("PHX_SERVER") do
   config :reseller, ResellerWeb.Endpoint, server: true
 end
 
+config :reseller, Reseller.AI.Providers.Gemini,
+  api_key: System.get_env("GEMINI_API_KEY"),
+  models: %{
+    recognition: System.get_env("GEMINI_MODEL_RECOGNITION") || "gemini-2.5-flash",
+    description: System.get_env("GEMINI_MODEL_DESCRIPTION") || "gemini-2.5-flash",
+    price_research: System.get_env("GEMINI_MODEL_PRICE_RESEARCH") || "gemini-2.5-flash",
+    reconciliation: System.get_env("GEMINI_MODEL_RECONCILIATION") || "gemini-2.5-flash"
+  }
+
+config :reseller, Reseller.Search.Providers.SerpApi, api_key: System.get_env("SERPAPI_API_KEY")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

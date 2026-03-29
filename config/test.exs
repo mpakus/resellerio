@@ -39,3 +39,18 @@ config :phoenix_live_view,
 config :reseller,
   password_hash_iterations: 1_000,
   api_token_ttl_days: 30
+
+config :reseller, Reseller.AI, provider: Reseller.Support.Fakes.AIProvider
+
+config :reseller, Reseller.AI.Providers.Gemini,
+  api_key: "test-gemini-api-key",
+  models: %{
+    recognition: "gemini-test-recognition",
+    description: "gemini-test-description",
+    price_research: "gemini-test-pricing",
+    reconciliation: "gemini-test-reconciliation"
+  }
+
+config :reseller, Reseller.Search, provider: Reseller.Support.Fakes.SearchProvider
+
+config :reseller, Reseller.Search.Providers.SerpApi, api_key: "test-serpapi-api-key"
