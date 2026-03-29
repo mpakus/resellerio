@@ -21,7 +21,7 @@ defmodule ResellerWeb.Router do
   scope "/", ResellerWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", HomeLive
   end
 
   scope "/api", ResellerWeb do
