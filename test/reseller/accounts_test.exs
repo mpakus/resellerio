@@ -13,6 +13,7 @@ defmodule Reseller.AccountsTest do
                })
 
       assert user.email == "seller@example.com"
+      refute user.is_admin
       assert user.hashed_password != "very-secure-password"
       assert is_binary(user.hashed_password)
     end
@@ -76,6 +77,19 @@ defmodule Reseller.AccountsTest do
       assert api_token.device_name == "iPhone"
       assert %User{id: fetched_user_id} = Accounts.get_user_by_api_token(raw_token)
       assert fetched_user_id == user.id
+    end
+  end
+
+  describe "grant_admin_by_email/1" do
+    test "grants admin access to an existing user" do
+      assert {:ok, user} =
+               Accounts.register_user(%{
+                 "email" => "seller@example.com",
+                 "password" => "very-secure-password"
+               })
+
+      assert {:ok, admin_user} = Accounts.grant_admin_by_email(user.email)
+      assert admin_user.is_admin
     end
   end
 end

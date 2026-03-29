@@ -69,11 +69,29 @@ defmodule Reseller.Accounts do
 
   def get_user(id), do: Repo.get(User, id)
 
+  def get_user!(id), do: Repo.get!(User, id)
+
   def get_user_by_email(email) when is_binary(email) do
     Repo.get_by(User, email: normalize_email(email))
   end
 
   def get_user_by_email(_), do: nil
+
+  def admin?(%User{is_admin: is_admin}), do: is_admin
+  def admin?(_), do: false
+
+  def grant_admin(%User{} = user) do
+    user
+    |> Ecto.Changeset.change(is_admin: true)
+    |> Repo.update()
+  end
+
+  def grant_admin_by_email(email) when is_binary(email) do
+    case get_user_by_email(email) do
+      nil -> {:error, :not_found}
+      user -> grant_admin(user)
+    end
+  end
 
   defp touch_api_token_last_used_at(token_hash, now) do
     from(api_token in ApiToken, where: api_token.token_hash == ^token_hash)

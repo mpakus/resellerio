@@ -57,6 +57,9 @@ defmodule ResellerWeb.Layouts do
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API v1</a>
             <%= if @current_user do %>
               <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
+              <%= if @current_user.is_admin do %>
+                <a href="/admin/users/" class="btn btn-ghost btn-sm rounded-full">Admin</a>
+              <% end %>
               <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm rounded-full">
                 Sign out
               </.link>
@@ -72,6 +75,9 @@ defmodule ResellerWeb.Layouts do
           <div class="flex items-center gap-2 md:hidden">
             <%= if @current_user do %>
               <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">App</.link>
+              <%= if @current_user.is_admin do %>
+                <a href="/admin/users/" class="btn btn-outline btn-sm rounded-full">Admin</a>
+              <% end %>
               <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm rounded-full">
                 Out
               </.link>
@@ -117,6 +123,13 @@ defmodule ResellerWeb.Layouts do
         <div class="border-t border-base-300 px-6 py-6">
           <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Signed in</p>
           <p class="mt-3 text-sm font-semibold">{@current_user.email}</p>
+          <a
+            :if={@current_user.is_admin}
+            href="/admin/users/"
+            class="btn btn-outline btn-sm mt-5 rounded-full"
+          >
+            Open admin
+          </a>
           <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm mt-5 rounded-full">
             Sign out
           </.link>
@@ -147,6 +160,51 @@ defmodule ResellerWeb.Layouts do
         <.flash_group flash={@flash} />
       </div>
     </div>
+    """
+  end
+
+  attr :flash, :map, required: true
+  attr :current_user, :map, required: true
+  attr :current_url, :string, required: true
+  attr :live_resource, :any, required: true
+  attr :fluid?, :boolean, default: false
+  slot :inner_block, required: true
+
+  def admin(assigns) do
+    ~H"""
+    <Backpex.HTML.Layout.app_shell live_resource={@live_resource} fluid={@fluid?}>
+      <:topbar>
+        <div class="flex min-w-0 flex-1 items-center justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Admin interface</p>
+            <p class="truncate text-sm font-semibold">{@current_user.email}</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
+            <.link href={~p"/sign-out"} method="delete" class="btn btn-primary btn-sm rounded-full">
+              Sign out
+            </.link>
+          </div>
+        </div>
+      </:topbar>
+
+      <:sidebar>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/users/">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-users" class="size-4" /> Users
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/api-tokens/">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-key" class="size-4" /> API Tokens
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
+      </:sidebar>
+
+      {render_slot(@inner_block)}
+      <Backpex.HTML.Layout.flash_messages flash={@flash} />
+    </Backpex.HTML.Layout.app_shell>
     """
   end
 

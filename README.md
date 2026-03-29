@@ -22,6 +22,9 @@ Implemented already:
 - Stable JSON error payload shape for API errors
 - Password-based user registration and login
 - Bearer-token authentication for `GET /api/v1/me`
+- Browser sign-in and sign-up LiveViews
+- Protected web workspace at `/app`
+- Backpex admin interface under `/admin` for admin users
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -44,7 +47,17 @@ Not implemented yet:
 
 - Implementation plan and progress tracker: `docs/PLANS.md`
 - API reference: `docs/API.md`
+- Web implementation plan: `docs/PLAN-WEB.md`
 - Project-specific coding guidance for agents and contributors: `AGENTS.md`
+
+## Admin Access
+
+Backpex is installed for the admin interface.
+
+- Admin UI: `/admin`
+- Bootstrap an admin user: `mix reseller.make_admin EMAIL`
+
+Admin routes are protected and only users with `is_admin = true` can access them.
 
 ## Workflow
 

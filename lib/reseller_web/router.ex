@@ -1,5 +1,6 @@
 defmodule ResellerWeb.Router do
   use ResellerWeb, :router
+  import Backpex.Router
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -17,6 +18,10 @@ defmodule ResellerWeb.Router do
 
   pipeline :api_authenticated do
     plug ResellerWeb.Plugs.APIAuth
+  end
+
+  pipeline :browser_admin do
+    plug ResellerWeb.BrowserAuth, :ensure_admin
   end
 
   scope "/", ResellerWeb do
@@ -39,6 +44,19 @@ defmodule ResellerWeb.Router do
     post "/sign-up", RegistrationController, :create
     post "/sign-in", SessionController, :create
     delete "/sign-out", SessionController, :delete
+  end
+
+  scope "/admin", ResellerWeb.Admin do
+    pipe_through [:browser, :browser_admin]
+
+    backpex_routes()
+    get "/", RedirectController, :index
+
+    live_session :admin,
+      on_mount: [Backpex.InitAssigns, {ResellerWeb.LiveUserAuth, :ensure_admin}] do
+      live_resources "/users", UserLive, only: [:index, :show, :edit]
+      live_resources "/api-tokens", ApiTokenLive, only: [:index, :show]
+    end
   end
 
   scope "/api", ResellerWeb do

@@ -13,6 +13,11 @@ config :reseller,
   password_hash_iterations: 100_000,
   api_token_ttl_days: 30
 
+config :backpex,
+  pubsub_server: Reseller.PubSub,
+  translator_function: {ResellerWeb.CoreComponents, :translate_backpex},
+  error_translator_function: {ResellerWeb.CoreComponents, :translate_error}
+
 # Configures the endpoint
 config :reseller, ResellerWeb.Endpoint,
   url: [host: "localhost"],

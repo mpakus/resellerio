@@ -443,6 +443,13 @@ defmodule ResellerWeb.CoreComponents do
   end
 
   @doc """
+  Translates Backpex strings using gettext interpolation rules.
+  """
+  def translate_backpex({msg, opts}) do
+    Gettext.dgettext(ResellerWeb.Gettext, "backpex", msg, opts)
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

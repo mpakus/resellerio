@@ -30,6 +30,20 @@ defmodule ResellerWeb.LiveUserAuth do
     end
   end
 
+  def on_mount(:ensure_admin, _params, session, socket) do
+    case user_from_session(session) do
+      nil ->
+        {:halt, redirect(socket, to: ~p"/sign-in")}
+
+      user ->
+        if Accounts.admin?(user) do
+          {:cont, assign(socket, :current_user, user)}
+        else
+          {:halt, socket |> put_flash(:error, "Admin access required.") |> redirect(to: ~p"/app")}
+        end
+    end
+  end
+
   defp user_from_session(%{"user_id" => user_id}), do: Accounts.get_user(user_id)
   defp user_from_session(_session), do: nil
 end

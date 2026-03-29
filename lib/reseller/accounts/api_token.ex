@@ -16,8 +16,18 @@ defmodule Reseller.Accounts.ApiToken do
 
   def create_changeset(api_token, attrs) do
     api_token
-    |> cast(attrs, [:token_hash, :context, :device_name, :expires_at, :last_used_at])
+    |> cast(attrs, [:token_hash, :context, :device_name, :expires_at, :last_used_at, :user_id])
     |> validate_required([:token_hash, :context, :expires_at])
+    |> assoc_constraint(:user)
     |> unique_constraint(:token_hash)
+  end
+
+  def create_changeset(api_token, attrs, _metadata), do: create_changeset(api_token, attrs)
+
+  def update_changeset(api_token, attrs, _metadata) do
+    api_token
+    |> cast(attrs, [:context, :device_name, :expires_at, :last_used_at, :user_id])
+    |> validate_required([:context, :expires_at])
+    |> assoc_constraint(:user)
   end
 end

@@ -31,6 +31,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
 - Stable JSON API error shape.
 - `Reseller.Accounts` context with `users` and `api_tokens`.
+- Backpex-based admin interface under `/admin` for admin users.
 - No product, media, AI, export, or marketplace contexts yet.
 - No background job system yet.
 - No storage, AI, or marketplace integrations yet.
@@ -115,8 +116,10 @@ Build in this order unless a task explicitly says otherwise:
 
 - Update `docs/PLANS.md` before or during each feature so progress stays visible in-repo.
 - Update `docs/API.md` in the same commit whenever API routes, params, or response payloads change.
+- Update `docs/PLAN-WEB.md` when web/admin LiveView milestones are completed.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.
+- Backpex is now part of the stack. Prefer adding admin-only management screens there instead of building custom admin CRUD screens unless a task explicitly needs a custom experience.
 - Prefer additive, well-scoped migrations. This project will likely evolve quickly as product requirements settle.
 - When naming things, use `Product`, not `Production`, unless you are touching a user-facing string that explicitly requires different wording.
 - Design APIs for mobile reliability: idempotent creation endpoints, resumable upload flows where possible, and explicit processing states.
