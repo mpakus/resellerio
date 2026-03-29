@@ -5,6 +5,9 @@ defmodule Reseller.AI do
   """
 
   alias Reseller.AI.Provider
+  alias Reseller.AI.ProductDescriptionDraft
+  alias Reseller.Catalog.Product
+  alias Reseller.Repo
 
   @spec recognize_images([map()], map(), keyword()) :: Provider.provider_result()
   def recognize_images(images, attrs \\ %{}, opts \\ []) when is_list(images) and is_map(attrs) do
@@ -34,8 +37,74 @@ defmodule Reseller.AI do
     Reseller.AI.RecognitionPipeline.run(images, metadata, opts)
   end
 
+  @spec get_product_description_draft(pos_integer()) :: ProductDescriptionDraft.t() | nil
+  def get_product_description_draft(product_id) when is_integer(product_id) do
+    Repo.get_by(ProductDescriptionDraft, product_id: product_id)
+  end
+
+  @spec upsert_product_description_draft(Product.t(), map()) ::
+          {:ok, ProductDescriptionDraft.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_product_description_draft(%Product{} = product, description_result)
+      when is_map(description_result) do
+    attrs = description_draft_attrs(description_result)
+
+    case get_product_description_draft(product.id) do
+      nil ->
+        %ProductDescriptionDraft{}
+        |> ProductDescriptionDraft.create_changeset(attrs)
+        |> Ecto.Changeset.put_assoc(:product, product)
+        |> Repo.insert()
+
+      draft ->
+        draft
+        |> ProductDescriptionDraft.update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
   @spec provider(keyword()) :: module()
   def provider(opts \\ []) do
     Keyword.get(opts, :provider, Application.fetch_env!(:reseller, __MODULE__)[:provider])
   end
+
+  defp description_draft_attrs(result) do
+    output =
+      case result do
+        %{output: output} when is_map(output) -> output
+        %{"output" => output} when is_map(output) -> output
+        output when is_map(output) -> output
+      end
+
+    %{
+      "status" => if(Map.get(output, "missing_details_warning"), do: "review", else: "generated"),
+      "provider" => provider_name(result),
+      "model" => model_name(result),
+      "suggested_title" => output["suggested_title"],
+      "short_description" => output["short_description"],
+      "long_description" => output["long_description"],
+      "key_features" => output["key_features"] || [],
+      "seo_keywords" => output["seo_keywords"] || [],
+      "missing_details_warning" => output["missing_details_warning"],
+      "raw_payload" => stringify_keys(output)
+    }
+  end
+
+  defp provider_name(%{provider: provider}) when is_atom(provider), do: Atom.to_string(provider)
+  defp provider_name(%{"provider" => provider}) when is_binary(provider), do: provider
+  defp provider_name(_result), do: nil
+
+  defp model_name(%{model: model}) when is_binary(model), do: model
+  defp model_name(%{"model" => model}) when is_binary(model), do: model
+  defp model_name(_result), do: nil
+
+  defp stringify_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_map(value) -> {to_string(key), stringify_keys(value)}
+      {key, value} when is_list(value) -> {to_string(key), Enum.map(value, &stringify_value/1)}
+      {key, value} -> {to_string(key), value}
+    end)
+  end
+
+  defp stringify_value(value) when is_map(value), do: stringify_keys(value)
+  defp stringify_value(value), do: value
 end

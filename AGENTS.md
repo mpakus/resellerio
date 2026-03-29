@@ -48,6 +48,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Product and image persistence plus upload finalization foundations now exist.
 - Lightweight processing-run and async worker orchestration now exist.
 - `Reseller.Workers.AIProductProcessor` now connects finalized uploads to `Reseller.AI.RecognitionPipeline` and persists normalized AI fields back to `products`.
+- `product_description_drafts` now store AI-authored base titles and descriptions separately from user-editable product fields.
 - No export or marketplace contexts yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
@@ -78,6 +79,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Prefer direct-to-object-storage uploads via signed URLs for mobile clients whenever possible.
 - Store both original and processed image variants; never overwrite the original upload.
 - AI output should be reviewable and editable by the user. Do not design flows that assume AI is always correct.
+- Keep generated base copy in dedicated draft records instead of overwriting user-edited product fields.
 
 ## Suggested context boundaries
 
@@ -120,6 +122,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Wrap external integrations behind behaviour-based modules so they can be mocked in tests and swapped later.
 - Capture external request IDs and normalized error payloads for observability.
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
+- Base description drafts should go through `Reseller.AI.upsert_product_description_draft/2` so generated copy stays separate from the core product record.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 - The current AI worker builds public object URLs from `TIGRIS_BUCKET_URL`. Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.
@@ -168,6 +171,7 @@ Build in this order unless a task explicitly says otherwise:
 - Design APIs for mobile reliability: idempotent creation endpoints, resumable upload flows where possible, and explicit processing states.
 - Add tests alongside each new context and endpoint. For async pipelines, test both the synchronous enqueue step and the worker behavior. Security-facing changes should also get explicit regression tests.
 - For AI worker changes, cover both `ready` and `review` success paths plus failure recovery that marks runs and images correctly.
+- When product payloads change, update `docs/API.md` and the authenticated product controller tests so the API shape stays intentional.
 - When introducing auth, keep API and browser auth concerns separate so mobile clients are not forced through browser-centric flows.
 - If passkeys are implemented, document both registration and authentication ceremonies and keep the server challenge flow small and explicit.
 

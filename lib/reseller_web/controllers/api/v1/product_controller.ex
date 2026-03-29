@@ -130,6 +130,7 @@ defmodule ResellerWeb.API.V1.ProductController do
           nil -> nil
           run -> processing_run_json(run)
         end,
+      description_draft: description_draft_json(product.description_draft),
       images: Enum.map(product.images || [], &image_json/1)
     }
   end
@@ -170,6 +171,25 @@ defmodule ResellerWeb.API.V1.ProductController do
       inserted_at: datetime_to_iso8601(run.inserted_at),
       updated_at: datetime_to_iso8601(run.updated_at),
       payload: run.payload
+    }
+  end
+
+  defp description_draft_json(nil), do: nil
+
+  defp description_draft_json(draft) do
+    %{
+      id: draft.id,
+      status: draft.status,
+      provider: draft.provider,
+      model: draft.model,
+      suggested_title: draft.suggested_title,
+      short_description: draft.short_description,
+      long_description: draft.long_description,
+      key_features: draft.key_features,
+      seo_keywords: draft.seo_keywords,
+      missing_details_warning: draft.missing_details_warning,
+      inserted_at: datetime_to_iso8601(draft.inserted_at),
+      updated_at: datetime_to_iso8601(draft.updated_at)
     }
   end
 end

@@ -96,6 +96,7 @@ defmodule Reseller.Catalog do
 
   defp product_preload do
     [
+      :description_draft,
       images:
         from(image in Reseller.Media.ProductImage, order_by: [asc: image.position, asc: image.id]),
       processing_runs:

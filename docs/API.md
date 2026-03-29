@@ -203,6 +203,7 @@ Response:
         "brand": "Ralph Lauren",
         "category": "Blazers",
         "latest_processing_run": null,
+        "description_draft": null,
         "images": []
       }
     ]
@@ -265,6 +266,7 @@ Response:
       "brand": "Nike",
       "category": "Sneakers",
       "latest_processing_run": null,
+      "description_draft": null,
       "images": [
         {
           "id": 1,
@@ -356,6 +358,7 @@ Response:
         "status": "queued",
         "step": "queued"
       },
+      "description_draft": null,
       "images": [
         {
           "id": 1,
@@ -388,6 +391,7 @@ Current behavior notes:
 - in production-style async execution, the returned run is typically still `queued` or `running`
 - the worker uses finalized original uploads as Gemini and SerpApi inputs, using `TIGRIS_BUCKET_URL` as the public image base
 - when recognition finishes, the product moves to `ready` or `review`
+- when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
 - on success, in-flight images move from `processing` to `ready`
 - on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
 
@@ -402,7 +406,7 @@ Example:
   "latest_processing_run": {
     "id": 12,
     "status": "completed",
-    "step": "recognition_completed",
+    "step": "description_generated",
     "started_at": "2026-03-29T20:30:00Z",
     "finished_at": "2026-03-29T20:30:01Z",
     "error_code": null,
@@ -410,6 +414,12 @@ Example:
     "payload": {
       "pipeline_status": "recognized",
       "review_required": false,
+      "description_draft": {
+        "id": 9,
+        "status": "generated",
+        "suggested_title": "Nike Air Max 90",
+        "short_description": "Classic Nike Air Max 90 sneakers in white mesh."
+      },
       "final": {
         "brand": "Nike",
         "category": "Sneakers",
@@ -429,7 +439,30 @@ Run status values currently used:
 - `completed`
 - `failed`
 
-The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, and `recognition_completed`.
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, and `description_generated`.
+
+### Description Drafts
+
+Product payloads may include a `description_draft` object after AI processing completes:
+
+```json
+{
+  "description_draft": {
+    "id": 9,
+    "status": "generated",
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "suggested_title": "Nike Air Max 90",
+    "short_description": "Classic Nike Air Max 90 sneakers in white mesh.",
+    "long_description": "White Nike Air Max 90 sneakers with breathable mesh and a visible air unit.",
+    "key_features": ["Visible air unit", "Mesh upper"],
+    "seo_keywords": ["nike air max 90", "white sneakers"],
+    "missing_details_warning": null
+  }
+}
+```
+
+These drafts are AI-authored base copy and are stored separately from editable product fields.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

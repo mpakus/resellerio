@@ -1,6 +1,8 @@
 defmodule ResellerWeb.API.V1.ProductControllerTest do
   use ResellerWeb.ConnCase, async: true
 
+  alias Reseller.AI
+
   setup %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     {raw_token, _api_token} = api_token_fixture(user, %{"device_name" => "iPhone"})
@@ -122,6 +124,45 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
                "status" => 404
              }
            }
+  end
+
+  test "GET /api/v1/products/:id includes description_draft when generated copy exists", %{
+    conn: conn,
+    user: user
+  } do
+    product = product_fixture(user, %{"title" => "Seller product"})
+
+    assert {:ok, _draft} =
+             AI.upsert_product_description_draft(product, %{
+               provider: :gemini,
+               model: "gemini-description",
+               output: %{
+                 "suggested_title" => "Generated seller product title",
+                 "short_description" => "Generated seller product short description",
+                 "long_description" => "Generated seller product long description",
+                 "key_features" => ["Feature A"],
+                 "seo_keywords" => ["seller-product"]
+               }
+             })
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "title" => "Seller product",
+                 "description_draft" => %{
+                   "status" => "generated",
+                   "provider" => "gemini",
+                   "model" => "gemini-description",
+                   "suggested_title" => "Generated seller product title",
+                   "short_description" => "Generated seller product short description",
+                   "key_features" => ["Feature A"],
+                   "seo_keywords" => ["seller-product"]
+                 }
+               }
+             }
+           } = json_response(conn, 200)
   end
 
   test "POST /api/v1/products/:id/finalize_uploads marks uploads as uploaded", %{

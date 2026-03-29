@@ -16,11 +16,15 @@ defmodule Reseller.Workers.AIProductProcessor do
     with {:ok, images} <- Media.recognition_inputs_for_product(product, opts),
          {:ok, result} <- AI.run_recognition_pipeline(images, recognition_metadata(product), opts),
          {:ok, updated_product} <- Catalog.apply_recognition_result(product, result.final),
+         {:ok, description_result} <-
+           AI.generate_description(description_input(updated_product, result.final), opts),
+         {:ok, description_draft} <-
+           AI.upsert_product_description_draft(updated_product, description_result),
          {:ok, _updated_count} <- Media.mark_product_images_ready(updated_product) do
       {:ok,
        %{
-         step: "recognition_completed",
-         payload: build_payload(updated_product, result)
+         step: "description_generated",
+         payload: build_payload(updated_product, result, description_draft)
        }}
     else
       {:error, reason} -> {:error, format_error(reason)}
@@ -38,7 +42,22 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
-  defp build_payload(%Product{} = product, result) do
+  defp description_input(%Product{} = product, final_result) do
+    %{
+      "product_id" => product.id,
+      "title" => product.title,
+      "brand" => product.brand,
+      "category" => product.category,
+      "condition" => product.condition,
+      "color" => product.color,
+      "size" => product.size,
+      "material" => product.material,
+      "ai_summary" => product.ai_summary,
+      "recognition" => final_result
+    }
+  end
+
+  defp build_payload(%Product{} = product, result, description_draft) do
     %{
       "pipeline_status" => Atom.to_string(result.status),
       "selected_image_count" => length(result.selected_images),
@@ -46,6 +65,12 @@ defmodule Reseller.Workers.AIProductProcessor do
       "final" => result.final,
       "fallback" => stringify_map(result.fallback || %{}),
       "search_matches" => search_matches(result.search),
+      "description_draft" => %{
+        "id" => description_draft.id,
+        "status" => description_draft.status,
+        "suggested_title" => description_draft.suggested_title,
+        "short_description" => description_draft.short_description
+      },
       "product" => %{
         "id" => product.id,
         "status" => product.status,

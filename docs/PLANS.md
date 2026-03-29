@@ -8,20 +8,22 @@
 - [x] Step 3.2: Finalize-upload endpoint and uploaded-image state transitions.
 - [x] Step 4.1: Product processing run records and lightweight async worker foundation.
 - [x] Step 4.2: Connect processing runs to the real AI/media worker pipeline.
-- [ ] Step 5: AI recognition and marketplace listing generation.
+- [x] Step 5.1: Base AI description generation and product description draft storage.
+- [ ] Step 5.2: Grounded price research and marketplace listing generation.
 - [ ] Step 6: Photoroom-powered image processing variants.
 - [ ] Step 7: ZIP export generation and export-ready email flow.
 - [ ] Step 8: ZIP import flow.
 
 ## Latest Progress
 
-- Completed: Step 4.2 real AI-backed processing pipeline wiring.
+- Completed: Step 5.1 base AI description generation and draft storage.
 - Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
 - Product processing: `Reseller.Workers.AIProductProcessor` now turns finalized uploads into persisted product AI fields and closes image states to `ready` or `failed`
-- Next target: Step 5 add structured description generation and marketplace listing foundations.
+- Generated copy: `product_description_drafts` now store AI-authored base copy separately from editable product fields
+- Next target: Step 5.2 add grounded price research and marketplace listing foundations.
 
 ## Working Rules
 

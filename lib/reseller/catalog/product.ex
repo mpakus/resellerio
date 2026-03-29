@@ -23,6 +23,7 @@ defmodule Reseller.Catalog.Product do
 
     belongs_to :user, Reseller.Accounts.User
     has_many :images, Reseller.Media.ProductImage, preload_order: [asc: :position, asc: :id]
+    has_one :description_draft, Reseller.AI.ProductDescriptionDraft
 
     has_many :processing_runs, Reseller.Workers.ProductProcessingRun,
       preload_order: [desc: :inserted_at, desc: :id]

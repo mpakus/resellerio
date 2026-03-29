@@ -34,6 +34,7 @@ Implemented already:
 - Uploaded-image finalization and product state transitions into `processing`
 - Product processing run records and lightweight background worker execution
 - Real AI-backed product processing that persists recognition fields and closes image states
+- AI-generated base description drafts stored separately from editable product fields
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -72,6 +73,7 @@ The recognition pipeline is now wired into product processing runs.
 Current implementation note:
 
 - `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
+- recognized products can now also receive a generated `product_description_draft` during the same processing run
 
 ## Admin Access
 
