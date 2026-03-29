@@ -12,6 +12,7 @@ defmodule Reseller.Accounts.User do
     field :is_admin, :boolean, default: false
 
     has_many :api_tokens, Reseller.Accounts.ApiToken
+    has_many :products, Reseller.Catalog.Product
 
     timestamps(type: :utc_datetime)
   end

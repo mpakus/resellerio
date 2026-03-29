@@ -13,7 +13,7 @@
 ## Latest AI Planning Status
 
 - Current status: AI foundation plus recognition orchestration implemented with image selection, confidence gating, SerpApi Lens fallback, and reconciliation.
-- Depends on: product/image schemas, upload finalization flow, and background jobs from `docs/PLANS.md`.
+- Depends on: upload finalization flow and background jobs from `docs/PLANS.md`.
 - Next implementation target: Step AI2.2 worker and product/image wiring once product/media foundations are ready.
 
 ## 1. Goal
@@ -41,10 +41,11 @@ The repo already has:
 - Req-backed Gemini and SerpApi production clients
 - test-only fake providers for isolated unit tests
 - `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline`
+- `Reseller.Catalog.Product` and `Reseller.Media.ProductImage`
+- signed upload intent generation for product images
 
 The repo does not yet have:
 
-- product or product image schemas
 - background workers
 - object-storage upload finalization
 - product-level AI pipeline wiring

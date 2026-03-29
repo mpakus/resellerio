@@ -24,6 +24,7 @@ defmodule Reseller.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import Reseller.AccountsFixtures
+      import Reseller.CatalogFixtures
       import Reseller.DataCase
     end
   end

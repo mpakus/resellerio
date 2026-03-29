@@ -33,6 +33,9 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
 - Stable JSON API error shape.
 - `Reseller.Accounts` context with `users` and `api_tokens`.
+- `Reseller.Catalog` context with `products`.
+- `Reseller.Media` context with `product_images` and signed upload intent generation.
+- Authenticated product API endpoints at `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`.
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
@@ -40,12 +43,12 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
-- No product or media contexts yet.
-- No product/image persistence wiring for the AI pipeline yet.
+- Product and image persistence foundations now exist, but finalize-upload and worker orchestration do not yet.
+- No product/image persistence wiring from uploads into AI workers yet.
 - No background-worker orchestration for AI yet.
 - No export or marketplace contexts yet.
 - No background job system yet.
-- No storage integration yet.
+- Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
 Plan and implementation work should assume we are building the backend foundation from scratch.
 
@@ -116,6 +119,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Capture external request IDs and normalized error payloads for observability.
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
+- Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 
 ## Testing guidance
 
@@ -128,6 +132,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - For AI/search providers, prefer pure request builders plus provider behaviours so request payloads can be tested without live network calls.
 - Keep test-only fake providers under `test/support` and use provider overrides or test config instead of real external requests.
 - For AI pipeline logic, keep orchestration in small, composable modules like image selection, normalization, and pipeline runners so worker integration stays thin later.
+- For product/upload work, test both the context transaction and the authenticated API response shape, especially image placeholders and upload instructions.
 
 ## Delivery priorities
 
@@ -146,6 +151,7 @@ Build in this order unless a task explicitly says otherwise:
 - Update `docs/API.md` in the same commit whenever API routes, params, or response payloads change.
 - Update `docs/PLAN-AI.md` when AI/search milestones are completed or the pipeline shape changes.
 - Update `docs/PLAN-WEB.md` when web/admin LiveView milestones are completed.
+- Update `docs/PLANS.md` when Step 3 substeps like upload intents or finalize-upload flow are completed.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.
 - Run `mix test --cover` when making significant auth/admin changes so coverage regressions are visible, even if the global threshold is currently held down by unused scaffold/generated modules.

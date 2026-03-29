@@ -22,19 +22,21 @@ Implemented already:
 - Stable JSON error payload shape for API errors
 - Password-based user registration and login
 - Bearer-token authentication for `GET /api/v1/me`
+- Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`
 - Browser sign-in and sign-up LiveViews
 - Protected web workspace at `/app`
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
 - Req-backed Gemini and SerpApi client modules with tests
 - Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
+- Product and product-image schemas plus signed upload intent generation
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
 Not implemented yet:
 
 - Product schemas and CRUD
-- Upload flow
+- Finalize-upload flow
 - Background jobs
 - Product-level AI pipeline wiring
 - Import/export
@@ -61,6 +63,7 @@ The first AI integration layer is in place, but it is not wired into products ye
 - Gemini API key: `GEMINI_API_KEY`
 - Optional Gemini model overrides: `GEMINI_MODEL_RECOGNITION`, `GEMINI_MODEL_DESCRIPTION`, `GEMINI_MODEL_PRICE_RESEARCH`, `GEMINI_MODEL_RECONCILIATION`
 - SerpApi key: `SERPAPI_API_KEY`
+- Tigris upload signing config: `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET_URL`
 
 ## Admin Access
 

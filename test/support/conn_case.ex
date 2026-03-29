@@ -28,6 +28,7 @@ defmodule ResellerWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import Reseller.AccountsFixtures
+      import Reseller.CatalogFixtures
       import ResellerWeb.ConnCase
     end
   end

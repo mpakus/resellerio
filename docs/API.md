@@ -54,6 +54,21 @@ Example response:
         "method": "GET",
         "path": "/api/v1/health",
         "description": "Returns service health and application version information."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/products",
+        "description": "Lists products for the authenticated user."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products",
+        "description": "Creates a product and optionally returns signed upload instructions."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/products/:id",
+        "description": "Returns one product for the authenticated user."
       }
     ]
   }
@@ -155,6 +170,142 @@ Response:
       "email": "seller@example.com",
       "confirmed_at": null
     }
+  }
+}
+```
+
+### `GET /api/v1/products`
+
+Returns the authenticated user's products, newest first.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "products": [
+      {
+        "id": 1,
+        "status": "draft",
+        "source": "manual",
+        "title": "Vintage blazer",
+        "brand": "Ralph Lauren",
+        "category": "Blazers",
+        "images": []
+      }
+    ]
+  }
+}
+```
+
+### `POST /api/v1/products`
+
+Creates a product. If `uploads` are included, the backend also creates `product_images`
+placeholders and returns signed upload instructions.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body without uploads:
+
+```json
+{
+  "product": {
+    "title": "Vintage blazer",
+    "brand": "Ralph Lauren",
+    "category": "Blazers"
+  }
+}
+```
+
+Request body with uploads:
+
+```json
+{
+  "product": {
+    "title": "Nike Air Max",
+    "brand": "Nike",
+    "category": "Sneakers"
+  },
+  "uploads": [
+    {
+      "filename": "shoe-1.jpg",
+      "content_type": "image/jpeg",
+      "byte_size": 345678
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 1,
+      "status": "uploading",
+      "source": "manual",
+      "title": "Nike Air Max",
+      "brand": "Nike",
+      "category": "Sneakers",
+      "images": [
+        {
+          "id": 1,
+          "kind": "original",
+          "position": 1,
+          "storage_key": "users/1/products/1/originals/uuid.jpg",
+          "content_type": "image/jpeg",
+          "processing_status": "pending_upload",
+          "original_filename": "shoe-1.jpg"
+        }
+      ]
+    },
+    "upload_instructions": [
+      {
+        "image_id": 1,
+        "storage_key": "users/1/products/1/originals/uuid.jpg",
+        "method": "PUT",
+        "upload_url": "https://bucket.example.tigris.dev/...",
+        "headers": {
+          "content-type": "image/jpeg"
+        },
+        "expires_at": "2026-03-29T18:40:00Z"
+      }
+    ]
+  }
+}
+```
+
+Upload validation failures return `422`.
+
+### `GET /api/v1/products/:id`
+
+Returns one product for the authenticated user.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Unknown or unauthorized product IDs return:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "detail": "Product not found",
+    "status": 404
   }
 }
 ```

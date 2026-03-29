@@ -34,6 +34,12 @@ config :reseller, Reseller.Search.Providers.SerpApi,
   default_country: "us",
   timeout: 10_000
 
+config :reseller, Reseller.Media, storage: Reseller.Media.Storage.Tigris
+
+config :reseller, Reseller.Media.Storage.Tigris,
+  region: "auto",
+  expires_in: 900
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

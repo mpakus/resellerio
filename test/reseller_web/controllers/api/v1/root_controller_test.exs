@@ -18,6 +18,22 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "description" => "Returns service health and application version information.",
                    "method" => "GET",
                    "path" => "/api/v1/health"
+                 },
+                 %{
+                   "description" => "Lists products for the authenticated user.",
+                   "method" => "GET",
+                   "path" => "/api/v1/products"
+                 },
+                 %{
+                   "description" =>
+                     "Creates a product and optionally returns signed upload instructions.",
+                   "method" => "POST",
+                   "path" => "/api/v1/products"
+                 },
+                 %{
+                   "description" => "Returns one product for the authenticated user.",
+                   "method" => "GET",
+                   "path" => "/api/v1/products/:id"
                  }
                ],
                "name" => "reseller",

@@ -76,6 +76,9 @@ defmodule ResellerWeb.Router do
       pipe_through :api_authenticated
 
       get "/me", MeController, :show
+      get "/products", ProductController, :index
+      post "/products", ProductController, :create
+      get "/products/:id", ProductController, :show
     end
   end
 

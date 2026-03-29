@@ -54,3 +54,5 @@ config :reseller, Reseller.AI.Providers.Gemini,
 config :reseller, Reseller.Search, provider: Reseller.Support.Fakes.SearchProvider
 
 config :reseller, Reseller.Search.Providers.SerpApi, api_key: "test-serpapi-api-key"
+
+config :reseller, Reseller.Media, storage: Reseller.Support.Fakes.MediaStorage

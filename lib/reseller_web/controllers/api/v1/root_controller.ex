@@ -17,6 +17,21 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "GET",
             path: "/api/v1/health",
             description: "Returns service health and application version information."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/products",
+            description: "Lists products for the authenticated user."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products",
+            description: "Creates a product and optionally returns signed upload instructions."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/products/:id",
+            description: "Returns one product for the authenticated user."
           }
         ]
       }
