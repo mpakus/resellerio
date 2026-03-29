@@ -32,6 +32,11 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "GET",
             path: "/api/v1/products/:id",
             description: "Returns one product for the authenticated user."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/finalize_uploads",
+            description: "Marks uploaded product images as ready for processing."
           }
         ]
       }

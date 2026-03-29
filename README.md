@@ -23,6 +23,7 @@ Implemented already:
 - Password-based user registration and login
 - Bearer-token authentication for `GET /api/v1/me`
 - Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`
+- Upload finalization endpoint at `POST /api/v1/products/:id/finalize_uploads`
 - Browser sign-in and sign-up LiveViews
 - Protected web workspace at `/app`
 - Backpex admin interface under `/admin` for admin users
@@ -30,13 +31,13 @@ Implemented already:
 - Req-backed Gemini and SerpApi client modules with tests
 - Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
 - Product and product-image schemas plus signed upload intent generation
+- Uploaded-image finalization and product state transitions into `processing`
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
 Not implemented yet:
 
 - Product schemas and CRUD
-- Finalize-upload flow
 - Background jobs
 - Product-level AI pipeline wiring
 - Import/export

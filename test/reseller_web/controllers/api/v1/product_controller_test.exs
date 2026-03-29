@@ -123,4 +123,124 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
              }
            }
   end
+
+  test "POST /api/v1/products/:id/finalize_uploads marks uploads as uploaded", %{
+    conn: conn,
+    user: user
+  } do
+    {:ok, %{product: product}} =
+      Reseller.Catalog.create_product_for_user(
+        user,
+        %{"title" => "Nike Air Max"},
+        [
+          %{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 345_678}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    conn =
+      post(conn, "/api/v1/products/#{product.id}/finalize_uploads", %{
+        "uploads" => [
+          %{
+            "id" => image.id,
+            "checksum" => "abc123",
+            "width" => 1200,
+            "height" => 1600
+          }
+        ]
+      })
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "status" => "processing",
+                 "images" => [
+                   %{
+                     "id" => image_id,
+                     "processing_status" => "uploaded",
+                     "checksum" => "abc123",
+                     "width" => 1200,
+                     "height" => 1600
+                   }
+                 ]
+               },
+               "finalized_images" => [%{"id" => finalized_id, "processing_status" => "uploaded"}]
+             }
+           } = json_response(conn, 200)
+
+    assert image_id == image.id
+    assert finalized_id == image.id
+  end
+
+  test "POST /api/v1/products/:id/finalize_uploads rejects image ids from another product", %{
+    conn: conn,
+    user: user
+  } do
+    {:ok, %{product: product}} =
+      Reseller.Catalog.create_product_for_user(
+        user,
+        %{"title" => "Nike Air Max"},
+        [
+          %{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 345_678}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    {:ok, %{product: other_product}} =
+      Reseller.Catalog.create_product_for_user(
+        user,
+        %{"title" => "Adidas Samba"},
+        [
+          %{"filename" => "shoe-2.jpg", "content_type" => "image/jpeg", "byte_size" => 345_679}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [other_image] = other_product.images
+
+    conn =
+      post(conn, "/api/v1/products/#{product.id}/finalize_uploads", %{
+        "uploads" => [%{"id" => other_image.id}]
+      })
+
+    assert json_response(conn, 422) == %{
+             "error" => %{
+               "code" => "invalid_uploads",
+               "detail" => "Uploads must belong to the selected product",
+               "status" => 422
+             }
+           }
+  end
+
+  test "POST /api/v1/products/:id/finalize_uploads validates duplicate ids", %{
+    conn: conn,
+    user: user
+  } do
+    {:ok, %{product: product}} =
+      Reseller.Catalog.create_product_for_user(
+        user,
+        %{"title" => "Nike Air Max"},
+        [
+          %{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 345_678}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    conn =
+      post(conn, "/api/v1/products/#{product.id}/finalize_uploads", %{
+        "uploads" => [%{"id" => image.id}, %{"id" => image.id}]
+      })
+
+    assert %{
+             "error" => %{
+               "code" => "validation_failed",
+               "fields" => %{"uploads" => ["contains duplicate image ids"]},
+               "status" => 422
+             }
+           } = json_response(conn, 422)
+  end
 end

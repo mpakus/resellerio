@@ -35,7 +35,8 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Accounts` context with `users` and `api_tokens`.
 - `Reseller.Catalog` context with `products`.
 - `Reseller.Media` context with `product_images` and signed upload intent generation.
-- Authenticated product API endpoints at `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`.
+- Uploaded-image finalization via `POST /api/v1/products/:id/finalize_uploads`.
+- Authenticated product API endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`.
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
@@ -43,8 +44,8 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
-- Product and image persistence foundations now exist, but finalize-upload and worker orchestration do not yet.
-- No product/image persistence wiring from uploads into AI workers yet.
+- Product and image persistence plus upload finalization foundations now exist, but worker orchestration does not yet.
+- No product/image-to-worker orchestration from finalized uploads into AI processing yet.
 - No background-worker orchestration for AI yet.
 - No export or marketplace contexts yet.
 - No background job system yet.
@@ -120,6 +121,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
+- Upload finalization should go through `Reseller.Media.finalize_product_uploads/3` or `Reseller.Catalog.finalize_product_uploads_for_user/3`, not custom controller logic.
 
 ## Testing guidance
 
@@ -133,6 +135,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Keep test-only fake providers under `test/support` and use provider overrides or test config instead of real external requests.
 - For AI pipeline logic, keep orchestration in small, composable modules like image selection, normalization, and pipeline runners so worker integration stays thin later.
 - For product/upload work, test both the context transaction and the authenticated API response shape, especially image placeholders and upload instructions.
+- For finalize-upload work, also test ownership checks, duplicate image IDs, and product/image status transitions.
 
 ## Delivery priorities
 

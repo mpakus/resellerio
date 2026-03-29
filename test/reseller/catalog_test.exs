@@ -67,4 +67,59 @@ defmodule Reseller.CatalogTest do
 
     assert Catalog.get_product_for_user(user, product.id) == nil
   end
+
+  test "finalize_product_uploads_for_user/3 marks uploaded images and moves the product to processing" do
+    user = user_fixture()
+
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Nike sneakers"},
+        [
+          %{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000},
+          %{"filename" => "shoe-2.jpg", "content_type" => "image/jpeg", "byte_size" => 124_000}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image_one, image_two] = product.images
+
+    assert {:ok, %{product: finalized_product, finalized_images: finalized_images}} =
+             Catalog.finalize_product_uploads_for_user(user, product.id, [
+               %{"id" => image_one.id, "checksum" => "abc", "width" => 1200, "height" => 1600},
+               %{"id" => image_two.id, "checksum" => "def", "width" => 1201, "height" => 1601}
+             ])
+
+    assert finalized_product.status == "processing"
+    assert Enum.all?(finalized_images, &(&1.processing_status == "uploaded"))
+    assert Enum.all?(finalized_product.images, &(&1.processing_status == "uploaded"))
+  end
+
+  test "finalize_product_uploads_for_user/3 rejects another user's image ids" do
+    user = user_fixture()
+    other_user = user_fixture()
+
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Nike sneakers"},
+        [%{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    {:ok, %{product: other_product}} =
+      Catalog.create_product_for_user(
+        other_user,
+        %{"title" => "Other sneakers"},
+        [%{"filename" => "other.jpg", "content_type" => "image/jpeg", "byte_size" => 111_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [other_image] = other_product.images
+
+    assert {:error, :invalid_product_images} =
+             Catalog.finalize_product_uploads_for_user(user, product.id, [
+               %{"id" => other_image.id}
+             ])
+  end
 end

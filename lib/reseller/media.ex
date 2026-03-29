@@ -3,6 +3,7 @@ defmodule Reseller.Media do
 
   alias Ecto.Multi
   alias Reseller.Catalog.Product
+  alias Reseller.Media.FinalizeUploadBatch
   alias Reseller.Media.ProductImage
   alias Reseller.Media.Storage
   alias Reseller.Media.UploadBatch
@@ -47,6 +48,27 @@ defmodule Reseller.Media do
       end
 
     "users/#{product.user_id}/products/#{product.id}/originals/#{segment}"
+  end
+
+  @spec finalize_product_uploads(module(), Product.t(), [map()]) ::
+          {:ok, %{product: Product.t(), finalized_images: [ProductImage.t()]}}
+          | {:error, Ecto.Changeset.t() | term()}
+  def finalize_product_uploads(repo \\ Repo, %Product{} = product, uploads)
+      when is_list(uploads) do
+    with {:ok, upload_specs} <- validate_finalize_uploads(uploads),
+         {:ok, product} <- preload_product_images(repo, product),
+         :ok <- ensure_product_has_images(product),
+         :ok <- ensure_images_belong_to_product(product, upload_specs) do
+      finalize_upload_multi(product, upload_specs)
+      |> repo.transaction()
+      |> case do
+        {:ok, %{product: finalized_product, finalized_images: finalized_images}} ->
+          {:ok, %{product: finalized_product, finalized_images: finalized_images}}
+
+        {:error, _step, reason, _changes} ->
+          {:error, reason}
+      end
+    end
   end
 
   defp upload_multi(product, upload_specs, opts) do
@@ -130,4 +152,111 @@ defmodule Reseller.Media do
   end
 
   defp upload_filename(upload_spec), do: upload_spec.filename || "upload"
+
+  defp validate_finalize_uploads(uploads) do
+    changeset =
+      %FinalizeUploadBatch{}
+      |> FinalizeUploadBatch.changeset(%{"uploads" => uploads})
+
+    if changeset.valid? do
+      {:ok, Ecto.Changeset.get_field(changeset, :uploads)}
+    else
+      {:error, changeset}
+    end
+  end
+
+  defp ensure_product_has_images(%Product{images: images}) when is_list(images) and images != [],
+    do: :ok
+
+  defp ensure_product_has_images(%Product{}), do: {:error, :no_product_images}
+
+  defp preload_product_images(repo, %Product{} = product) do
+    {:ok,
+     repo.preload(product,
+       images: from(image in ProductImage, order_by: [asc: image.position, asc: image.id])
+     )}
+  end
+
+  defp ensure_images_belong_to_product(%Product{} = product, upload_specs) do
+    valid_ids = MapSet.new(Enum.map(product.images, & &1.id))
+    requested_ids = Enum.map(upload_specs, & &1.id)
+
+    if Enum.all?(requested_ids, &MapSet.member?(valid_ids, &1)) do
+      :ok
+    else
+      {:error, :invalid_product_images}
+    end
+  end
+
+  defp finalize_upload_multi(product, upload_specs) do
+    updates_by_id = Map.new(upload_specs, &{&1.id, &1})
+    next_status = next_product_status(product.images, upload_specs)
+
+    Multi.new()
+    |> Multi.run(:finalized_images, fn repo, _changes ->
+      product.images
+      |> Enum.filter(&Map.has_key?(updates_by_id, &1.id))
+      |> Enum.reduce_while({:ok, []}, fn image, {:ok, finalized_images} ->
+        upload_spec = Map.fetch!(updates_by_id, image.id)
+
+        case update_product_image(repo, image, finalized_image_attrs(image, upload_spec)) do
+          {:ok, finalized_image} -> {:cont, {:ok, finalized_images ++ [finalized_image]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+    end)
+    |> Multi.run(:product, fn repo, %{finalized_images: _finalized_images} ->
+      product
+      |> Product.update_changeset(%{"status" => next_status})
+      |> repo.update()
+      |> case do
+        {:ok, updated_product} ->
+          {:ok,
+           repo.preload(
+             updated_product,
+             [
+               images: from(image in ProductImage, order_by: [asc: image.position, asc: image.id])
+             ],
+             force: true
+           )}
+
+        {:error, changeset} ->
+          {:error, changeset}
+      end
+    end)
+  end
+
+  defp update_product_image(repo, image, attrs) do
+    image
+    |> ProductImage.create_changeset(attrs)
+    |> repo.update()
+  end
+
+  defp finalized_image_attrs(image, upload_spec) do
+    %{
+      kind: image.kind,
+      position: image.position,
+      storage_key: image.storage_key,
+      content_type: image.content_type,
+      byte_size: upload_spec.byte_size || image.byte_size,
+      checksum: upload_spec.checksum || image.checksum,
+      width: upload_spec.width || image.width,
+      height: upload_spec.height || image.height,
+      original_filename: image.original_filename,
+      processing_status: "uploaded"
+    }
+  end
+
+  defp next_product_status(images, upload_specs) do
+    updated_ids = MapSet.new(Enum.map(upload_specs, & &1.id))
+
+    if Enum.all?(images, fn image ->
+         image.processing_status in ["uploaded", "processing", "ready"] or
+           MapSet.member?(updated_ids, image.id)
+       end) do
+      "processing"
+    else
+      "uploading"
+    end
+  end
 end

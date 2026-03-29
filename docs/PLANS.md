@@ -5,7 +5,7 @@
 - [x] Step 1: API foundation with versioned `/api/v1`, health check endpoint, and stable JSON error shape.
 - [x] Step 2: Accounts foundation with `users`, password auth, and mobile session tokens.
 - [x] Step 3.1: Product and product image schemas plus signed upload intent generation.
-- [ ] Step 3.2: Finalize-upload endpoint and uploaded-image state transitions.
+- [x] Step 3.2: Finalize-upload endpoint and uploaded-image state transitions.
 - [ ] Step 4: Background job system and product processing runs.
 - [ ] Step 5: AI recognition and marketplace listing generation.
 - [ ] Step 6: Photoroom-powered image processing variants.
@@ -14,12 +14,12 @@
 
 ## Latest Progress
 
-- Completed: Step 3.1 product and upload-intent foundation.
-- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`
+- Completed: Step 3.2 upload finalization foundation.
+- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
-- Next target: Step 3.2 finalize-upload endpoint and uploaded-image state transitions.
+- Next target: Step 4 background job system and product processing runs.
 
 ## Working Rules
 

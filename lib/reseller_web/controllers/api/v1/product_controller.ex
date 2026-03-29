@@ -55,6 +55,50 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def finalize_uploads(conn, %{"id" => product_id} = params) do
+    uploads = Map.get(params, "uploads", [])
+
+    case Catalog.finalize_product_uploads_for_user(conn.assigns.current_user, product_id, uploads) do
+      {:ok, %{product: product, finalized_images: finalized_images}} ->
+        json(conn, %{
+          data: %{
+            product: product_json(product),
+            finalized_images: Enum.map(finalized_images, &image_json/1)
+          }
+        })
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, :no_product_images} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_product_state",
+          "Product has no images to finalize"
+        )
+
+      {:error, :invalid_product_images} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_uploads",
+          "Uploads must belong to the selected product"
+        )
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "finalize_failed",
+          "Could not finalize uploads: #{inspect(reason)}"
+        )
+    end
+  end
+
   defp product_json(product) do
     %{
       id: product.id,

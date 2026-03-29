@@ -34,6 +34,11 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "description" => "Returns one product for the authenticated user.",
                    "method" => "GET",
                    "path" => "/api/v1/products/:id"
+                 },
+                 %{
+                   "description" => "Marks uploaded product images as ready for processing.",
+                   "method" => "POST",
+                   "path" => "/api/v1/products/:id/finalize_uploads"
                  }
                ],
                "name" => "reseller",

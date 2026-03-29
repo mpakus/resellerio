@@ -79,6 +79,7 @@ defmodule ResellerWeb.Router do
       get "/products", ProductController, :index
       post "/products", ProductController, :create
       get "/products/:id", ProductController, :show
+      post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
     end
   end
 

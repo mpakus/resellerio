@@ -69,6 +69,11 @@ Example response:
         "method": "GET",
         "path": "/api/v1/products/:id",
         "description": "Returns one product for the authenticated user."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/finalize_uploads",
+        "description": "Marks uploaded product images as ready for processing."
       }
     ]
   }
@@ -306,6 +311,72 @@ Unknown or unauthorized product IDs return:
     "code": "not_found",
     "detail": "Product not found",
     "status": 404
+  }
+}
+```
+
+### `POST /api/v1/products/:id/finalize_uploads`
+
+Marks one or more pending upload placeholders as uploaded and transitions the product
+to `processing` once all expected original images are finalized.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "uploads": [
+    {
+      "id": 1,
+      "checksum": "abc123",
+      "width": 1200,
+      "height": 1600
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 1,
+      "status": "processing",
+      "images": [
+        {
+          "id": 1,
+          "processing_status": "uploaded",
+          "checksum": "abc123",
+          "width": 1200,
+          "height": 1600
+        }
+      ]
+    },
+    "finalized_images": [
+      {
+        "id": 1,
+        "processing_status": "uploaded"
+      }
+    ]
+  }
+}
+```
+
+If the provided image IDs do not belong to the selected product, the API returns:
+
+```json
+{
+  "error": {
+    "code": "invalid_uploads",
+    "detail": "Uploads must belong to the selected product",
+    "status": 422
   }
 }
 ```

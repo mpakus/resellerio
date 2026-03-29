@@ -47,6 +47,17 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def finalize_product_uploads_for_user(%User{} = user, product_id, uploads)
+      when is_list(uploads) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        Media.finalize_product_uploads(Repo, product, uploads)
+    end
+  end
+
   defp product_changeset(%User{} = user, attrs) do
     %Product{}
     |> Product.create_changeset(attrs)
