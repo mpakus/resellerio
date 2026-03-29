@@ -3,7 +3,7 @@
 ## Progress Tracker
 
 - [x] Step 1: API foundation with versioned `/api/v1`, health check endpoint, and stable JSON error shape.
-- [ ] Step 2: Accounts foundation with `users`, password auth, and mobile session tokens.
+- [x] Step 2: Accounts foundation with `users`, password auth, and mobile session tokens.
 - [ ] Step 3: Product and image schemas with signed upload flow.
 - [ ] Step 4: Background job system and product processing runs.
 - [ ] Step 5: AI recognition and marketplace listing generation.
@@ -13,11 +13,10 @@
 
 ## Latest Progress
 
-- Completed: Step 1 API foundation.
-- Commit: `509c712` (`Add API v1 foundation`)
-- Current API endpoints: `GET /api/v1` and `GET /api/v1/health`
+- Completed: Step 2 accounts foundation.
+- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, and `GET /api/v1/me`
 - API reference: `docs/API.md`
-- Next target: Step 2 accounts foundation.
+- Next target: Step 3 product and image schemas with signed upload flow.
 
 ## Working Rules
 

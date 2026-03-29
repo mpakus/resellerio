@@ -17,13 +17,16 @@ The project is in early backend foundation work.
 Implemented already:
 
 - Versioned JSON API namespace at `/api/v1`
+- API root endpoint at `GET /api/v1`
 - Health endpoint at `GET /api/v1/health`
 - Stable JSON error payload shape for API errors
+- Password-based user registration and login
+- Bearer-token authentication for `GET /api/v1/me`
+- In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
 Not implemented yet:
 
-- Authentication
 - Product schemas and CRUD
 - Upload flow
 - Background jobs
@@ -35,7 +38,7 @@ Not implemented yet:
 1. Run `mix setup`
 2. Start the server with `mix phx.server`
 3. Open [http://localhost:4000](http://localhost:4000)
-4. Check the API with `GET /api/v1/health`
+4. Check the API with `GET /api/v1`
 
 ## Project Docs
 

@@ -27,10 +27,11 @@ The project is currently a mostly empty Phoenix application with the first API f
 
 - Default landing page route.
 - Versioned `/api/v1` namespace.
-- `GET /api/v1/health` endpoint.
+- `GET /api/v1` and `GET /api/v1/health` endpoints.
+- Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
 - Stable JSON API error shape.
-- No auth system yet.
-- No domain schemas or business contexts yet.
+- `Reseller.Accounts` context with `users` and `api_tokens`.
+- No product, media, AI, export, or marketplace contexts yet.
 - No background job system yet.
 - No storage, AI, or marketplace integrations yet.
 
@@ -113,6 +114,7 @@ Build in this order unless a task explicitly says otherwise:
 ## Implementation notes for future agents
 
 - Update `docs/PLANS.md` before or during each feature so progress stays visible in-repo.
+- Update `docs/API.md` in the same commit whenever API routes, params, or response payloads change.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.
 - Prefer additive, well-scoped migrations. This project will likely evolve quickly as product requirements settle.

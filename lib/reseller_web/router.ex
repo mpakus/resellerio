@@ -14,6 +14,10 @@ defmodule ResellerWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :api_authenticated do
+    plug ResellerWeb.Plugs.APIAuth
+  end
+
   scope "/", ResellerWeb do
     pipe_through :browser
 
@@ -26,6 +30,17 @@ defmodule ResellerWeb.Router do
     scope "/v1", API.V1 do
       get "/", RootController, :show
       get "/health", HealthController, :show
+
+      scope "/auth" do
+        post "/register", AuthController, :register
+        post "/login", AuthController, :login
+      end
+    end
+
+    scope "/v1", API.V1 do
+      pipe_through :api_authenticated
+
+      get "/me", MeController, :show
     end
   end
 

@@ -9,7 +9,9 @@ import Config
 
 config :reseller,
   ecto_repos: [Reseller.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  password_hash_iterations: 100_000,
+  api_token_ttl_days: 30
 
 # Configures the endpoint
 config :reseller, ResellerWeb.Endpoint,
