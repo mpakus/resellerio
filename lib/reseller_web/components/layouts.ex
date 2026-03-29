@@ -53,10 +53,15 @@ defmodule ResellerWeb.Layouts do
             <a href="#markets" class="btn btn-ghost btn-sm rounded-full">Markets</a>
             <a href="#launch" class="btn btn-ghost btn-sm rounded-full">Launch</a>
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API v1</a>
+            <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
+            <.link navigate={~p"/sign-up"} class="btn btn-primary btn-sm rounded-full">
+              Create account
+            </.link>
             <.theme_toggle />
           </div>
 
           <div class="flex items-center gap-2 md:hidden">
+            <.link navigate={~p"/sign-in"} class="btn btn-ghost btn-sm rounded-full">Sign in</.link>
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API</a>
             <.theme_toggle />
           </div>

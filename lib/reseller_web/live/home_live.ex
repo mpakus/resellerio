@@ -36,19 +36,19 @@ defmodule ResellerWeb.HomeLive do
             </p>
 
             <div class="mt-10 flex flex-col gap-3 sm:flex-row">
-              <a
+              <.link
                 id="hero-primary-cta"
-                href="#launch"
+                navigate={~p"/sign-up"}
                 class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
               >
-                See The Web Flow
-              </a>
+                Create account
+              </.link>
               <a
                 id="hero-secondary-cta"
-                href={~p"/api/v1"}
+                href="#launch"
                 class="btn btn-outline btn-lg rounded-full px-7"
               >
-                Open API v1
+                See The Web Flow
               </a>
             </div>
 
@@ -219,7 +219,9 @@ defmodule ResellerWeb.HomeLive do
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row lg:flex-col">
-              <a href={~p"/api/v1"} class="btn btn-primary rounded-full px-7">Inspect API</a>
+              <.link navigate={~p"/sign-up"} class="btn btn-primary rounded-full px-7">
+                Create account
+              </.link>
               <a href="#home-hero" class="btn btn-ghost rounded-full px-7">Back to top</a>
             </div>
           </div>

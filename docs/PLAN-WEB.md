@@ -3,7 +3,7 @@
 ## Progress Tracker
 
 - [x] Step W1.1: Replace the generated Phoenix homepage with a reseller-focused LiveView landing page.
-- [ ] Step W1.2: Add browser sign-in and sign-up LiveViews.
+- [x] Step W1.2: Add browser sign-in and sign-up LiveViews.
 - [ ] Step W1.3: Create the authenticated web shell for future product screens.
 - [ ] Step W2.1: Build the dashboard LiveView.
 - [ ] Step W2.2: Build the products index with filters and statuses.
@@ -13,9 +13,10 @@
 
 ## Latest Web Progress
 
-- Completed: Step W1.1 reseller-focused LiveView landing page.
+- Completed: Step W1.2 browser sign-in and sign-up LiveViews.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
-- Next target: Step W1.2 browser sign-in and sign-up LiveViews.
+- Current auth routes: `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, and `DELETE "/sign-out"`
+- Next target: Step W1.3 authenticated web shell for future product screens.
 
 ## 1. Current Web Stack Analysis
 

@@ -5,6 +5,7 @@ defmodule ResellerWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
+    plug ResellerWeb.BrowserAuth, :fetch_current_user
     plug :put_root_layout, html: {ResellerWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
@@ -22,6 +23,11 @@ defmodule ResellerWeb.Router do
     pipe_through :browser
 
     live "/", HomeLive
+    live "/sign-up", Auth.SignUpLive
+    live "/sign-in", Auth.SignInLive
+    post "/sign-up", RegistrationController, :create
+    post "/sign-in", SessionController, :create
+    delete "/sign-out", SessionController, :delete
   end
 
   scope "/api", ResellerWeb do
