@@ -25,13 +25,17 @@ The backend also needs:
 
 The project is currently a mostly empty Phoenix application with the first API foundation slice implemented:
 
-- Default landing page route.
+- LiveView landing page at `/`.
+- Browser sign-up and sign-in flows at `/sign-up` and `/sign-in`.
+- Authenticated LiveView workspace shell at `/app`.
 - Versioned `/api/v1` namespace.
 - `GET /api/v1` and `GET /api/v1/health` endpoints.
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
 - Stable JSON API error shape.
 - `Reseller.Accounts` context with `users` and `api_tokens`.
-- Backpex-based admin interface under `/admin` for admin users.
+- Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
+- Browser-session admin gating plus LiveView admin gating.
+- Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
 - No product, media, AI, export, or marketplace contexts yet.
 - No background job system yet.
 - No storage, AI, or marketplace integrations yet.
@@ -101,6 +105,15 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Wrap external integrations behind behaviour-based modules so they can be mocked in tests and swapped later.
 - Capture external request IDs and normalized error payloads for observability.
 
+## Testing guidance
+
+- Treat auth, admin authorization, and token validation as security-sensitive surfaces. Add or update tests whenever those flows change.
+- Keep both behavior tests and attacker-style regression tests. Public registration and browser sign-up must never allow `is_admin` escalation.
+- Bearer-token tests should cover valid, missing, malformed, and expired token cases.
+- Admin route tests should cover unauthenticated, authenticated non-admin, and admin access paths.
+- Prefer shared fixtures from `Reseller.AccountsFixtures` instead of hand-rolling users and tokens in every test file.
+- When Backpex resources change, update tests for the routed surfaces under `/admin/...`, especially index, show, and edit flows that are actually reachable.
+
 ## Delivery priorities
 
 Build in this order unless a task explicitly says otherwise:
@@ -119,11 +132,12 @@ Build in this order unless a task explicitly says otherwise:
 - Update `docs/PLAN-WEB.md` when web/admin LiveView milestones are completed.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.
+- Run `mix test --cover` when making significant auth/admin changes so coverage regressions are visible, even if the global threshold is currently held down by unused scaffold/generated modules.
 - Backpex is now part of the stack. Prefer adding admin-only management screens there instead of building custom admin CRUD screens unless a task explicitly needs a custom experience.
 - Prefer additive, well-scoped migrations. This project will likely evolve quickly as product requirements settle.
 - When naming things, use `Product`, not `Production`, unless you are touching a user-facing string that explicitly requires different wording.
 - Design APIs for mobile reliability: idempotent creation endpoints, resumable upload flows where possible, and explicit processing states.
-- Add tests alongside each new context and endpoint. For async pipelines, test both the synchronous enqueue step and the worker behavior.
+- Add tests alongside each new context and endpoint. For async pipelines, test both the synchronous enqueue step and the worker behavior. Security-facing changes should also get explicit regression tests.
 - When introducing auth, keep API and browser auth concerns separate so mobile clients are not forced through browser-centric flows.
 - If passkeys are implemented, document both registration and authentication ceremonies and keep the server challenge flow small and explicit.
 

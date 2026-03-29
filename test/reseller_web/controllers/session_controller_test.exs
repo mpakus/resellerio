@@ -41,6 +41,13 @@ defmodule ResellerWeb.SessionControllerTest do
     assert Flash.get(conn.assigns.flash, :error) == "Invalid email or password."
   end
 
+  test "POST /sign-in redirects back when credentials are missing", %{conn: conn} do
+    conn = post(conn, ~p"/sign-in", %{})
+
+    assert redirected_to(conn) == ~p"/sign-in"
+    assert Flash.get(conn.assigns.flash, :error) == "Email and password are required."
+  end
+
   test "DELETE /sign-out clears the browser session", %{conn: conn, user: user} do
     conn =
       conn

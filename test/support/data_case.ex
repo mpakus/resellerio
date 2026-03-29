@@ -23,6 +23,7 @@ defmodule Reseller.DataCase do
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
+      import Reseller.AccountsFixtures
       import Reseller.DataCase
     end
   end

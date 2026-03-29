@@ -17,6 +17,22 @@ defmodule ResellerWeb.RegistrationControllerTest do
     assert Flash.get(conn.assigns.flash, :info) == "Account created. Welcome to Reseller Web."
   end
 
+  test "POST /sign-up ignores admin escalation params", %{conn: conn} do
+    conn =
+      post(conn, ~p"/sign-up", %{
+        "user" => %{
+          "email" => "seller@example.com",
+          "password" => "very-secure-password",
+          "is_admin" => true
+        }
+      })
+
+    user_id = get_session(conn, :user_id)
+
+    assert redirected_to(conn) == ~p"/app"
+    refute Reseller.Accounts.get_user!(user_id).is_admin
+  end
+
   test "POST /sign-up redirects back with an error when invalid", %{conn: conn} do
     conn =
       post(conn, ~p"/sign-up", %{

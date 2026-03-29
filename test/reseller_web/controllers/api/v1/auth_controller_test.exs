@@ -30,6 +30,20 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
       assert is_integer(user_id)
     end
 
+    test "ignores admin privilege escalation fields", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/auth/register", %{
+          "email" => "seller@example.com",
+          "password" => "very-secure-password",
+          "is_admin" => true
+        })
+
+      assert %{"data" => %{"user" => %{"email" => "seller@example.com", "id" => user_id}}} =
+               json_response(conn, 200)
+
+      refute Accounts.get_user!(user_id).is_admin
+    end
+
     test "returns validation errors for invalid params", %{conn: conn} do
       conn =
         post(conn, "/api/v1/auth/register", %{
@@ -95,6 +109,18 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
                  "code" => "unauthorized",
                  "detail" => "Invalid email or password",
                  "status" => 401
+               }
+             }
+    end
+
+    test "returns bad request when params are incomplete", %{conn: conn} do
+      conn = post(conn, "/api/v1/auth/login", %{"email" => "seller@example.com"})
+
+      assert json_response(conn, 400) == %{
+               "error" => %{
+                 "code" => "invalid_request",
+                 "detail" => "Email and password are required",
+                 "status" => 400
                }
              }
     end

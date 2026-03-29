@@ -27,6 +27,7 @@ defmodule ResellerWeb.ConnCase do
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
+      import Reseller.AccountsFixtures
       import ResellerWeb.ConnCase
     end
   end

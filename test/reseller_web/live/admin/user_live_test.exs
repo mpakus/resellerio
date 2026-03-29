@@ -3,8 +3,6 @@ defmodule ResellerWeb.Admin.UserLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Reseller.Accounts
-
   test "redirects unauthenticated users to sign in", %{conn: conn} do
     conn = get(conn, "/admin/users/")
 
@@ -12,11 +10,7 @@ defmodule ResellerWeb.Admin.UserLiveTest do
   end
 
   test "redirects non-admin users to the app shell", %{conn: conn} do
-    {:ok, user} =
-      Accounts.register_user(%{
-        "email" => "seller@example.com",
-        "password" => "very-secure-password"
-      })
+    user = user_fixture(%{"email" => "seller@example.com"})
 
     conn =
       conn
@@ -27,19 +21,35 @@ defmodule ResellerWeb.Admin.UserLiveTest do
   end
 
   test "renders the users admin resource for admin users", %{conn: conn} do
-    {:ok, user} =
-      Accounts.register_user(%{
-        "email" => "admin@example.com",
-        "password" => "very-secure-password"
-      })
-
-    {:ok, _admin_user} = Accounts.grant_admin(user)
-
+    user = admin_user_fixture(%{"email" => "admin@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, _html} = live(conn, "/admin/users/")
 
-    assert render(view) =~ "Users"
-    assert render(view) =~ "admin@example.com"
+    assert has_element?(view, "main")
+    assert has_element?(view, "a[href='/admin/users/#{user.id}/show']")
+    assert has_element?(view, "main", "admin@example.com")
+  end
+
+  test "renders the user show page for admins", %{conn: conn} do
+    admin_user = admin_user_fixture(%{"email" => "admin@example.com"})
+    managed_user = user_fixture(%{"email" => "managed@example.com"})
+    conn = init_test_session(conn, %{user_id: admin_user.id})
+
+    {:ok, view, _html} = live(conn, "/admin/users/#{managed_user.id}/show")
+
+    assert has_element?(view, "main")
+    assert has_element?(view, "main", "managed@example.com")
+  end
+
+  test "renders the user edit page for admins", %{conn: conn} do
+    admin_user = admin_user_fixture(%{"email" => "admin@example.com"})
+    managed_user = user_fixture(%{"email" => "managed@example.com"})
+    conn = init_test_session(conn, %{user_id: admin_user.id})
+
+    {:ok, view, _html} = live(conn, "/admin/users/#{managed_user.id}/edit")
+
+    assert has_element?(view, "form")
+    assert has_element?(view, "button[type='submit']")
   end
 end

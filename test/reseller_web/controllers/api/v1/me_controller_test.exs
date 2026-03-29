@@ -40,4 +40,37 @@ defmodule ResellerWeb.API.V1.MeControllerTest do
              }
            }
   end
+
+  test "returns unauthorized when the bearer token is expired", %{conn: conn} do
+    user = user_fixture(%{"email" => "expired@example.com"})
+    {raw_token, _api_token} = expired_api_token_fixture(user)
+
+    conn =
+      conn
+      |> put_req_header("authorization", "Bearer #{raw_token}")
+      |> get("/api/v1/me")
+
+    assert json_response(conn, 401) == %{
+             "error" => %{
+               "code" => "unauthorized",
+               "detail" => "Missing or invalid bearer token",
+               "status" => 401
+             }
+           }
+  end
+
+  test "returns unauthorized for malformed authorization headers", %{conn: conn} do
+    conn =
+      conn
+      |> put_req_header("authorization", "Token no-bearer-prefix")
+      |> get("/api/v1/me")
+
+    assert json_response(conn, 401) == %{
+             "error" => %{
+               "code" => "unauthorized",
+               "detail" => "Missing or invalid bearer token",
+               "status" => 401
+             }
+           }
+  end
 end

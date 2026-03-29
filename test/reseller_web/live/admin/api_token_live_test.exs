@@ -3,23 +3,38 @@ defmodule ResellerWeb.Admin.ApiTokenLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias Reseller.Accounts
-
   test "renders the api tokens admin resource for admin users", %{conn: conn} do
-    {:ok, user} =
-      Accounts.register_user(%{
-        "email" => "admin@example.com",
-        "password" => "very-secure-password"
-      })
-
-    {:ok, _admin_user} = Accounts.grant_admin(user)
-    {:ok, _raw_token, _api_token} = Accounts.issue_api_token(user, %{"device_name" => "MacBook"})
-
+    user = admin_user_fixture(%{"email" => "admin@example.com"})
+    {_raw_token, api_token} = api_token_fixture(user, %{"device_name" => "MacBook"})
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, _html} = live(conn, "/admin/api-tokens/")
 
-    assert render(view) =~ "API Tokens"
-    assert render(view) =~ "MacBook"
+    assert has_element?(view, "main")
+    assert has_element?(view, "a[href='/admin/api-tokens/#{api_token.id}/show']")
+    assert has_element?(view, "main", "MacBook")
+  end
+
+  test "redirects non-admin users away from api token admin pages", %{conn: conn} do
+    user = user_fixture()
+
+    conn =
+      conn
+      |> init_test_session(%{user_id: user.id})
+      |> get("/admin/api-tokens/")
+
+    assert redirected_to(conn) == "/app"
+  end
+
+  test "renders the api token show page for admins", %{conn: conn} do
+    user = admin_user_fixture(%{"email" => "admin@example.com"})
+    {_raw_token, api_token} = api_token_fixture(user, %{"device_name" => "MacBook"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/admin/api-tokens/#{api_token.id}/show")
+
+    assert has_element?(view, "main")
+    assert has_element?(view, "main", "MacBook")
+    assert has_element?(view, "code")
   end
 end
