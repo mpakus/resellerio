@@ -3,7 +3,8 @@
 ## Progress Tracker
 
 - [x] Step AI1: Add Gemini and SerpApi configuration, client modules, and test doubles.
-- [ ] Step AI2: Add image recognition pipeline for uploaded product photos.
+- [x] Step AI2.1: Add image selection and confidence-based recognition orchestration.
+- [ ] Step AI2.2: Wire recognition pipeline into product/image records and background workers.
 - [ ] Step AI3: Add structured product description generation.
 - [ ] Step AI4: Add grounded price research with Gemini plus SerpApi comparables.
 - [ ] Step AI5: Add marketplace-specific listing generation.
@@ -11,9 +12,9 @@
 
 ## Latest AI Planning Status
 
-- Current status: AI foundation implemented with `Reseller.AI`, `Reseller.Search`, Gemini and SerpApi Req clients, and test doubles.
+- Current status: AI foundation plus recognition orchestration implemented with image selection, confidence gating, SerpApi Lens fallback, and reconciliation.
 - Depends on: product/image schemas, upload finalization flow, and background jobs from `docs/PLANS.md`.
-- Next implementation target: Step AI2 image recognition pipeline once product/media and worker foundations are ready.
+- Next implementation target: Step AI2.2 worker and product/image wiring once product/media foundations are ready.
 
 ## 1. Goal
 
@@ -39,6 +40,7 @@ The repo already has:
 - `Reseller.AI` and `Reseller.Search` contexts with provider behaviours
 - Req-backed Gemini and SerpApi production clients
 - test-only fake providers for isolated unit tests
+- `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline`
 
 The repo does not yet have:
 
@@ -46,6 +48,8 @@ The repo does not yet have:
 - background workers
 - object-storage upload finalization
 - product-level AI pipeline wiring
+
+So the orchestration layer now exists, but the persistence and background-job pieces for real uploaded product photos are still pending.
 
 So Gemini should be added only after the catalog/media and worker foundations are in place, or in parallel with those foundations if we keep the write scope clean.
 

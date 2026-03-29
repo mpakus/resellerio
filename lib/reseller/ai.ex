@@ -28,6 +28,12 @@ defmodule Reseller.AI do
     provider(opts).reconcile_product(recognition_result, search_results, opts)
   end
 
+  @spec run_recognition_pipeline([map()], map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def run_recognition_pipeline(images, metadata \\ %{}, opts \\ [])
+      when is_list(images) and is_map(metadata) do
+    Reseller.AI.RecognitionPipeline.run(images, metadata, opts)
+  end
+
   @spec provider(keyword()) :: module()
   def provider(opts \\ []) do
     Keyword.get(opts, :provider, Application.fetch_env!(:reseller, __MODULE__)[:provider])

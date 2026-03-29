@@ -27,6 +27,7 @@ Implemented already:
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
 - Req-backed Gemini and SerpApi client modules with tests
+- Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 

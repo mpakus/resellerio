@@ -36,11 +36,13 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
+- `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline` for confidence-based recognition orchestration.
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
 - Security regression coverage for admin boundaries, bearer-token expiry, and privilege-escalation attempts.
 - No product or media contexts yet.
-- No product-level AI pipeline or worker orchestration yet.
+- No product/image persistence wiring for the AI pipeline yet.
+- No background-worker orchestration for AI yet.
 - No export or marketplace contexts yet.
 - No background job system yet.
 - No storage integration yet.
@@ -125,6 +127,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - When Backpex resources change, update tests for the routed surfaces under `/admin/...`, especially index, show, and edit flows that are actually reachable.
 - For AI/search providers, prefer pure request builders plus provider behaviours so request payloads can be tested without live network calls.
 - Keep test-only fake providers under `test/support` and use provider overrides or test config instead of real external requests.
+- For AI pipeline logic, keep orchestration in small, composable modules like image selection, normalization, and pipeline runners so worker integration stays thin later.
 
 ## Delivery priorities
 
