@@ -24,16 +24,18 @@ defmodule Reseller.Media.Storage.TigrisTest do
     assert result.method == "PUT"
     assert result.headers == %{"content-type" => "image/jpeg"}
     assert result.expires_at == "2026-03-29T18:40:00Z"
+    assert result.headers == %{"content-type" => "image/jpeg"}
 
     assert result.upload_url =~
              "https://bucket.example.tigris.dev/users/1/products/2/originals/example.jpg?"
 
+    assert result.upload_url =~ "Content-Type=image%2Fjpeg"
     assert result.upload_url =~ "X-Amz-Algorithm=AWS4-HMAC-SHA256"
 
     assert result.upload_url =~
              "X-Amz-Credential=tigris-access%2F20260329%2Fauto%2Fs3%2Faws4_request"
 
-    assert result.upload_url =~ "X-Amz-SignedHeaders=content-type%3Bhost"
+    assert result.upload_url =~ "X-Amz-SignedHeaders=host"
     assert result.upload_url =~ "X-Amz-Signature="
   end
 

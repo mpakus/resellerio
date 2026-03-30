@@ -29,11 +29,12 @@ defmodule Reseller.Media.Storage.Tigris do
       canonical_uri = join_uri_path(uri.path || "/", bucket_prefix, storage_key)
 
       query_params = %{
+        "Content-Type" => content_type,
         "X-Amz-Algorithm" => @algorithm,
         "X-Amz-Credential" => "#{access_key_id}/#{credential_scope}",
         "X-Amz-Date" => amz_date,
         "X-Amz-Expires" => Integer.to_string(expires_in),
-        "X-Amz-SignedHeaders" => "content-type;host"
+        "X-Amz-SignedHeaders" => "host"
       }
 
       canonical_request =
@@ -41,8 +42,8 @@ defmodule Reseller.Media.Storage.Tigris do
           "PUT",
           canonical_uri,
           canonical_query_string(query_params),
-          "content-type:#{content_type}\nhost:#{uri.host}\n",
-          "content-type;host",
+          "host:#{uri.host}\n",
+          "host",
           "UNSIGNED-PAYLOAD"
         ]
         |> Enum.join("\n")
