@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-reseller_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-reseller}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reseller} -d ${POSTGRES_DB:-reseller_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-4000}:4000"
+    environment:
+      PHX_SERVER: "true"
+      PHX_HOST: ${PHX_HOST:-localhost}
+      PORT: 4000
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL_RECOGNITION: ${GEMINI_MODEL_RECOGNITION:-}
+      GEMINI_MODEL_DESCRIPTION: ${GEMINI_MODEL_DESCRIPTION:-}
+      GEMINI_MODEL_MARKETPLACE_LISTING: ${GEMINI_MODEL_MARKETPLACE_LISTING:-}
+      GEMINI_MODEL_PRICE_RESEARCH: ${GEMINI_MODEL_PRICE_RESEARCH:-}
+      GEMINI_MODEL_RECONCILIATION: ${GEMINI_MODEL_RECONCILIATION:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
+      TIGRIS_ACCESS_KEY_ID: ${TIGRIS_ACCESS_KEY_ID:-}
+      TIGRIS_SECRET_ACCESS_KEY: ${TIGRIS_SECRET_ACCESS_KEY:-}
+      TIGRIS_BUCKET_URL: ${TIGRIS_BUCKET_URL:-}
+      PHOTOROOM_API_KEY: ${PHOTOROOM_API_KEY:-}
+      POOL_SIZE: ${POOL_SIZE:-10}
+      ECTO_IPV6: ${ECTO_IPV6:-}
+      DNS_CLUSTER_QUERY: ${DNS_CLUSTER_QUERY:-}
+    command: >
+      /bin/sh -lc "
+      /app/bin/reseller eval 'Reseller.Release.migrate()' &&
+      /app/bin/reseller start
+      "
+
+volumes:
+  postgres_data:

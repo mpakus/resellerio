@@ -55,6 +55,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Exports` now builds ZIP archives, uploads them to storage, and triggers export-ready notifications.
 - `Reseller.Imports` now stores uploaded ZIP archives, recreates products and images, restores generated metadata, and records per-product import failures.
 - `Reseller.Catalog` now owns explicit product lifecycle mutations for edit, delete, sold, archive, and restore flows.
+- The repo now includes release-oriented Docker packaging for production-style container deployment.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
@@ -180,6 +181,7 @@ Build in this order unless a task explicitly says otherwise:
 - Update `docs/PLANS.md` when Step 3 substeps like upload intents or finalize-upload flow are completed.
 - Keep one feature per git commit whenever practical.
 - Run `mix precommit` before closing out a feature.
+- When changing runtime env vars or deployment assumptions, update `README.md`, `Dockerfile`, and `docker-compose.yml` together.
 - Run `mix test --cover` when making significant auth/admin changes so coverage regressions are visible, even if the global threshold is currently held down by unused scaffold/generated modules.
 - Backpex is now part of the stack. Prefer adding admin-only management screens there instead of building custom admin CRUD screens unless a task explicitly needs a custom experience.
 - Prefer additive, well-scoped migrations. This project will likely evolve quickly as product requirements settle.

@@ -50,9 +50,10 @@ Not implemented yet:
 ## Local Development
 
 1. Run `mix setup`
-2. Start the server with `mix phx.server`
-3. Open [http://localhost:4000](http://localhost:4000)
-4. Check the API with `GET /api/v1`
+2. Set the environment variables from the `Credentials` section below
+3. Start the server with `mix phx.server`
+4. Open [http://localhost:4000](http://localhost:4000)
+5. Check the API with `GET /api/v1`
 
 ## Project Docs
 
@@ -62,16 +63,171 @@ Not implemented yet:
 - AI implementation plan: `docs/PLAN-AI.md`
 - Project-specific coding guidance for agents and contributors: `AGENTS.md`
 
-## AI Provider Setup
+## Credentials
 
-The recognition pipeline is now wired into product processing runs.
+This project reads runtime credentials from environment variables in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs).
 
-- Gemini API key: `GEMINI_API_KEY`
-- Optional Gemini model overrides: `GEMINI_MODEL_RECOGNITION`, `GEMINI_MODEL_DESCRIPTION`, `GEMINI_MODEL_PRICE_RESEARCH`, `GEMINI_MODEL_RECONCILIATION`
-- SerpApi key: `SERPAPI_API_KEY`
-- Tigris upload signing and public image base: `TIGRIS_ACCESS_KEY_ID`, `TIGRIS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET_URL`
+For local development, add them in the shell before running Phoenix. Example:
 
-Current implementation note:
+```bash
+export GEMINI_API_KEY="..."
+export SERPAPI_API_KEY="..."
+export TIGRIS_ACCESS_KEY_ID="..."
+export TIGRIS_SECRET_ACCESS_KEY="..."
+export TIGRIS_BUCKET_URL="https://your-bucket-name.your-region.tigris.dev"
+export PHOTOROOM_API_KEY="..."
+mix phx.server
+```
+
+If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy system, put the same variable names there. The app does not currently load a checked-in `.env` file by itself.
+
+### Required in Production
+
+- `DATABASE_URL`
+  PostgreSQL connection string used by Ecto.
+  Example: `ecto://USER:PASS@HOST/DATABASE`
+
+- `SECRET_KEY_BASE`
+  Phoenix secret used to sign/encrypt cookies and tokens.
+  Generate with `mix phx.gen.secret`
+
+- `PHX_HOST`
+  Public host name for the app.
+  Example: `api.example.com`
+
+- `PORT`
+  HTTP port for the Phoenix endpoint.
+  Defaults to `4000` if omitted
+
+### Required For AI, Search, and Media Features
+
+- `GEMINI_API_KEY`
+  Google Gemini API key used for image recognition, reconciliation, description generation, price research, and marketplace listing generation
+
+- `SERPAPI_API_KEY`
+  SerpApi key used for Google Lens and Shopping enrichment
+
+- `TIGRIS_ACCESS_KEY_ID`
+  Tigris S3-compatible access key ID used for upload signing and object uploads
+
+- `TIGRIS_SECRET_ACCESS_KEY`
+  Tigris S3-compatible secret key used for upload signing and object uploads
+
+- `TIGRIS_BUCKET_URL`
+  Public base URL for your Tigris bucket
+  Example: `https://bucket-name.region.tigris.dev`
+  This is used both for storage operations and for public image URLs consumed by Gemini, SerpApi, ZIP export downloads, and ZIP import archive fetches
+
+- `PHOTOROOM_API_KEY`
+  Photoroom API key used for background removal and white-background image variants
+
+### Optional Runtime Variables
+
+- `PHX_SERVER`
+  Set to `true` when starting a release if you want the web server enabled
+
+- `POOL_SIZE`
+  Database pool size in production
+  Defaults to `10`
+
+- `ECTO_IPV6`
+  Set to `true` or `1` to enable IPv6 socket options for Postgres connections
+
+- `DNS_CLUSTER_QUERY`
+  Optional DNS cluster query used for clustered deployments
+
+### Optional Gemini Model Overrides
+
+If you want to override the default Gemini model per operation, set any of:
+
+- `GEMINI_MODEL_RECOGNITION`
+- `GEMINI_MODEL_DESCRIPTION`
+- `GEMINI_MODEL_MARKETPLACE_LISTING`
+- `GEMINI_MODEL_PRICE_RESEARCH`
+- `GEMINI_MODEL_RECONCILIATION`
+
+Current defaults in runtime config are all `gemini-2.5-flash`.
+
+### Optional Mailer Credentials
+
+The repo uses the local Swoosh adapter in development and test, so no mail credentials are required locally by default.
+
+If you switch production email delivery to a real provider, add the provider-specific credentials in your deployment environment. The example already noted in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs) is:
+
+- `MAILGUN_API_KEY`
+- `MAILGUN_DOMAIN`
+
+You will also need to change the Swoosh adapter config accordingly.
+
+### Where To Add Them
+
+- Local terminal session:
+  Export variables in your shell before `mix phx.server`
+
+- Shell profile:
+  Add `export ...` lines to `~/.zshrc`, `~/.bashrc`, or equivalent if you want them loaded automatically
+
+- `direnv` / `.envrc`:
+  Good for project-local development secrets without committing them
+
+- Docker / Compose:
+  Put them in `environment:` or `env_file`
+
+- Production hosting:
+  Add them in your platform's secrets/settings UI, because `runtime.exs` reads them at boot time
+
+## Docker
+
+This repo now includes:
+
+- [Dockerfile](/Users/mpak/www/elixir/reseller/Dockerfile)
+  Multi-stage production image that builds a Phoenix release
+
+- [docker-compose.yml](/Users/mpak/www/elixir/reseller/docker-compose.yml)
+  Production-style app + Postgres setup with automatic migrations on boot
+
+- [.dockerignore](/Users/mpak/www/elixir/reseller/.dockerignore)
+  Keeps the build context small and avoids copying local build artifacts into the image
+
+### Docker Compose Credentials
+
+For `docker compose`, set the same runtime secrets in your shell or in a compose `.env` file before starting:
+
+```bash
+export POSTGRES_PASSWORD="change-me"
+export SECRET_KEY_BASE="$(mix phx.gen.secret)"
+export DATABASE_URL="ecto://reseller:${POSTGRES_PASSWORD}@db/reseller_prod"
+export PHX_HOST="your-domain.example"
+export GEMINI_API_KEY="..."
+export SERPAPI_API_KEY="..."
+export TIGRIS_ACCESS_KEY_ID="..."
+export TIGRIS_SECRET_ACCESS_KEY="..."
+export TIGRIS_BUCKET_URL="https://your-bucket-name.your-region.tigris.dev"
+export PHOTOROOM_API_KEY="..."
+```
+
+Then run:
+
+```bash
+docker compose up -d --build
+```
+
+The compose setup will:
+
+- build the release image
+- start Postgres
+- wait for Postgres health checks
+- run `Reseller.Release.migrate()`
+- start the Phoenix release on port `4000`
+
+### Docker Notes
+
+- The app container expects `DATABASE_URL` explicitly, even though the compose file also starts Postgres
+- The published port is controlled by `APP_PORT`, which defaults to `4000`
+- `PHX_HOST` should match the external host you use in production
+- If you use an external managed Postgres instead of the included `db` service, point `DATABASE_URL` at that database and remove or ignore the compose `db` service
+
+## Implementation Notes
 
 - `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
 - recognized products can now also receive a generated `product_description_draft` during the same processing run

@@ -1,0 +1,10 @@
+.git
+.gitignore
+_build
+deps
+cover
+tmp
+erl_crash.dump
+npm-debug.log
+assets/node_modules
+priv/static/assets
