@@ -55,6 +55,13 @@ config :reseller, Reseller.Workers,
 
 config :reseller, Reseller.Marketplaces, marketplaces: ~w(ebay depop poshmark)
 
+config :reseller, Reseller.Exports,
+  processing_mode: :async,
+  export_ttl_days: 7,
+  builder: Reseller.Exports.ZipBuilder,
+  notifier: Reseller.Exports.Notifiers.Email,
+  from_email: "exports@reseller.local"
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

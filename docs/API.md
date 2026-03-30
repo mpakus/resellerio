@@ -74,6 +74,16 @@ Example response:
         "method": "POST",
         "path": "/api/v1/products/:id/finalize_uploads",
         "description": "Marks uploaded product images as ready for processing."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/exports",
+        "description": "Queues a ZIP export for the authenticated user."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/exports/:id",
+        "description": "Returns one export request for the authenticated user."
       }
     ]
   }
@@ -610,6 +620,63 @@ If the provided image IDs do not belong to the selected product, the API returns
     "code": "invalid_uploads",
     "detail": "Uploads must belong to the selected product",
     "status": 422
+  }
+}
+```
+
+### `POST /api/v1/exports`
+
+Queues an export for the authenticated user. The export is built in the background, uploaded to storage, and emailed once ready.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response status: `202 Accepted`
+
+The returned export record may be `queued`, `running`, `completed`, or `failed` depending on when the worker updates the record.
+
+Example response:
+
+```json
+{
+  "data": {
+    "export": {
+      "id": 1,
+      "status": "queued",
+      "storage_key": null,
+      "download_url": null,
+      "requested_at": "2026-03-30T01:10:00Z",
+      "completed_at": null,
+      "expires_at": null,
+      "error_message": null
+    }
+  }
+}
+```
+
+### `GET /api/v1/exports/:id`
+
+Returns one export record for the authenticated user.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Completed exports include a `storage_key`, a `download_url`, and `expires_at`.
+
+Unknown or unauthorized export IDs return:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "detail": "Export not found",
+    "status": 404
   }
 }
 ```

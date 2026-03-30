@@ -488,12 +488,16 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
   end
 
-  test "marks the run, product, and images as failed when public image URLs are unavailable" do
+  test "marks the run, product, and images as failed when public image URLs are invalid" do
     user = user_fixture()
     product = finalized_product_fixture(user)
 
     assert {:ok, _run} =
-             Workers.start_product_processing(product, processor: AIProductProcessor)
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               public_base_url: "not-a-valid-url"
+             )
 
     failed_run = Workers.latest_product_processing_run(product.id)
     refreshed_product = Catalog.get_product_for_user(user, product.id)

@@ -58,8 +58,16 @@ config :reseller, Reseller.Search.Providers.SerpApi, api_key: "test-serpapi-api-
 
 config :reseller, Reseller.Media,
   storage: Reseller.Support.Fakes.MediaStorage,
-  processor: Reseller.Support.Fakes.MediaProcessor
+  processor: Reseller.Support.Fakes.MediaProcessor,
+  public_base_url: "https://cdn.example.test"
 
 config :reseller, Reseller.Workers,
   processing_mode: :inline,
   product_processor: Reseller.Support.Fakes.ProductProcessor
+
+config :reseller, Reseller.Exports,
+  processing_mode: :inline,
+  export_ttl_days: 7,
+  builder: Reseller.Exports.ZipBuilder,
+  notifier: Reseller.Support.Fakes.ExportNotifier,
+  from_email: "exports@test.local"

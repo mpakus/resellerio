@@ -12,13 +12,13 @@
 - [x] Step 5.2: Grounded price research with Gemini plus SerpApi comparables.
 - [x] Step 5.3: Marketplace listing generation.
 - [x] Step 6: Photoroom-powered image processing variants.
-- [ ] Step 7: ZIP export generation and export-ready email flow.
+- [x] Step 7: ZIP export generation and export-ready email flow.
 - [ ] Step 8: ZIP import flow.
 
 ## Latest Progress
 
-- Completed: Step 6 Photoroom-powered image processing variants.
-- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`
+- Completed: Step 7 ZIP export generation and email notification flow.
+- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/exports`, and `GET /api/v1/exports/:id`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
@@ -27,7 +27,8 @@
 - Pricing: `product_price_researches` now store grounded price suggestions and comparable evidence separately from editable product fields
 - Marketplace output: `marketplace_listings` now store generated eBay, Depop, and Poshmark copy per product
 - Media variants: processed `background_removed` and `white_background` images can now be generated and stored per original image
-- Next target: Step 7 add ZIP export generation and export-ready email flow.
+- Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
+- Next target: Step 8 add ZIP import flow.
 
 ## Working Rules
 

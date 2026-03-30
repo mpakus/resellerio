@@ -37,6 +37,16 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "POST",
             path: "/api/v1/products/:id/finalize_uploads",
             description: "Marks uploaded product images as ready for processing."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/exports",
+            description: "Queues a ZIP export for the authenticated user."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/exports/:id",
+            description: "Returns one export request for the authenticated user."
           }
         ]
       }

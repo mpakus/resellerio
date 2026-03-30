@@ -95,6 +95,31 @@ defmodule Reseller.Media do
     end
   end
 
+  @spec public_url_for_image(ProductImage.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  def public_url_for_image(%ProductImage{} = image, opts \\ []) do
+    with {:ok, base_url} <- public_base_url(opts) do
+      {:ok, build_public_url(base_url, image.storage_key)}
+    end
+  end
+
+  @spec public_url_for_storage_key(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
+  def public_url_for_storage_key(storage_key, opts \\ []) when is_binary(storage_key) do
+    with {:ok, base_url} <- public_base_url(opts) do
+      {:ok, build_public_url(base_url, storage_key)}
+    end
+  end
+
+  @spec public_url_for_storage_key!(String.t(), keyword()) :: String.t()
+  def public_url_for_storage_key!(storage_key, opts \\ []) when is_binary(storage_key) do
+    case public_url_for_storage_key(storage_key, opts) do
+      {:ok, url} ->
+        url
+
+      {:error, reason} ->
+        raise "could not build public url for #{storage_key}: #{inspect(reason)}"
+    end
+  end
+
   @spec mark_product_images_ready(Product.t()) :: {:ok, non_neg_integer()}
   def mark_product_images_ready(%Product{id: product_id}) do
     {count, _rows} =

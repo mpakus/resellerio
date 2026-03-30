@@ -52,8 +52,8 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `product_price_researches` now store AI-authored pricing guidance and comparable evidence separately from user-entered product pricing.
 - `Reseller.Marketplaces` now stores per-marketplace generated listings for eBay, Depop, and Poshmark.
 - `Reseller.Media.Processor` and `Reseller.Media.Processors.Photoroom` now generate processed image variants like `background_removed` and `white_background`.
-- No export context yet.
-- No background job system yet.
+- `Reseller.Exports` now builds ZIP archives, uploads them to storage, and triggers export-ready notifications.
+- Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
 Plan and implementation work should assume we are building the backend foundation from scratch.
@@ -109,7 +109,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
   Handles marketplace-specific listing payloads, formatting constraints, and export adapters if those arrive later.
 
 - `Reseller.Exports`
-  Handles ZIP assembly, import parsing, artifact retention, and emailing download links.
+  Handles ZIP assembly, export artifact retention, and emailing download links.
 
 - `Reseller.Workers`
   Houses background workers and job orchestration modules.
@@ -121,6 +121,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Marketplace-specific copy should live in separate records keyed by product and marketplace, not as one giant blob on `products`.
 - Export archives should contain `index.json` plus an `images/` directory exactly as described in the product plan.
 - Download links for exports should be time-limited and revocable.
+- Export-ready notifications should be sent only after the archive upload succeeds and a download URL is available.
 
 ## Integration guidance
 

@@ -38,6 +38,7 @@ Implemented already:
 - AI-generated price research stored separately from editable product pricing
 - Marketplace-specific listing records for eBay, Depop, and Poshmark
 - Photoroom-backed processed image variants
+- ZIP export generation with email-ready notifications
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -45,7 +46,7 @@ Not implemented yet:
 
 - Product edit/delete/sold lifecycle endpoints
 - Passkey authentication
-- Import/export
+- ZIP import flow
 
 ## Local Development
 
@@ -78,6 +79,7 @@ Current implementation note:
 - recognized products can now also receive a generated `product_price_research` during the same processing run
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
 - recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
+- authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
 
 ## Admin Access
 
