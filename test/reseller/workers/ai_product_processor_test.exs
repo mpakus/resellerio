@@ -510,6 +510,40 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     refute_received {:ai_provider_called, :recognize_images, _, _, _}
   end
 
+  test "classifies Gemini quota exhaustion as a retryable AI failure" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    assert {:ok, _run} =
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               public_base_url: "https://cdn.example.com/catalog",
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               recognize_result:
+                 {:error,
+                  {:http_error, 429,
+                   %{
+                     "error" => %{
+                       "status" => "RESOURCE_EXHAUSTED",
+                       "message" => "Resource has been exhausted (e.g. check quota)."
+                     }
+                   }}}
+             )
+
+    failed_run = Workers.latest_product_processing_run(product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert failed_run.status == "failed"
+    assert failed_run.error_code == "ai_quota_exhausted"
+    assert failed_run.error_message =~ "Gemini quota is exhausted"
+    assert failed_run.payload["retryable"] == true
+    assert failed_run.payload["provider"] == "gemini"
+    assert failed_run.payload["status"] == "RESOURCE_EXHAUSTED"
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
+  end
+
   test "upsert_product_description_draft/2 stores generated copy separately from product fields" do
     user = user_fixture()
     product = product_fixture(user, %{"title" => "User-entered title"})

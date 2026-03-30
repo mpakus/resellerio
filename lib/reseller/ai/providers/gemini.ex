@@ -112,10 +112,35 @@ defmodule Reseller.AI.Providers.Gemini do
 
   defp execute_request(request, opts) do
     request_fun = Keyword.get(opts, :request_fun, &default_request/1)
+    sleep_fun = Keyword.get(opts, :sleep_fun, &Process.sleep/1)
+    max_retries = Keyword.get(opts, :max_retries, config(opts)[:max_retries] || 0)
 
+    retry_backoff_ms =
+      Keyword.get(opts, :retry_backoff_ms, config(opts)[:retry_backoff_ms] || 500)
+
+    execute_request(request, request_fun, sleep_fun, max_retries, retry_backoff_ms, 0)
+  end
+
+  defp execute_request(request, request_fun, sleep_fun, max_retries, retry_backoff_ms, attempt) do
     case request_fun.(request) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, {:request_failed, reason}}
+      {:ok, response} ->
+        if attempt < max_retries and retryable_response?(response) do
+          sleep_fun.(backoff_ms(retry_backoff_ms, attempt))
+
+          execute_request(
+            request,
+            request_fun,
+            sleep_fun,
+            max_retries,
+            retry_backoff_ms,
+            attempt + 1
+          )
+        else
+          {:ok, response}
+        end
+
+      {:error, reason} ->
+        {:error, {:request_failed, reason}}
     end
   end
 
@@ -155,6 +180,31 @@ defmodule Reseller.AI.Providers.Gemini do
     else
       {:error, {:http_error, status, body}}
     end
+  end
+
+  defp retryable_response?(response) do
+    status = response_field(response, :status)
+    body = response_field(response, :body) || %{}
+
+    status in [429, 503] and retryable_api_error?(body)
+  end
+
+  defp retryable_api_error?(%{"error" => %{"status" => status}})
+       when status in ["RESOURCE_EXHAUSTED", "UNAVAILABLE"],
+       do: true
+
+  defp retryable_api_error?(%{"error" => %{"message" => message}}) when is_binary(message) do
+    message_downcase = String.downcase(message)
+
+    String.contains?(message_downcase, "rate limit") or
+      String.contains?(message_downcase, "resource has been exhausted") or
+      String.contains?(message_downcase, "temporarily unavailable")
+  end
+
+  defp retryable_api_error?(_body), do: false
+
+  defp backoff_ms(base_backoff_ms, attempt) do
+    round(base_backoff_ms * :math.pow(2, attempt))
   end
 
   defp extract_candidate_text(%{"candidates" => [%{"content" => %{"parts" => parts}} | _]}) do

@@ -199,6 +199,70 @@ defmodule Reseller.AI.Providers.GeminiTest do
              )
   end
 
+  test "retries retryable 429 responses before succeeding" do
+    parent = self()
+
+    request_fun = fn _request ->
+      attempt = Process.get(:gemini_attempt, 0) + 1
+      Process.put(:gemini_attempt, attempt)
+      send(parent, {:gemini_attempt, attempt})
+
+      case attempt do
+        1 ->
+          {:ok,
+           %{
+             status: 429,
+             body: %{
+               "error" => %{
+                 "status" => "RESOURCE_EXHAUSTED",
+                 "message" => "Resource has been exhausted (e.g. check quota)."
+               }
+             }
+           }}
+
+        2 ->
+          {:ok,
+           %{
+             status: 200,
+             body: %{
+               "candidates" => [
+                 %{
+                   "content" => %{
+                     "parts" => [
+                       %{
+                         "text" =>
+                           Jason.encode!(%{
+                             "suggested_title" => "Nike Air Max 90",
+                             "short_description" => "Recovered after retry"
+                           })
+                       }
+                     ]
+                   }
+                 }
+               ]
+             }
+           }}
+      end
+    end
+
+    sleep_fun = fn milliseconds -> send(parent, {:gemini_sleep, milliseconds}) end
+
+    assert {:ok, result} =
+             Gemini.generate_description(
+               %{"brand" => "Nike", "category" => "Sneakers"},
+               config: @config,
+               request_fun: request_fun,
+               sleep_fun: sleep_fun,
+               max_retries: 1,
+               retry_backoff_ms: 25
+             )
+
+    assert result.output["suggested_title"] == "Nike Air Max 90"
+    assert_received {:gemini_attempt, 1}
+    assert_received {:gemini_sleep, 25}
+    assert_received {:gemini_attempt, 2}
+  end
+
   test "returns an error for unsupported image input" do
     assert {:error, {:unsupported_image_input, %{id: 1}}} =
              Gemini.recognize_images([%{id: 1}], %{},

@@ -141,6 +141,42 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def reprocess(conn, %{"id" => product_id}) do
+    case Catalog.retry_product_processing_for_user(conn.assigns.current_user, product_id) do
+      {:ok, %{product: product, processing_run: processing_run}} ->
+        conn
+        |> put_status(:accepted)
+        |> json(%{
+          data: %{
+            product: product_json(product),
+            processing_run: processing_run_json(processing_run)
+          }
+        })
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, :no_product_images} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_product_state",
+          "Product has no images available for reprocessing"
+        )
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "reprocess_failed",
+          "Could not restart processing: #{inspect(reason)}"
+        )
+    end
+  end
+
   def archive(conn, %{"id" => product_id}) do
     case Catalog.archive_product_for_user(conn.assigns.current_user, product_id) do
       {:ok, product} ->

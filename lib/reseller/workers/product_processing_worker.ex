@@ -79,7 +79,7 @@ defmodule Reseller.Workers.ProductProcessingWorker do
   end
 
   defp fail_run(run, code, message, payload) do
-    {:ok, _count} = Media.mark_product_images_failed(run.product)
+    {:ok, _count} = fail_product_images(run.product, payload)
     {:ok, _product} = Catalog.mark_processing_failed(run.product)
 
     run
@@ -93,6 +93,11 @@ defmodule Reseller.Workers.ProductProcessingWorker do
     })
     |> Repo.update!()
   end
+
+  defp fail_product_images(product, %{"retryable" => true}),
+    do: Media.mark_product_images_retryable(product)
+
+  defp fail_product_images(product, _payload), do: Media.mark_product_images_failed(product)
 
   defp mark_uploaded_images_processing(%Product{id: product_id}) do
     ProductImage

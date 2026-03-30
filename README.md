@@ -199,6 +199,16 @@ If you want to override the default Gemini model per operation, set any of:
 
 Current defaults in runtime config are all `gemini-2.5-flash`.
 
+### Optional Gemini Retry Controls
+
+- `GEMINI_MAX_RETRIES`
+  Number of retry attempts for retryable Gemini `429` / temporary capacity responses
+  Defaults to `1`
+
+- `GEMINI_RETRY_BACKOFF_MS`
+  Base backoff in milliseconds used between Gemini retries
+  Defaults to `750`
+
 ### Optional Mailer Credentials
 
 The repo uses the local Swoosh adapter in development and test, so no mail credentials are required locally by default.

@@ -266,6 +266,26 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#flash-error", "Choose a ZIP archive before starting an import.")
   end
 
+  test "retries failed AI processing from the web UI", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = retryable_failed_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
+
+    assert has_element?(view, "#retry-processing-button")
+    assert has_element?(view, "#selected-product-card", "Gemini quota is exhausted right now.")
+
+    view
+    |> element("#retry-processing-button")
+    |> render_click()
+
+    assert has_element?(view, "#flash-info", "AI processing restarted with run #")
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+    assert List.first(refreshed_product.processing_runs).status == "completed"
+  end
+
   test "direct workspace routes render their matching sections", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
@@ -299,5 +319,36 @@ defmodule ResellerWeb.WorkspaceLiveTest do
       :zip.create(~c"catalog-import.zip", [{~c"index.json", index_json}], [:memory])
 
     zip_binary
+  end
+
+  defp retryable_failed_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Quota limited jacket"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    {:ok, _failed_run} =
+      Reseller.Workers.start_product_processing(finalized_product,
+        processor: Reseller.Support.Fakes.ProductProcessor,
+        processor_result:
+          {:error,
+           %{
+             code: "ai_quota_exhausted",
+             message: "Gemini quota is exhausted right now.",
+             payload: %{"retryable" => true, "provider" => "gemini"}
+           }}
+      )
+
+    Catalog.get_product_for_user(user, product.id)
   end
 end

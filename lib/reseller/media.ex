@@ -146,6 +146,20 @@ defmodule Reseller.Media do
     {:ok, count}
   end
 
+  @spec mark_product_images_retryable(Product.t()) :: {:ok, non_neg_integer()}
+  def mark_product_images_retryable(%Product{id: product_id}) do
+    {count, _rows} =
+      ProductImage
+      |> where(
+        [image],
+        image.product_id == ^product_id and image.kind == "original" and
+          image.processing_status in ["processing", "failed"]
+      )
+      |> Repo.update_all(set: [processing_status: "uploaded"])
+
+    {:ok, count}
+  end
+
   @spec generate_product_variants(Product.t(), keyword()) ::
           {:ok, [ProductImage.t()]} | {:error, term()}
   def generate_product_variants(%Product{} = product, opts \\ []) do

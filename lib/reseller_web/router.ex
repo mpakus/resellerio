@@ -86,6 +86,7 @@ defmodule ResellerWeb.Router do
       patch "/products/:id", ProductController, :update
       delete "/products/:id", ProductController, :delete
       post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
+      post "/products/:id/reprocess", ProductController, :reprocess
       post "/products/:id/mark_sold", ProductController, :mark_sold
       post "/products/:id/archive", ProductController, :archive
       post "/products/:id/unarchive", ProductController, :unarchive

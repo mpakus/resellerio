@@ -326,6 +326,52 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
+  defp format_error({:http_error, 429, %{"error" => error} = body}) when is_map(error) do
+    detail = Map.get(error, "message") || "The AI provider rejected the request."
+    provider_status = Map.get(error, "status")
+
+    cond do
+      provider_status == "RESOURCE_EXHAUSTED" ->
+        %{
+          code: "ai_quota_exhausted",
+          message:
+            "Gemini quota is exhausted right now. Wait for quota to recover or raise the Gemini limit, then retry processing.",
+          payload: %{
+            "provider" => "gemini",
+            "status" => provider_status,
+            "detail" => detail,
+            "retryable" => true,
+            "reason" => inspect({:http_error, 429, body})
+          }
+        }
+
+      true ->
+        %{
+          code: "ai_rate_limited",
+          message: "Gemini rate-limited the request. Try processing again in a moment.",
+          payload: %{
+            "provider" => "gemini",
+            "status" => provider_status,
+            "detail" => detail,
+            "retryable" => true,
+            "reason" => inspect({:http_error, 429, body})
+          }
+        }
+    end
+  end
+
+  defp format_error({:http_error, 429, body}) do
+    %{
+      code: "ai_rate_limited",
+      message: "Gemini rate-limited the request. Try processing again in a moment.",
+      payload: %{
+        "provider" => "gemini",
+        "retryable" => true,
+        "reason" => inspect({:http_error, 429, body})
+      }
+    }
+  end
+
   defp format_error(reason) do
     %{
       code: "processor_error",

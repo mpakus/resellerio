@@ -18,6 +18,8 @@ config :reseller, Reseller.AI, provider: Reseller.AI.Providers.Gemini
 config :reseller, Reseller.AI.Providers.Gemini,
   base_url: "https://generativelanguage.googleapis.com/v1beta",
   timeout: 15_000,
+  max_retries: 1,
+  retry_backoff_ms: 750,
   models: %{
     recognition: "gemini-2.5-flash",
     description: "gemini-2.5-flash",

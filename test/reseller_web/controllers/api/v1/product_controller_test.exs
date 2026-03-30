@@ -505,4 +505,52 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
              }
            } = json_response(conn, 422)
   end
+
+  test "POST /api/v1/products/:id/reprocess restarts product processing", %{
+    conn: conn,
+    user: user
+  } do
+    {:ok, %{product: product}} =
+      Reseller.Catalog.create_product_for_user(
+        user,
+        %{"title" => "Retry me"},
+        [
+          %{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 345_678}
+        ],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Reseller.Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{
+          "id" => image.id,
+          "checksum" => "abc123",
+          "width" => 1200,
+          "height" => 1600
+        }
+      ])
+
+    conn = post(conn, "/api/v1/products/#{finalized_product.id}/reprocess", %{})
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "id" => product_id,
+                 "status" => "processing",
+                 "latest_processing_run" => %{
+                   "status" => "completed",
+                   "step" => "awaiting_ai"
+                 }
+               },
+               "processing_run" => %{
+                 "status" => "completed",
+                 "step" => "awaiting_ai"
+               }
+             }
+           } = json_response(conn, 202)
+
+    assert product_id == finalized_product.id
+  end
 end

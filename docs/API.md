@@ -522,7 +522,42 @@ Current behavior notes:
 - when marketplace generation finishes, the product may also include `marketplace_listings` for eBay, Depop, and Poshmark
 - when image-variant generation finishes, the product may also include processed `images` such as `background_removed` and `white_background`
 - on success, in-flight images move from `processing` to `ready`
-- on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
+- on worker failure, the product falls back to `review`
+- non-retryable worker failures move in-flight images from `processing` to `failed`
+- retryable AI capacity failures keep original uploads retryable by moving them back to `uploaded`
+
+## Restart Product Processing
+
+`POST /api/v1/products/:id/reprocess`
+
+Restarts AI processing for a product that already has uploaded images.
+
+Response example:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 12,
+      "status": "processing"
+    },
+    "processing_run": {
+      "id": 18,
+      "status": "queued",
+      "step": "queued",
+      "error_code": null,
+      "error_message": null,
+      "payload": {}
+    }
+  }
+}
+```
+
+Notes:
+
+- this is useful after retryable Gemini failures such as `ai_quota_exhausted` or `ai_rate_limited`
+- the endpoint returns `202 Accepted`
+- original product images are moved back to a retryable state before the new run is queued
 
 ### Product Processing Status
 
@@ -601,6 +636,11 @@ Run status values currently used:
 - `failed`
 
 The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, `price_researched`, `marketplace_listings_generated`, `variants_generated`, and `variants_failed`.
+
+For retryable AI failures, `error_code` may now be:
+
+- `ai_quota_exhausted`
+- `ai_rate_limited`
 
 ### Description Drafts
 

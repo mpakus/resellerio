@@ -39,6 +39,8 @@ public_base_url =
 
 config :reseller, Reseller.AI.Providers.Gemini,
   api_key: System.get_env("GEMINI_API_KEY"),
+  max_retries: String.to_integer(System.get_env("GEMINI_MAX_RETRIES") || "1"),
+  retry_backoff_ms: String.to_integer(System.get_env("GEMINI_RETRY_BACKOFF_MS") || "750"),
   models: %{
     recognition: System.get_env("GEMINI_MODEL_RECOGNITION") || "gemini-2.5-flash",
     description: System.get_env("GEMINI_MODEL_DESCRIPTION") || "gemini-2.5-flash",

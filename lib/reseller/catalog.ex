@@ -175,6 +175,24 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def retry_product_processing_for_user(%User{} = user, product_id, opts \\ []) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Product{images: []} ->
+        {:error, :no_product_images}
+
+      product ->
+        with {:ok, _count} <- Media.mark_product_images_retryable(product),
+             {:ok, processing_product} <-
+               update_status_for_product(product, %{"status" => "processing"}),
+             {:ok, processing_run} <- Workers.start_product_processing(processing_product, opts) do
+          {:ok, %{product: refresh_product(processing_product), processing_run: processing_run}}
+        end
+    end
+  end
+
   defp product_changeset(%User{} = user, attrs) do
     %Product{}
     |> Product.create_changeset(attrs)

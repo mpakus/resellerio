@@ -71,4 +71,43 @@ defmodule Reseller.WorkersTest do
     assert refreshed_product.status == "review"
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "failed"))
   end
+
+  test "start_product_processing/2 keeps original uploads retryable for retryable failures" do
+    user = user_fixture()
+
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Quota limited sneakers"},
+        [%{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    assert {:ok, _failed_run} =
+             Workers.start_product_processing(finalized_product,
+               processor: Reseller.Support.Fakes.ProductProcessor,
+               processor_result:
+                 {:error,
+                  %{
+                    code: "ai_quota_exhausted",
+                    message: "Gemini quota is exhausted right now.",
+                    payload: %{"retryable" => true, "provider" => "gemini"}
+                  }}
+             )
+
+    failed_run = Workers.latest_product_processing_run(finalized_product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert failed_run.status == "failed"
+    assert failed_run.error_code == "ai_quota_exhausted"
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
+  end
 end

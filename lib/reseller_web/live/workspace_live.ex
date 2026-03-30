@@ -216,6 +216,29 @@ defmodule ResellerWeb.WorkspaceLive do
     end
   end
 
+  def handle_event("retry_processing", %{"id" => product_id}, socket) do
+    case Catalog.retry_product_processing_for_user(
+           socket.assigns.current_user,
+           parse_integer(product_id)
+         ) do
+      {:ok, %{processing_run: processing_run}} ->
+        {:noreply,
+         socket
+         |> refresh_workspace()
+         |> put_flash(:info, "AI processing restarted with run ##{processing_run.id}.")}
+
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "Product not found.")}
+
+      {:error, :no_product_images} ->
+        {:noreply, put_flash(socket, :error, "This product has no uploaded images to process.")}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Could not restart AI processing: #{format_reason(reason)}")}
+    end
+  end
+
   def handle_event("request_export", _params, socket) do
     case Exports.request_export_for_user(socket.assigns.current_user) do
       {:ok, _export} ->
@@ -622,6 +645,16 @@ defmodule ResellerWeb.WorkspaceLive do
                       <div class="flex flex-wrap gap-2">
                         <.button class="btn btn-primary rounded-full">Save changes</.button>
                         <button
+                          :if={retry_processing_available?(@selected_product)}
+                          id="retry-processing-button"
+                          type="button"
+                          phx-click="retry_processing"
+                          phx-value-id={@selected_product.id}
+                          class="btn btn-outline btn-sm rounded-full"
+                        >
+                          Retry AI
+                        </button>
+                        <button
                           :if={@selected_product.status != "sold"}
                           type="button"
                           phx-click="mark_sold"
@@ -745,6 +778,12 @@ defmodule ResellerWeb.WorkspaceLive do
                               {run.status} · {run.step}
                             </p>
                             <p class="text-base-content/60">{format_datetime(run.inserted_at)}</p>
+                            <p
+                              :if={processing_run_detail(run)}
+                              class="text-sm leading-6 text-base-content/70"
+                            >
+                              {processing_run_detail(run)}
+                            </p>
                           </div>
                         </div>
                       </.surface>
@@ -1290,6 +1329,27 @@ defmodule ResellerWeb.WorkspaceLive do
   defp tag_input_value(values) when is_list(values), do: Enum.join(values, ", ")
   defp tag_input_value(_value), do: nil
 
+  defp retry_processing_available?(%Product{} = product) do
+    product.images != [] and
+      product.status in ["review", "ready"] and
+      match?(%{status: "failed"}, List.first(product.processing_runs || []))
+  end
+
+  defp retry_processing_available?(_product), do: false
+
+  defp processing_run_detail(run) do
+    cond do
+      present?(run.error_message) ->
+        run.error_message
+
+      present?(get_in(run.payload || %{}, ["detail"])) ->
+        get_in(run.payload || %{}, ["detail"])
+
+      true ->
+        nil
+    end
+  end
+
   defp format_reason({:missing_config, config_key}) do
     "missing configuration: #{humanize_config_key(config_key)}. Add it to your .env or shell and restart Phoenix."
   end
@@ -1302,4 +1362,7 @@ defmodule ResellerWeb.WorkspaceLive do
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
   defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: inspect(config_key)
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(_value), do: false
 end
