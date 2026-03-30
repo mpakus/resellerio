@@ -29,7 +29,6 @@ defmodule Reseller.Media.Storage.TigrisTest do
     assert result.upload_url =~
              "https://bucket.example.tigris.dev/users/1/products/2/originals/example.jpg?"
 
-    assert result.upload_url =~ "Content-Type=image%2Fjpeg"
     assert result.upload_url =~ "X-Amz-Algorithm=AWS4-HMAC-SHA256"
 
     assert result.upload_url =~
@@ -138,6 +137,8 @@ defmodule Reseller.Media.Storage.TigrisTest do
 
     assert upload.upload_url =~
              "https://reseller-images.fly.storage.tigris.dev/users/1/products/2/originals/example.jpg?"
+
+    refute upload.upload_url =~ "Content-Type="
   end
 
   test "sign_upload/2 returns a configuration error when required values are missing" do

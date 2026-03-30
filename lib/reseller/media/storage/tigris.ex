@@ -25,8 +25,7 @@ defmodule Reseller.Media.Storage.Tigris do
       presign_opts =
         [
           expires_in: expires_in,
-          start_datetime: request_time,
-          query_params: [{"Content-Type", content_type}]
+          start_datetime: request_time
         ] ++ target.presign_opts
 
       case S3.presigned_url(
