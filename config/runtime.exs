@@ -43,9 +43,15 @@ config :reseller, Reseller.AI.Providers.Gemini,
 config :reseller, Reseller.Search.Providers.SerpApi, api_key: System.get_env("SERPAPI_API_KEY")
 
 config :reseller, Reseller.Media.Storage.Tigris,
-  access_key_id: System.get_env("TIGRIS_ACCESS_KEY_ID"),
-  secret_access_key: System.get_env("TIGRIS_SECRET_ACCESS_KEY"),
-  base_url: System.get_env("TIGRIS_BUCKET_URL")
+  access_key_id: System.get_env("TIGRIS_ACCESS_KEY_ID") || System.get_env("AWS_ACCESS_KEY_ID"),
+  secret_access_key:
+    System.get_env("TIGRIS_SECRET_ACCESS_KEY") || System.get_env("AWS_SECRET_ACCESS_KEY"),
+  base_url:
+    System.get_env("TIGRIS_BUCKET_URL") || System.get_env("TIGRIS_ENDPOINT_URL") ||
+      System.get_env("AWS_ENDPOINT_URL_S3"),
+  bucket_name:
+    System.get_env("TIGRIS_BUCKET_NAME") || System.get_env("BUCKET_NAME") ||
+      System.get_env("AWS_BUCKET_NAME")
 
 config :reseller, Reseller.Media.Processors.Photoroom,
   api_key: System.get_env("PHOTOROOM_API_KEY")

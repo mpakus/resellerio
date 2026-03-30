@@ -42,4 +42,16 @@ defmodule Reseller.MediaTest do
 
     assert_received {:media_storage_uploaded, "users/" <> _, _, _opts}
   end
+
+  test "public_url_for_storage_key/2 supports endpoint-style Tigris config with bucket_name" do
+    assert {:ok,
+            "https://t3.storage.dev/reseller-images/users/1/products/2/originals/example.jpg"} =
+             Media.public_url_for_storage_key(
+               "users/1/products/2/originals/example.jpg",
+               config: [
+                 base_url: "https://t3.storage.dev",
+                 bucket_name: "reseller-images"
+               ]
+             )
+  end
 end

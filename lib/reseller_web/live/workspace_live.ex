@@ -1300,5 +1300,6 @@ defmodule ResellerWeb.WorkspaceLive do
   defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
   defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
+  defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: inspect(config_key)
 end

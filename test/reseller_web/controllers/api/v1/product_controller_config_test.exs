@@ -36,6 +36,32 @@ defmodule ResellerWeb.API.V1.ProductControllerConfigTest do
     end)
   end
 
+  test "POST /api/v1/products returns bucket-name env var for endpoint-style Tigris config", %{
+    conn: conn
+  } do
+    with_tigris_storage_missing!(:bucket_name, fn ->
+      conn =
+        post(conn, "/api/v1/products", %{
+          "product" => %{"title" => "Upload test"},
+          "uploads" => [
+            %{
+              "filename" => "shoe-1.jpg",
+              "content_type" => "image/jpeg",
+              "byte_size" => 345_678
+            }
+          ]
+        })
+
+      assert json_response(conn, 502) == %{
+               "error" => %{
+                 "code" => "storage_unavailable",
+                 "detail" => "Storage upload signing is not configured: TIGRIS_BUCKET_NAME",
+                 "status" => 502
+               }
+             }
+    end)
+  end
+
   defp with_tigris_storage_missing!(missing_key, fun) do
     previous_media = Application.get_env(:reseller, Reseller.Media)
     previous_tigris = Application.get_env(:reseller, Reseller.Media.Storage.Tigris)
@@ -54,8 +80,13 @@ defmodule ResellerWeb.API.V1.ProductControllerConfigTest do
       base_url:
         if(missing_key == :base_url,
           do: nil,
-          else: "https://bucket.example.tigris.dev"
-        )
+          else:
+            if(missing_key == :bucket_name,
+              do: "https://t3.storage.dev",
+              else: "https://bucket.example.tigris.dev"
+            )
+        ),
+      bucket_name: if(missing_key == :bucket_name, do: nil, else: "reseller-images")
     )
 
     try do

@@ -15,7 +15,8 @@ defmodule Reseller.Media.Storage.Tigris do
     with {:ok, access_key_id} <- fetch_required(config, :access_key_id),
          {:ok, secret_access_key} <- fetch_required(config, :secret_access_key),
          {:ok, base_url} <- fetch_required(config, :base_url),
-         {:ok, uri} <- parse_base_uri(base_url) do
+         {:ok, uri} <- parse_base_uri(base_url),
+         {:ok, bucket_prefix} <- bucket_prefix(config, uri) do
       expires_in = Keyword.get(opts, :expires_in, config[:expires_in])
       content_type = Keyword.get(opts, :content_type, "application/octet-stream")
 
@@ -25,7 +26,7 @@ defmodule Reseller.Media.Storage.Tigris do
       amz_date = format_amz_date(request_time)
       date_stamp = Calendar.strftime(request_time, "%Y%m%d")
       credential_scope = "#{date_stamp}/#{config[:region]}/#{@service}/aws4_request"
-      canonical_uri = join_uri_path(uri.path || "/", storage_key)
+      canonical_uri = join_uri_path(uri.path || "/", bucket_prefix, storage_key)
 
       query_params = %{
         "X-Amz-Algorithm" => @algorithm,
@@ -128,12 +129,61 @@ defmodule Reseller.Media.Storage.Tigris do
     end
   end
 
-  defp join_uri_path(base_path, storage_key) do
-    [base_path, storage_key]
+  def public_base_url(config) when is_list(config) do
+    with {:ok, base_url} <- fetch_required(config, :base_url),
+         {:ok, %URI{} = uri} <- parse_base_uri(base_url),
+         {:ok, bucket_prefix} <- bucket_prefix(config, uri) do
+      path = join_uri_path(uri.path || "/", bucket_prefix)
+
+      {:ok,
+       %URI{uri | path: path, query: nil}
+       |> URI.to_string()}
+    end
+  end
+
+  defp bucket_prefix(config, %URI{host: host}) do
+    bucket_name = normalized_bucket_name(config[:bucket_name])
+
+    cond do
+      bucket_name != nil ->
+        {:ok, bucket_name}
+
+      endpoint_host_requires_bucket_name?(host) ->
+        {:error, {:missing_config, :bucket_name}}
+
+      true ->
+        {:ok, nil}
+    end
+  end
+
+  defp normalized_bucket_name(bucket_name) when is_binary(bucket_name) do
+    bucket_name
+    |> String.trim()
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp normalized_bucket_name(_bucket_name), do: nil
+
+  defp endpoint_host_requires_bucket_name?(host) when is_binary(host) do
+    host in ["t3.storage.dev", "fly.storage.tigris.dev"]
+  end
+
+  defp endpoint_host_requires_bucket_name?(_host), do: false
+
+  defp join_uri_path(base_path, nil, storage_key), do: join_uri_path(base_path, storage_key)
+
+  defp join_uri_path(base_path, bucket_prefix, storage_key) do
+    [base_path, bucket_prefix, storage_key]
+    |> Enum.reject(&is_nil/1)
     |> Enum.join("/")
     |> String.replace(~r{/+}, "/")
     |> uri_encode_path()
   end
+
+  defp join_uri_path(base_path, bucket_prefix), do: join_uri_path(base_path, bucket_prefix, nil)
 
   defp uri_encode_path(path) do
     path

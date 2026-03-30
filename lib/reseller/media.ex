@@ -470,8 +470,27 @@ defmodule Reseller.Media do
 
   defp configured_public_base_url(opts) do
     Keyword.get(opts, :public_base_url) ||
+      case Keyword.get(opts, :config) do
+        nil ->
+          nil
+
+        config ->
+          case Reseller.Media.Storage.Tigris.public_base_url(config) do
+            {:ok, base_url} -> base_url
+            {:error, _reason} -> nil
+          end
+      end ||
       Application.fetch_env!(:reseller, __MODULE__)[:public_base_url] ||
-      Application.fetch_env!(:reseller, Reseller.Media.Storage.Tigris)[:base_url]
+      case Reseller.Media.Storage.Tigris.public_base_url(
+             Keyword.get(
+               opts,
+               :config,
+               Application.fetch_env!(:reseller, Reseller.Media.Storage.Tigris)
+             )
+           ) do
+        {:ok, base_url} -> base_url
+        {:error, _reason} -> nil
+      end
   end
 
   defp build_public_url(base_url, storage_key) do

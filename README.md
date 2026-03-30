@@ -105,7 +105,8 @@ export GEMINI_API_KEY="..."
 export SERPAPI_API_KEY="..."
 export TIGRIS_ACCESS_KEY_ID="..."
 export TIGRIS_SECRET_ACCESS_KEY="..."
-export TIGRIS_BUCKET_URL="https://your-bucket-name.your-region.tigris.dev"
+export TIGRIS_BUCKET_URL="https://t3.storage.dev"
+export TIGRIS_BUCKET_NAME="your-public-bucket-name"
 export PHOTOROOM_API_KEY="..."
 mix phx.server
 ```
@@ -145,9 +146,16 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
   Tigris S3-compatible secret key used for upload signing and object uploads
 
 - `TIGRIS_BUCKET_URL`
-  Public base URL for your Tigris bucket
-  Example: `https://bucket-name.region.tigris.dev`
-  This is used both for storage operations and for public image URLs consumed by Gemini, SerpApi, ZIP export downloads, and ZIP import archive fetches
+  Tigris endpoint or bucket base URL used for upload signing and public URL generation
+  Examples:
+  `https://t3.storage.dev`
+  `https://fly.storage.tigris.dev`
+  `https://bucket-name.region.tigris.dev`
+
+- `TIGRIS_BUCKET_NAME`
+  Required when `TIGRIS_BUCKET_URL` points at a generic Tigris endpoint instead of a bucket-specific domain
+  Example: `summer-grass-2004`
+  This is the bucket name Tigris or Fly.io gives you separately from the endpoint URL
 
 - `PHOTOROOM_API_KEY`
   Photoroom API key used for background removal and white-background image variants
@@ -233,7 +241,8 @@ export GEMINI_API_KEY="..."
 export SERPAPI_API_KEY="..."
 export TIGRIS_ACCESS_KEY_ID="..."
 export TIGRIS_SECRET_ACCESS_KEY="..."
-export TIGRIS_BUCKET_URL="https://your-bucket-name.your-region.tigris.dev"
+export TIGRIS_BUCKET_URL="https://t3.storage.dev"
+export TIGRIS_BUCKET_NAME="your-public-bucket-name"
 export PHOTOROOM_API_KEY="..."
 ```
 
@@ -261,6 +270,7 @@ The compose setup will:
 ## Implementation Notes
 
 - `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
+- If you use a generic endpoint like `https://t3.storage.dev` or `https://fly.storage.tigris.dev`, you must also set `TIGRIS_BUCKET_NAME`
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
 - recognized products can now also receive a generated `product_price_research` during the same processing run
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
