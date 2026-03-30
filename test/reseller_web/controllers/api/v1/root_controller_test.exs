@@ -36,9 +36,34 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "path" => "/api/v1/products/:id"
                  },
                  %{
+                   "description" => "Updates editable fields for one product.",
+                   "method" => "PATCH",
+                   "path" => "/api/v1/products/:id"
+                 },
+                 %{
+                   "description" => "Deletes one product and its related records.",
+                   "method" => "DELETE",
+                   "path" => "/api/v1/products/:id"
+                 },
+                 %{
                    "description" => "Marks uploaded product images as ready for processing.",
                    "method" => "POST",
                    "path" => "/api/v1/products/:id/finalize_uploads"
+                 },
+                 %{
+                   "description" => "Marks one product as sold.",
+                   "method" => "POST",
+                   "path" => "/api/v1/products/:id/mark_sold"
+                 },
+                 %{
+                   "description" => "Archives one product.",
+                   "method" => "POST",
+                   "path" => "/api/v1/products/:id/archive"
+                 },
+                 %{
+                   "description" => "Restores one archived product.",
+                   "method" => "POST",
+                   "path" => "/api/v1/products/:id/unarchive"
                  },
                  %{
                    "description" => "Queues a ZIP export for the authenticated user.",

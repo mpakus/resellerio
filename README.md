@@ -22,8 +22,8 @@ Implemented already:
 - Stable JSON error payload shape for API errors
 - Password-based user registration and login
 - Bearer-token authentication for `GET /api/v1/me`
-- Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, and `GET /api/v1/products/:id`
-- Upload finalization endpoint at `POST /api/v1/products/:id/finalize_uploads`
+- Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, and `DELETE /api/v1/products/:id`
+- Product lifecycle endpoints at `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, and `POST /api/v1/products/:id/unarchive`
 - Browser sign-in and sign-up LiveViews
 - Protected web workspace at `/app`
 - Backpex admin interface under `/admin` for admin users
@@ -45,7 +45,6 @@ Implemented already:
 
 Not implemented yet:
 
-- Product edit/delete/sold lifecycle endpoints
 - Passkey authentication
 
 ## Local Development
@@ -81,6 +80,7 @@ Current implementation note:
 - recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
 - authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
 - authenticated users can now import reseller ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
+- authenticated users can now update product details, delete products, mark products as sold, archive them, and restore archived products through explicit lifecycle endpoints
 
 ## Admin Access
 

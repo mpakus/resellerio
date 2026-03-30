@@ -34,9 +34,34 @@ defmodule ResellerWeb.API.V1.RootController do
             description: "Returns one product for the authenticated user."
           },
           %{
+            method: "PATCH",
+            path: "/api/v1/products/:id",
+            description: "Updates editable fields for one product."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/products/:id",
+            description: "Deletes one product and its related records."
+          },
+          %{
             method: "POST",
             path: "/api/v1/products/:id/finalize_uploads",
             description: "Marks uploaded product images as ready for processing."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/mark_sold",
+            description: "Marks one product as sold."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/archive",
+            description: "Archives one product."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/unarchive",
+            description: "Restores one archived product."
           },
           %{
             method: "POST",

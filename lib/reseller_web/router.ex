@@ -79,7 +79,12 @@ defmodule ResellerWeb.Router do
       get "/products", ProductController, :index
       post "/products", ProductController, :create
       get "/products/:id", ProductController, :show
+      patch "/products/:id", ProductController, :update
+      delete "/products/:id", ProductController, :delete
       post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
+      post "/products/:id/mark_sold", ProductController, :mark_sold
+      post "/products/:id/archive", ProductController, :archive
+      post "/products/:id/unarchive", ProductController, :unarchive
       post "/exports", ExportController, :create
       get "/exports/:id", ExportController, :show
       post "/imports", ImportController, :create

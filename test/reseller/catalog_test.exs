@@ -68,6 +68,73 @@ defmodule Reseller.CatalogTest do
     assert Catalog.get_product_for_user(user, product.id) == nil
   end
 
+  test "update_product_for_user/3 updates editable fields and ignores lifecycle/system fields" do
+    user = user_fixture()
+
+    product =
+      product_fixture(user, %{"title" => "Before", "status" => "draft", "source" => "manual"})
+
+    assert {:ok, updated_product} =
+             Catalog.update_product_for_user(user, product.id, %{
+               "title" => "After",
+               "brand" => "Patagonia",
+               "price" => "99.00",
+               "status" => "sold",
+               "source" => "import"
+             })
+
+    assert updated_product.title == "After"
+    assert updated_product.brand == "Patagonia"
+    assert Decimal.equal?(updated_product.price, Decimal.new("99.00"))
+    assert updated_product.status == "draft"
+    assert updated_product.source == "manual"
+  end
+
+  test "delete_product_for_user/2 deletes the product" do
+    user = user_fixture()
+    product = product_fixture(user, %{"title" => "Delete me"})
+
+    assert {:ok, _deleted_product} = Catalog.delete_product_for_user(user, product.id)
+    assert Catalog.get_product_for_user(user, product.id) == nil
+  end
+
+  test "mark_product_sold_for_user/3 marks the product as sold" do
+    user = user_fixture()
+    product = product_fixture(user, %{"status" => "ready", "title" => "Sold product"})
+
+    assert {:ok, sold_product} = Catalog.mark_product_sold_for_user(user, product.id)
+
+    assert sold_product.status == "sold"
+    assert sold_product.sold_at
+    assert sold_product.archived_at == nil
+  end
+
+  test "archive_product_for_user/2 archives the product" do
+    user = user_fixture()
+    product = product_fixture(user, %{"status" => "ready", "title" => "Archive me"})
+
+    assert {:ok, archived_product} = Catalog.archive_product_for_user(user, product.id)
+
+    assert archived_product.status == "archived"
+    assert archived_product.archived_at
+  end
+
+  test "unarchive_product_for_user/2 restores archived products to sold when sold_at is present" do
+    user = user_fixture()
+
+    product =
+      product_fixture(user, %{
+        "status" => "archived",
+        "sold_at" => DateTime.utc_now() |> DateTime.truncate(:second),
+        "archived_at" => DateTime.utc_now() |> DateTime.truncate(:second)
+      })
+
+    assert {:ok, restored_product} = Catalog.unarchive_product_for_user(user, product.id)
+
+    assert restored_product.status == "sold"
+    assert restored_product.archived_at == nil
+  end
+
   test "finalize_product_uploads_for_user/3 marks uploaded images and moves the product to processing" do
     user = user_fixture()
 

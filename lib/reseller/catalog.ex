@@ -48,6 +48,87 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def update_product_for_user(%User{} = user, product_id, attrs) when is_map(attrs) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        product
+        |> Product.update_changeset(editable_product_attrs(attrs))
+        |> Repo.update()
+        |> case do
+          {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
+          {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  def delete_product_for_user(%User{} = user, product_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        Repo.delete(product)
+    end
+  end
+
+  def mark_product_sold_for_user(%User{} = user, product_id, attrs \\ %{}) when is_map(attrs) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        sold_at =
+          case Map.get(attrs, "sold_at") do
+            %DateTime{} = datetime -> datetime
+            nil -> DateTime.utc_now() |> DateTime.truncate(:second)
+            _other -> DateTime.utc_now() |> DateTime.truncate(:second)
+          end
+
+        update_status_for_product(product, %{
+          "status" => "sold",
+          "sold_at" => sold_at,
+          "archived_at" => nil
+        })
+    end
+  end
+
+  def archive_product_for_user(%User{} = user, product_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        update_status_for_product(product, %{
+          "status" => "archived",
+          "archived_at" => DateTime.utc_now() |> DateTime.truncate(:second)
+        })
+    end
+  end
+
+  def unarchive_product_for_user(%User{} = user, product_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Product{status: "archived"} = product ->
+        restored_status = if product.sold_at, do: "sold", else: "ready"
+
+        update_status_for_product(product, %{
+          "status" => restored_status,
+          "archived_at" => nil
+        })
+
+      product ->
+        update_status_for_product(product, %{
+          "status" => if(product.sold_at, do: "sold", else: product.status || "ready"),
+          "archived_at" => nil
+        })
+    end
+  end
+
   def finalize_product_uploads_for_user(%User{} = user, product_id, uploads)
       when is_list(uploads) do
     case get_product_for_user(user, product_id) do
@@ -94,6 +175,22 @@ defmodule Reseller.Catalog do
     |> Ecto.Changeset.put_assoc(:user, user)
   end
 
+  defp editable_product_attrs(attrs) do
+    Map.take(attrs, [
+      "title",
+      "brand",
+      "category",
+      "condition",
+      "color",
+      "size",
+      "material",
+      "price",
+      "cost",
+      "sku",
+      "notes"
+    ])
+  end
+
   defp product_preload do
     [
       :description_draft,
@@ -115,6 +212,16 @@ defmodule Reseller.Catalog do
   defp maybe_start_processing(_product), do: {:ok, nil}
 
   defp refresh_product(product), do: Repo.preload(product, product_preload(), force: true)
+
+  defp update_status_for_product(%Product{} = product, attrs) do
+    product
+    |> Product.update_changeset(attrs)
+    |> Repo.update()
+    |> case do
+      {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
 
   defp recognition_result_attrs(%Product{} = product, result) do
     generated_title = generated_title(result)

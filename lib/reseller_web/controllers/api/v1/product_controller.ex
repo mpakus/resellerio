@@ -19,6 +19,31 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def update(conn, %{"id" => product_id} = params) do
+    product_attrs = Map.get(params, "product", %{})
+
+    case Catalog.update_product_for_user(conn.assigns.current_user, product_id, product_attrs) do
+      {:ok, product} ->
+        json(conn, %{data: %{product: product_json(product)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+    end
+  end
+
+  def delete(conn, %{"id" => product_id}) do
+    case Catalog.delete_product_for_user(conn.assigns.current_user, product_id) do
+      {:ok, _product} ->
+        json(conn, %{data: %{deleted: true}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+    end
+  end
+
   def create(conn, params) do
     product_attrs = Map.get(params, "product", %{})
     uploads = Map.get(params, "uploads", [])
@@ -98,6 +123,47 @@ defmodule ResellerWeb.API.V1.ProductController do
           "finalize_failed",
           "Could not finalize uploads: #{inspect(reason)}"
         )
+    end
+  end
+
+  def mark_sold(conn, %{"id" => product_id} = params) do
+    product_attrs = Map.get(params, "product", %{})
+
+    case Catalog.mark_product_sold_for_user(conn.assigns.current_user, product_id, product_attrs) do
+      {:ok, product} ->
+        json(conn, %{data: %{product: product_json(product)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+    end
+  end
+
+  def archive(conn, %{"id" => product_id}) do
+    case Catalog.archive_product_for_user(conn.assigns.current_user, product_id) do
+      {:ok, product} ->
+        json(conn, %{data: %{product: product_json(product)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+    end
+  end
+
+  def unarchive(conn, %{"id" => product_id}) do
+    case Catalog.unarchive_product_for_user(conn.assigns.current_user, product_id) do
+      {:ok, product} ->
+        json(conn, %{data: %{product: product_json(product)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
     end
   end
 

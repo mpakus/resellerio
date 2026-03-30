@@ -126,6 +126,111 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            }
   end
 
+  test "PATCH /api/v1/products/:id updates editable fields only", %{conn: conn, user: user} do
+    product =
+      product_fixture(user, %{"title" => "Before", "status" => "draft", "source" => "manual"})
+
+    conn =
+      patch(conn, "/api/v1/products/#{product.id}", %{
+        "product" => %{
+          "title" => "After",
+          "brand" => "Arc'teryx",
+          "status" => "sold",
+          "source" => "import"
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "title" => "After",
+                 "brand" => "Arc'teryx",
+                 "status" => "draft",
+                 "source" => "manual"
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
+  test "DELETE /api/v1/products/:id deletes the product", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"title" => "Delete me"})
+
+    conn = delete(conn, "/api/v1/products/#{product.id}")
+
+    assert json_response(conn, 200) == %{"data" => %{"deleted" => true}}
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert json_response(conn, 404) == %{
+             "error" => %{
+               "code" => "not_found",
+               "detail" => "Product not found",
+               "status" => 404
+             }
+           }
+  end
+
+  test "POST /api/v1/products/:id/mark_sold marks the product as sold", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"status" => "ready", "title" => "Ready to sell"})
+
+    conn = post(conn, "/api/v1/products/#{product.id}/mark_sold", %{})
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "status" => "sold",
+                 "sold_at" => sold_at,
+                 "archived_at" => nil
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert is_binary(sold_at)
+  end
+
+  test "POST /api/v1/products/:id/archive archives the product", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"status" => "ready", "title" => "Archive me"})
+
+    conn = post(conn, "/api/v1/products/#{product.id}/archive", %{})
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "status" => "archived",
+                 "archived_at" => archived_at
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert is_binary(archived_at)
+  end
+
+  test "POST /api/v1/products/:id/unarchive restores the product to sold when sold_at exists", %{
+    conn: conn,
+    user: user
+  } do
+    product =
+      product_fixture(user, %{
+        "status" => "archived",
+        "sold_at" => DateTime.utc_now() |> DateTime.truncate(:second),
+        "archived_at" => DateTime.utc_now() |> DateTime.truncate(:second)
+      })
+
+    conn = post(conn, "/api/v1/products/#{product.id}/unarchive", %{})
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "status" => "sold",
+                 "archived_at" => nil,
+                 "sold_at" => sold_at
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert is_binary(sold_at)
+  end
+
   test "GET /api/v1/products/:id includes description_draft when generated copy exists", %{
     conn: conn,
     user: user

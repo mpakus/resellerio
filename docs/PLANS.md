@@ -14,11 +14,12 @@
 - [x] Step 6: Photoroom-powered image processing variants.
 - [x] Step 7: ZIP export generation and export-ready email flow.
 - [x] Step 8: ZIP import flow.
+- [x] Step 9: Product lifecycle endpoints for edit, delete, sold, archive, and restore flows.
 
 ## Latest Progress
 
-- Completed: Step 8 ZIP import flow.
-- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/exports`, `GET /api/v1/exports/:id`, `POST /api/v1/imports`, and `GET /api/v1/imports/:id`
+- Completed: Step 9 product lifecycle endpoints.
+- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, `DELETE /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, `POST /api/v1/products/:id/unarchive`, `POST /api/v1/exports`, `GET /api/v1/exports/:id`, `POST /api/v1/imports`, and `GET /api/v1/imports/:id`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
@@ -29,7 +30,8 @@
 - Media variants: processed `background_removed` and `white_background` images can now be generated and stored per original image
 - Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
 - Imports: `Reseller.Imports` now stores source ZIP archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
-- Next target: add product lifecycle endpoints for edit, delete, sold, and archived state changes.
+- Product lifecycle: editable product fields can now be updated, products can be deleted, and explicit sold/archive/unarchive flows now exist
+- Next target: add passkey authentication and device-friendly browser/API flows.
 
 ## Working Rules
 

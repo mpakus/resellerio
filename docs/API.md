@@ -71,9 +71,34 @@ Example response:
         "description": "Returns one product for the authenticated user."
       },
       {
+        "method": "PATCH",
+        "path": "/api/v1/products/:id",
+        "description": "Updates editable fields for one product."
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/products/:id",
+        "description": "Deletes one product and its related records."
+      },
+      {
         "method": "POST",
         "path": "/api/v1/products/:id/finalize_uploads",
         "description": "Marks uploaded product images as ready for processing."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/mark_sold",
+        "description": "Marks one product as sold."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/archive",
+        "description": "Archives one product."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/unarchive",
+        "description": "Restores one archived product."
       },
       {
         "method": "POST",
@@ -339,6 +364,65 @@ Unknown or unauthorized product IDs return:
     "code": "not_found",
     "detail": "Product not found",
     "status": 404
+  }
+}
+```
+
+### `PATCH /api/v1/products/:id`
+
+Updates editable product fields for the authenticated user.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "product": {
+    "title": "Updated title",
+    "brand": "Patagonia",
+    "price": "99.00",
+    "notes": "Measured and cleaned"
+  }
+}
+```
+
+Editable fields currently include:
+
+- `title`
+- `brand`
+- `category`
+- `condition`
+- `color`
+- `size`
+- `material`
+- `price`
+- `cost`
+- `sku`
+- `notes`
+
+Lifecycle fields like `status` and system fields like `source` are ignored by this endpoint.
+
+### `DELETE /api/v1/products/:id`
+
+Deletes one product for the authenticated user. Related images, AI metadata, listings, and processing runs are removed through cascading deletes.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true
   }
 }
 ```
@@ -632,6 +716,40 @@ If the provided image IDs do not belong to the selected product, the API returns
     "status": 422
   }
 }
+```
+
+### `POST /api/v1/products/:id/mark_sold`
+
+Marks one product as sold and sets `sold_at`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response payloads reuse the standard product representation, with `status` set to `sold`.
+
+### `POST /api/v1/products/:id/archive`
+
+Archives one product and sets `archived_at`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response payloads reuse the standard product representation, with `status` set to `archived`.
+
+### `POST /api/v1/products/:id/unarchive`
+
+Restores one archived product. If the product already has `sold_at`, it returns to `sold`; otherwise it returns to `ready`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
 ```
 
 ### `POST /api/v1/exports`

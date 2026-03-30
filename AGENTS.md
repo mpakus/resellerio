@@ -36,7 +36,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Catalog` context with `products`.
 - `Reseller.Media` context with `product_images` and signed upload intent generation.
 - Uploaded-image finalization via `POST /api/v1/products/:id/finalize_uploads`.
-- Authenticated product API endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`.
+- Authenticated product API endpoints now include list/create/show/update/delete plus explicit sold/archive/unarchive lifecycle actions.
 - `Reseller.Workers` context with `ProductProcessingRun` records and lightweight async task execution.
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
@@ -54,6 +54,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Media.Processor` and `Reseller.Media.Processors.Photoroom` now generate processed image variants like `background_removed` and `white_background`.
 - `Reseller.Exports` now builds ZIP archives, uploads them to storage, and triggers export-ready notifications.
 - `Reseller.Imports` now stores uploaded ZIP archives, recreates products and images, restores generated metadata, and records per-product import failures.
+- `Reseller.Catalog` now owns explicit product lifecycle mutations for edit, delete, sold, archive, and restore flows.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
@@ -121,6 +122,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 ## Data and workflow guidance
 
 - Model product creation as an asynchronous pipeline with explicit statuses such as `draft`, `uploading`, `processing`, `review`, `ready`, `sold`, and `archived`.
+- Keep product lifecycle changes explicit. Editable field updates should go through `Reseller.Catalog.update_product_for_user/3`, while status changes should go through dedicated lifecycle functions instead of raw status patches.
 - Track processing runs or job events so failures are debuggable and retryable.
 - Marketplace-specific copy should live in separate records keyed by product and marketplace, not as one giant blob on `products`.
 - Export archives should contain `index.json` plus an `images/` directory exactly as described in the product plan.
