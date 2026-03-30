@@ -66,6 +66,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - The repo now includes release-oriented Docker packaging for production-style container deployment.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - ExAws-backed Tigris S3 upload signing and object PUT support now live in `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
+- `Reseller.Media.Storage.Tigris.upload_object/3` now intentionally falls back to an ExAws-generated presigned PUT when Tigris rejects the direct signed S3 request with `403 AccessDenied`.
 - `docs/ARCHITECTURE.md` now documents the live system architecture, persisted schemas, and core process flows.
 - `docs/UIUX.md` now defines the shared web interface design system and component vocabulary.
 

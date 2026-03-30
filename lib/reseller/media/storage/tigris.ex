@@ -72,10 +72,10 @@ defmodule Reseller.Media.Storage.Tigris do
            }}
 
         {:error, %{reason: reason}} ->
-          {:error, {:request_failed, reason}}
+          maybe_fallback_to_presigned_upload(storage_key, body, content_type, reason, opts)
 
         {:error, reason} ->
-          {:error, reason}
+          maybe_fallback_to_presigned_upload(storage_key, body, content_type, reason, opts)
       end
     end
   end
@@ -163,6 +163,58 @@ defmodule Reseller.Media.Storage.Tigris do
   defp ex_aws_config(target) do
     ExAwsConfig.new(:s3, target.ex_aws_overrides)
   end
+
+  defp maybe_fallback_to_presigned_upload(storage_key, body, content_type, reason, opts) do
+    if access_denied?(reason) do
+      with {:ok, upload} <-
+             sign_upload(storage_key, Keyword.put(opts, :content_type, content_type)),
+           {:ok, _response} <- execute_presigned_upload(upload, body, opts) do
+        {:ok,
+         %{
+           storage_key: storage_key,
+           content_type: content_type,
+           byte_size: byte_size(body)
+         }}
+      end
+    else
+      {:error, normalize_upload_error(reason)}
+    end
+  end
+
+  defp execute_presigned_upload(upload, body, opts) do
+    request_fun = Keyword.get(opts, :upload_request_fun, &default_upload_request/2)
+
+    case request_fun.(upload, body) do
+      {:ok, response} ->
+        status = Map.get(response, :status, Map.get(response, :status_code, 200))
+
+        if status in 200..299 do
+          {:ok, response}
+        else
+          {:error, {:http_error, status, response}}
+        end
+
+      {:error, reason} ->
+        {:error, {:request_failed, reason}}
+    end
+  end
+
+  defp default_upload_request(upload, body) do
+    Req.put(url: upload.upload_url, headers: upload.headers, body: body)
+  end
+
+  defp access_denied?({:http_error, 403, %{body: body}}) when is_binary(body) do
+    String.contains?(body, "<Code>AccessDenied</Code>")
+  end
+
+  defp access_denied?({:http_error, 403, body}) when is_binary(body) do
+    String.contains?(body, "<Code>AccessDenied</Code>")
+  end
+
+  defp access_denied?(_reason), do: false
+
+  defp normalize_upload_error(%{reason: reason}), do: {:request_failed, reason}
+  defp normalize_upload_error(reason), do: reason
 
   defp fetch_required(config, key) do
     case config[key] do

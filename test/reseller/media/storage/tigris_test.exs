@@ -102,6 +102,44 @@ defmodule Reseller.Media.Storage.TigrisTest do
     assert overrides[:virtual_host] == true
   end
 
+  test "upload_object/3 falls back to a presigned PUT when Tigris denies the direct S3 request" do
+    direct_request = fn _operation, _overrides ->
+      {:error,
+       {:http_error, 403,
+        %{
+          body:
+            "<?xml version=\"1.0\"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>"
+        }}}
+    end
+
+    presigned_upload = fn upload, body ->
+      send(self(), {:presigned_upload, upload, body})
+      {:ok, %{status: 200}}
+    end
+
+    assert {:ok, %{storage_key: "users/1/products/2/originals/example.jpg", byte_size: 12}} =
+             Tigris.upload_object(
+               "users/1/products/2/originals/example.jpg",
+               "hello tigris",
+               content_type: "image/jpeg",
+               ex_aws_request_fun: direct_request,
+               upload_request_fun: presigned_upload,
+               config: [
+                 access_key_id: "tigris-access",
+                 secret_access_key: "tigris-secret",
+                 base_url: "https://fly.storage.tigris.dev",
+                 bucket_name: "reseller-images",
+                 region: "auto"
+               ]
+             )
+
+    assert_received {:presigned_upload, upload, "hello tigris"}
+    assert upload.headers == %{"content-type" => "image/jpeg"}
+
+    assert upload.upload_url =~
+             "https://reseller-images.fly.storage.tigris.dev/users/1/products/2/originals/example.jpg?"
+  end
+
   test "sign_upload/2 returns a configuration error when required values are missing" do
     assert {:error, {:missing_config, :access_key_id}} =
              Tigris.sign_upload(
