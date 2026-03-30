@@ -9,6 +9,7 @@ defmodule Reseller.Workers.AIProductProcessor do
   alias Reseller.AI
   alias Reseller.Catalog
   alias Reseller.Catalog.Product
+  alias Reseller.Marketplaces
   alias Reseller.Media
   alias Reseller.Search
 
@@ -25,11 +26,26 @@ defmodule Reseller.Workers.AIProductProcessor do
          {:ok, price_result} <-
            AI.research_price(price_input(updated_product, result.final), search_results, opts),
          {:ok, price_research} <- AI.upsert_product_price_research(updated_product, price_result),
+         {:ok, marketplace_listings} <-
+           generate_marketplace_listings(
+             updated_product,
+             result.final,
+             description_draft,
+             price_research,
+             opts
+           ),
          {:ok, _updated_count} <- Media.mark_product_images_ready(updated_product) do
       {:ok,
        %{
-         step: "price_researched",
-         payload: build_payload(updated_product, result, description_draft, price_research)
+         step: "marketplace_listings_generated",
+         payload:
+           build_payload(
+             updated_product,
+             result,
+             description_draft,
+             price_research,
+             marketplace_listings
+           )
        }}
     else
       {:error, reason} -> {:error, format_error(reason)}
@@ -77,7 +93,13 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
-  defp build_payload(%Product{} = product, result, description_draft, price_research) do
+  defp build_payload(
+         %Product{} = product,
+         result,
+         description_draft,
+         price_research,
+         marketplace_listings
+       ) do
     %{
       "pipeline_status" => Atom.to_string(result.status),
       "selected_image_count" => length(result.selected_images),
@@ -99,6 +121,7 @@ defmodule Reseller.Workers.AIProductProcessor do
         "suggested_median_price" => decimal_to_string(price_research.suggested_median_price),
         "pricing_confidence" => price_research.pricing_confidence
       },
+      "marketplace_listings" => Enum.map(marketplace_listings, &marketplace_listing_payload/1),
       "product" => %{
         "id" => product.id,
         "status" => product.status,
@@ -108,6 +131,78 @@ defmodule Reseller.Workers.AIProductProcessor do
         "color" => product.color,
         "material" => product.material,
         "ai_confidence" => product.ai_confidence
+      }
+    }
+  end
+
+  defp generate_marketplace_listings(
+         %Product{} = product,
+         final_result,
+         description_draft,
+         price_research,
+         opts
+       ) do
+    marketplaces = Marketplaces.supported_marketplaces(opts)
+
+    marketplaces
+    |> Enum.reduce_while({:ok, []}, fn marketplace, {:ok, listings} ->
+      attrs =
+        marketplace_listing_input(
+          product,
+          marketplace,
+          final_result,
+          description_draft,
+          price_research
+        )
+
+      with {:ok, listing_result} <- AI.generate_marketplace_listing(attrs, opts),
+           {:ok, listing} <-
+             Marketplaces.upsert_marketplace_listing(product, marketplace, listing_result) do
+        {:cont, {:ok, listings ++ [listing]}}
+      else
+        {:error, reason} -> {:halt, {:error, {:marketplace_listing_failed, marketplace, reason}}}
+      end
+    end)
+  end
+
+  defp marketplace_listing_input(
+         %Product{} = product,
+         marketplace,
+         final_result,
+         description_draft,
+         price_research
+       ) do
+    %{
+      "marketplace" => marketplace,
+      "product" => %{
+        "id" => product.id,
+        "title" => product.title,
+        "brand" => product.brand,
+        "category" => product.category,
+        "condition" => product.condition,
+        "color" => product.color,
+        "size" => product.size,
+        "material" => product.material,
+        "ai_summary" => product.ai_summary,
+        "recognition" => final_result
+      },
+      "description_draft" => %{
+        "suggested_title" => description_draft.suggested_title,
+        "short_description" => description_draft.short_description,
+        "long_description" => description_draft.long_description,
+        "key_features" => description_draft.key_features,
+        "seo_keywords" => description_draft.seo_keywords,
+        "missing_details_warning" => description_draft.missing_details_warning
+      },
+      "price_research" => %{
+        "currency" => price_research.currency,
+        "suggested_min_price" => decimal_to_string(price_research.suggested_min_price),
+        "suggested_target_price" => decimal_to_string(price_research.suggested_target_price),
+        "suggested_max_price" => decimal_to_string(price_research.suggested_max_price),
+        "suggested_median_price" => decimal_to_string(price_research.suggested_median_price),
+        "pricing_confidence" => price_research.pricing_confidence,
+        "rationale_summary" => price_research.rationale_summary,
+        "market_signals" => price_research.market_signals
       }
     }
   end
@@ -196,6 +291,14 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
+  defp format_error({:marketplace_listing_failed, marketplace, reason}) do
+    %{
+      code: "marketplace_listing_failed",
+      message: "Marketplace listing generation failed for #{marketplace}: #{inspect(reason)}",
+      payload: %{"marketplace" => marketplace, "reason" => inspect(reason)}
+    }
+  end
+
   defp format_error(reason) do
     %{
       code: "processor_error",
@@ -223,6 +326,16 @@ defmodule Reseller.Workers.AIProductProcessor do
 
   defp decimal_to_string(nil), do: nil
   defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp marketplace_listing_payload(listing) do
+    %{
+      "id" => listing.id,
+      "marketplace" => listing.marketplace,
+      "status" => listing.status,
+      "generated_title" => listing.generated_title,
+      "generated_price_suggestion" => decimal_to_string(listing.generated_price_suggestion)
+    }
+  end
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false

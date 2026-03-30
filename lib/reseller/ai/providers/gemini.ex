@@ -47,6 +47,15 @@ defmodule Reseller.AI.Providers.Gemini do
   end
 
   @impl true
+  def generate_marketplace_listing(attrs, opts \\ []) do
+    with {:ok, request} <-
+           build_generate_content_request(:marketplace_listing, [], attrs, opts),
+         {:ok, response} <- execute_request(request, opts) do
+      parse_structured_response(:marketplace_listing, response, request.model)
+    end
+  end
+
+  @impl true
   def reconcile_product(recognition_result, search_results, opts \\ []) do
     with {:ok, request} <-
            build_generate_content_request(
@@ -303,6 +312,16 @@ defmodule Reseller.AI.Providers.Gemini do
     """
   end
 
+  defp prompt_for(:marketplace_listing, attrs) do
+    """
+    Generate marketplace-specific resale listing content as JSON only.
+    Respect the target marketplace tone and constraints.
+    Return generated_title, generated_description, generated_tags,
+    generated_price_suggestion, generation_version, and compliance_warnings.
+    Input: #{Jason.encode!(attrs)}
+    """
+  end
+
   defp prompt_for(:reconciliation, attrs) do
     """
     Reconcile the recognition result and external match evidence.
@@ -362,6 +381,21 @@ defmodule Reseller.AI.Providers.Gemini do
         "comparable_results" => %{"type" => "ARRAY", "items" => %{"type" => "OBJECT"}}
       },
       "required" => ["currency", "suggested_target_price", "pricing_confidence"]
+    }
+  end
+
+  defp response_schema(:marketplace_listing) do
+    %{
+      "type" => "OBJECT",
+      "properties" => %{
+        "generated_title" => %{"type" => "STRING"},
+        "generated_description" => %{"type" => "STRING"},
+        "generated_tags" => %{"type" => "ARRAY", "items" => %{"type" => "STRING"}},
+        "generated_price_suggestion" => %{"type" => "NUMBER"},
+        "generation_version" => %{"type" => "STRING"},
+        "compliance_warnings" => %{"type" => "ARRAY", "items" => %{"type" => "STRING"}}
+      },
+      "required" => ["generated_title", "generated_description", "generated_price_suggestion"]
     }
   end
 

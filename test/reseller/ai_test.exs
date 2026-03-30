@@ -32,6 +32,15 @@ defmodule Reseller.AITest do
     assert_received {:ai_provider_called, :research_price, ^attrs, ^search_results, _opts}
   end
 
+  test "generate_marketplace_listing/2 delegates to the configured provider" do
+    attrs = %{"marketplace" => "ebay", "product" => %{"brand" => "Nike"}}
+
+    assert {:ok, %{operation: :generate_marketplace_listing, attrs: ^attrs}} =
+             AI.generate_marketplace_listing(attrs)
+
+    assert_received {:ai_provider_called, :generate_marketplace_listing, ^attrs, _opts}
+  end
+
   test "reconcile_product/3 delegates to the configured provider" do
     recognition_result = %{"brand" => "Nike", "possible_model" => "Air Max 90"}
     search_results = %{"matches" => [%{"title" => "Nike Air Max 90"}]}

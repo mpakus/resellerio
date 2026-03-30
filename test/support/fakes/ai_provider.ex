@@ -35,6 +35,19 @@ defmodule Reseller.Support.Fakes.AIProvider do
   end
 
   @impl true
+  def generate_marketplace_listing(attrs, opts) do
+    send(self(), {:ai_provider_called, :generate_marketplace_listing, attrs, opts})
+
+    result =
+      case Keyword.get(opts, :marketplace_listing_results) do
+        results when is_map(results) -> Map.get(results, attrs["marketplace"])
+        _ -> Keyword.get(opts, :marketplace_listing_result)
+      end
+
+    result || {:ok, %{operation: :generate_marketplace_listing, attrs: attrs}}
+  end
+
+  @impl true
   def reconcile_product(recognition_result, search_results, opts) do
     send(
       self(),

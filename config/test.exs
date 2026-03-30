@@ -47,6 +47,7 @@ config :reseller, Reseller.AI.Providers.Gemini,
   models: %{
     recognition: "gemini-test-recognition",
     description: "gemini-test-description",
+    marketplace_listing: "gemini-test-marketplace",
     price_research: "gemini-test-pricing",
     reconciliation: "gemini-test-reconciliation"
   }

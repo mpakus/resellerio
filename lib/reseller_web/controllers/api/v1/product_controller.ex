@@ -132,6 +132,8 @@ defmodule ResellerWeb.API.V1.ProductController do
         end,
       description_draft: description_draft_json(product.description_draft),
       price_research: price_research_json(product.price_research),
+      marketplace_listings:
+        Enum.map(product.marketplace_listings || [], &marketplace_listing_json/1),
       images: Enum.map(product.images || [], &image_json/1)
     }
   end
@@ -213,6 +215,23 @@ defmodule ResellerWeb.API.V1.ProductController do
       comparable_results: Map.get(price_research.comparable_results || %{}, "items", []),
       inserted_at: datetime_to_iso8601(price_research.inserted_at),
       updated_at: datetime_to_iso8601(price_research.updated_at)
+    }
+  end
+
+  defp marketplace_listing_json(listing) do
+    %{
+      id: listing.id,
+      marketplace: listing.marketplace,
+      status: listing.status,
+      generated_title: listing.generated_title,
+      generated_description: listing.generated_description,
+      generated_tags: listing.generated_tags,
+      generated_price_suggestion: decimal_to_string(listing.generated_price_suggestion),
+      generation_version: listing.generation_version,
+      compliance_warnings: listing.compliance_warnings,
+      last_generated_at: datetime_to_iso8601(listing.last_generated_at),
+      inserted_at: datetime_to_iso8601(listing.inserted_at),
+      updated_at: datetime_to_iso8601(listing.updated_at)
     }
   end
 end

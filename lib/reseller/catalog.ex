@@ -98,6 +98,7 @@ defmodule Reseller.Catalog do
     [
       :description_draft,
       :price_research,
+      :marketplace_listings,
       images:
         from(image in Reseller.Media.ProductImage, order_by: [asc: image.position, asc: image.id]),
       processing_runs:

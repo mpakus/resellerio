@@ -50,7 +50,8 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Workers.AIProductProcessor` now connects finalized uploads to `Reseller.AI.RecognitionPipeline` and persists normalized AI fields back to `products`.
 - `product_description_drafts` now store AI-authored base titles and descriptions separately from user-editable product fields.
 - `product_price_researches` now store AI-authored pricing guidance and comparable evidence separately from user-entered product pricing.
-- No export or marketplace contexts yet.
+- `Reseller.Marketplaces` now stores per-marketplace generated listings for eBay, Depop, and Poshmark.
+- No export context yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
@@ -82,6 +83,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - AI output should be reviewable and editable by the user. Do not design flows that assume AI is always correct.
 - Keep generated base copy in dedicated draft records instead of overwriting user-edited product fields.
 - Keep generated pricing guidance in dedicated research records instead of overwriting any user-entered `products.price`.
+- Keep generated marketplace copy in dedicated listing records instead of storing marketplace blobs directly on `products`.
 
 ## Suggested context boundaries
 

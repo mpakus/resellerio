@@ -209,6 +209,45 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            } = json_response(conn, 200)
   end
 
+  test "GET /api/v1/products/:id includes marketplace_listings when generated", %{
+    conn: conn,
+    user: user
+  } do
+    product = product_fixture(user, %{"title" => "Seller product"})
+
+    assert {:ok, _listing} =
+             Reseller.Marketplaces.upsert_marketplace_listing(product, "ebay", %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Generated eBay title",
+                 "generated_description" => "Generated eBay description",
+                 "generated_tags" => ["ebay", "reseller"],
+                 "generated_price_suggestion" => 120,
+                 "generation_version" => "gemini-marketplace-v1",
+                 "compliance_warnings" => []
+               }
+             })
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "marketplace_listings" => [
+                   %{
+                     "marketplace" => "ebay",
+                     "status" => "generated",
+                     "generated_title" => "Generated eBay title",
+                     "generated_tags" => ["ebay", "reseller"],
+                     "generated_price_suggestion" => "120.00"
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+  end
+
   test "POST /api/v1/products/:id/finalize_uploads marks uploads as uploaded", %{
     conn: conn,
     user: user

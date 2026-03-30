@@ -3,6 +3,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
   alias Reseller.Catalog
   alias Reseller.AI
+  alias Reseller.Marketplaces
   alias Reseller.Workers
   alias Reseller.Workers.AIProductProcessor
 
@@ -74,15 +75,65 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                         %{"title" => "Nike Air Max 90", "price" => 129.0, "source" => "GOAT"}
                       ]
                     }
-                  }}
+                  }},
+               marketplace_listing_results: %{
+                 "ebay" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Nike Air Max 90 Sneakers White Mesh",
+                        "generated_description" => "eBay-ready sneaker listing copy.",
+                        "generated_tags" => ["nike", "air max 90", "sneakers"],
+                        "generated_price_suggestion" => 129,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => []
+                      }
+                    }},
+                 "depop" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Nike Air Max 90 white mesh runners",
+                        "generated_description" => "Depop-ready sneaker listing copy.",
+                        "generated_tags" => ["nike", "runners", "streetwear"],
+                        "generated_price_suggestion" => 127,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => []
+                      }
+                    }},
+                 "poshmark" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Nike Air Max 90 athletic sneakers",
+                        "generated_description" => "Poshmark-ready sneaker listing copy.",
+                        "generated_tags" => ["nike", "athleisure", "sneakers"],
+                        "generated_price_suggestion" => 130,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => []
+                      }
+                    }}
+               }
              )
 
     assert run.status == "completed"
-    assert run.step == "price_researched"
+    assert run.step == "marketplace_listings_generated"
     assert run.payload["pipeline_status"] == "recognized"
     assert run.payload["final"]["brand"] == "Nike"
     assert run.payload["description_draft"]["suggested_title"] == "Nike Air Max 90"
     assert run.payload["price_research"]["suggested_target_price"] == "125"
+
+    assert Enum.map(run.payload["marketplace_listings"], & &1["marketplace"]) == [
+             "ebay",
+             "depop",
+             "poshmark"
+           ]
 
     refreshed_product = Catalog.get_product_for_user(user, product.id)
 
@@ -102,6 +153,13 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              "125.00"
 
     assert refreshed_product.price_research.rationale_summary =~ "mid-120s"
+
+    assert Enum.map(refreshed_product.marketplace_listings, & &1.marketplace) == [
+             "depop",
+             "ebay",
+             "poshmark"
+           ]
+
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
     assert_received {:ai_provider_called, :recognize_images, [image_input], metadata, _opts}
@@ -117,6 +175,15 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert_received {:ai_provider_called, :research_price, pricing_attrs, search_results, _opts}
     assert pricing_attrs["title"] == "Nike Air Max 90"
     assert length(search_results["shopping_matches"]) == 1
+
+    assert_received {:ai_provider_called, :generate_marketplace_listing,
+                     %{"marketplace" => "ebay"}, _opts}
+
+    assert_received {:ai_provider_called, :generate_marketplace_listing,
+                     %{"marketplace" => "depop"}, _opts}
+
+    assert_received {:ai_provider_called, :generate_marketplace_listing,
+                     %{"marketplace" => "poshmark"}, _opts}
 
     refute_received {:search_provider_called, :lens_matches, _, _}
   end
@@ -215,11 +282,55 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                         }
                       ]
                     }
-                  }}
+                  }},
+               marketplace_listing_results: %{
+                 "ebay" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Coach Tabby 26 leather bag",
+                        "generated_description" => "eBay luxury bag listing copy.",
+                        "generated_tags" => ["coach", "tabby", "leather"],
+                        "generated_price_suggestion" => 209,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => []
+                      }
+                    }},
+                 "depop" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Coach Tabby 26 black shoulder bag",
+                        "generated_description" => "Depop bag listing copy with review needed.",
+                        "generated_tags" => ["coach", "bag", "minimal"],
+                        "generated_price_suggestion" => 205,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => ["Verify hardware finish before publishing."]
+                      }
+                    }},
+                 "poshmark" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Coach Tabby 26 shoulder bag",
+                        "generated_description" => "Poshmark luxury bag listing copy.",
+                        "generated_tags" => ["coach", "luxury", "tabby"],
+                        "generated_price_suggestion" => 210,
+                        "generation_version" => "gemini-marketplace-v1",
+                        "compliance_warnings" => []
+                      }
+                    }}
+               }
              )
 
     assert run.status == "completed"
-    assert run.step == "price_researched"
+    assert run.step == "marketplace_listings_generated"
     assert run.payload["pipeline_status"] == "reconciled"
     assert length(run.payload["search_matches"]) == 1
     assert run.payload["final"]["possible_model"] == "Tabby 26"
@@ -237,6 +348,10 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert Decimal.to_string(refreshed_product.price_research.suggested_median_price, :normal) ==
              "208.00"
+
+    assert Enum.any?(refreshed_product.marketplace_listings, fn listing ->
+             listing.marketplace == "depop" and listing.status == "review"
+           end)
 
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
@@ -326,6 +441,33 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert Decimal.to_string(refreshed_product.price_research.suggested_median_price, :normal) ==
              "126.00"
+  end
+
+  test "upsert_marketplace_listing/3 stores marketplace copy separately from product fields" do
+    user = user_fixture()
+    product = product_fixture(user, %{"title" => "User title"})
+
+    assert {:ok, listing} =
+             Marketplaces.upsert_marketplace_listing(product, "ebay", %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Generated eBay title",
+                 "generated_description" => "Generated eBay description",
+                 "generated_tags" => ["tag-one"],
+                 "generated_price_suggestion" => 123,
+                 "generation_version" => "gemini-marketplace-v1",
+                 "compliance_warnings" => []
+               }
+             })
+
+    assert listing.marketplace == "ebay"
+    assert listing.generated_title == "Generated eBay title"
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert refreshed_product.title == "User title"
+    assert Enum.any?(refreshed_product.marketplace_listings, &(&1.id == listing.id))
   end
 
   defp finalized_product_fixture(user) do

@@ -10,6 +10,7 @@ defmodule Reseller.AI.Providers.GeminiTest do
     models: %{
       recognition: "gemini-recognition",
       description: "gemini-description",
+      marketplace_listing: "gemini-marketplace",
       price_research: "gemini-pricing",
       reconciliation: "gemini-reconciliation"
     }
@@ -118,6 +119,57 @@ defmodule Reseller.AI.Providers.GeminiTest do
 
     assert result.model == "gemini-pricing"
     assert result.output["currency"] == "USD"
+  end
+
+  test "generate_marketplace_listing/2 builds a marketplace-specific JSON request" do
+    request_fun = fn request ->
+      assert request.url ==
+               "https://gemini.example.test/v1beta/models/gemini-marketplace:generateContent"
+
+      parts = get_in(request.body, ["contents", Access.at(0), "parts"])
+      assert [%{"text" => prompt}] = parts
+      assert prompt =~ "marketplace"
+      assert prompt =~ "ebay"
+
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "candidates" => [
+             %{
+               "content" => %{
+                 "parts" => [
+                   %{
+                     "text" =>
+                       Jason.encode!(%{
+                         "generated_title" => "Nike Air Max 90 Sneakers",
+                         "generated_description" => "Marketplace-ready copy",
+                         "generated_tags" => ["nike", "sneakers"],
+                         "generated_price_suggestion" => 125,
+                         "generation_version" => "gemini-marketplace-v1",
+                         "compliance_warnings" => []
+                       })
+                   }
+                 ]
+               }
+             }
+           ]
+         }
+       }}
+    end
+
+    assert {:ok, result} =
+             Gemini.generate_marketplace_listing(
+               %{
+                 "marketplace" => "ebay",
+                 "product" => %{"brand" => "Nike", "title" => "Air Max 90"}
+               },
+               config: @config,
+               request_fun: request_fun
+             )
+
+    assert result.operation == :marketplace_listing
+    assert result.output["generated_title"] == "Nike Air Max 90 Sneakers"
   end
 
   test "returns an error when structured output is not valid JSON" do

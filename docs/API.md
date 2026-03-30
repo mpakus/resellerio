@@ -205,6 +205,7 @@ Response:
         "latest_processing_run": null,
         "description_draft": null,
         "price_research": null,
+        "marketplace_listings": [],
         "images": []
       }
     ]
@@ -269,6 +270,7 @@ Response:
       "latest_processing_run": null,
       "description_draft": null,
       "price_research": null,
+      "marketplace_listings": [],
       "images": [
         {
           "id": 1,
@@ -362,6 +364,7 @@ Response:
       },
       "description_draft": null,
       "price_research": null,
+      "marketplace_listings": [],
       "images": [
         {
           "id": 1,
@@ -396,6 +399,7 @@ Current behavior notes:
 - when recognition finishes, the product moves to `ready` or `review`
 - when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
 - when price research finishes, the product may also include a `price_research` object with grounded price ranges and comparables
+- when marketplace generation finishes, the product may also include `marketplace_listings` for eBay, Depop, and Poshmark
 - on success, in-flight images move from `processing` to `ready`
 - on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
 
@@ -410,7 +414,7 @@ Example:
   "latest_processing_run": {
     "id": 12,
     "status": "completed",
-    "step": "price_researched",
+    "step": "marketplace_listings_generated",
     "started_at": "2026-03-29T20:30:00Z",
     "finished_at": "2026-03-29T20:30:01Z",
     "error_code": null,
@@ -432,6 +436,14 @@ Example:
         "suggested_median_price": "126.00",
         "pricing_confidence": 0.82
       },
+      "marketplace_listings": [
+        {
+          "marketplace": "ebay",
+          "status": "generated",
+          "generated_title": "Nike Air Max 90 Sneakers White Mesh",
+          "generated_price_suggestion": "129.00"
+        }
+      ],
       "final": {
         "brand": "Nike",
         "category": "Sneakers",
@@ -451,7 +463,7 @@ Run status values currently used:
 - `completed`
 - `failed`
 
-The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, and `price_researched`.
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, `price_researched`, and `marketplace_listings_generated`.
 
 ### Description Drafts
 
@@ -507,6 +519,41 @@ Product payloads may include a `price_research` object after AI processing compl
 ```
 
 This record is advisory pricing data and is stored separately from any user-entered sale price on the product.
+
+### Marketplace Listings
+
+Product payloads may include a `marketplace_listings` array after AI processing completes:
+
+```json
+{
+  "marketplace_listings": [
+    {
+      "id": 11,
+      "marketplace": "ebay",
+      "status": "generated",
+      "generated_title": "Nike Air Max 90 Sneakers White Mesh",
+      "generated_description": "eBay-ready sneaker listing copy.",
+      "generated_tags": ["nike", "air max 90", "sneakers"],
+      "generated_price_suggestion": "129.00",
+      "generation_version": "gemini-marketplace-v1",
+      "compliance_warnings": []
+    },
+    {
+      "id": 12,
+      "marketplace": "depop",
+      "status": "generated",
+      "generated_title": "Nike Air Max 90 white mesh runners",
+      "generated_description": "Depop-ready sneaker listing copy.",
+      "generated_tags": ["nike", "runners", "streetwear"],
+      "generated_price_suggestion": "127.00",
+      "generation_version": "gemini-marketplace-v1",
+      "compliance_warnings": []
+    }
+  ]
+}
+```
+
+These records are generated per marketplace and can be regenerated without overwriting core product fields.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

@@ -10,5 +10,6 @@ defmodule Reseller.AI.Provider do
   @callback recognize_images([image_input()], attrs(), keyword()) :: provider_result()
   @callback generate_description(attrs(), keyword()) :: provider_result()
   @callback research_price(attrs(), attrs(), keyword()) :: provider_result()
+  @callback generate_marketplace_listing(attrs(), keyword()) :: provider_result()
   @callback reconcile_product(attrs(), attrs(), keyword()) :: provider_result()
 end

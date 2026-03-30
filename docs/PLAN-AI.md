@@ -7,14 +7,14 @@
 - [x] Step AI2.2: Wire recognition pipeline into product/image records and background workers.
 - [x] Step AI3: Add structured product description generation.
 - [x] Step AI4: Add grounded price research with Gemini plus SerpApi comparables.
-- [ ] Step AI5: Add marketplace-specific listing generation.
+- [x] Step AI5: Add marketplace-specific listing generation.
 - [ ] Step AI6: Add admin observability, retries, and cost controls.
 
 ## Latest AI Planning Status
 
-- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, and marks image states `ready` or `failed`.
+- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, generates marketplace listings, and marks image states `ready` or `failed`.
 - Current limitation: this step uses finalized uploaded originals as the AI input source via `TIGRIS_BUCKET_URL`; normalization variants and Photoroom derivatives are still future work.
-- Next implementation target: Step AI5 marketplace-specific listing generation from the recognized product, description draft, and price research record.
+- Next implementation target: Step AI6 admin observability, retries, and cost controls.
 
 ## 1. Goal
 
@@ -43,18 +43,22 @@ The repo already has:
 - `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline`
 - `Reseller.Catalog.Product` and `Reseller.Media.ProductImage`
 - `Reseller.AI.ProductDescriptionDraft`
+- `Reseller.AI.ProductPriceResearch`
+- `Reseller.Marketplaces.MarketplaceListing`
 - signed upload intent generation for product images
 - upload finalization and uploaded-image state transitions
 - `Reseller.Workers.ProductProcessingRun` plus lightweight async worker orchestration
-- `Reseller.Workers.AIProductProcessor` for recognition plus base-description generation
+- `Reseller.Workers.AIProductProcessor` for recognition, description, price research, and marketplace generation
 - generated `product_description_drafts` stored separately from editable product fields
+- generated `product_price_researches` stored separately from editable product pricing
+- generated `marketplace_listings` stored separately per marketplace
 
 The repo does not yet have:
 
-- grounded price research persistence
-- marketplace-specific generated listing records
+- admin-facing AI retry/cost observability
+- Photoroom-backed image-processing variants
 
-So the recognition and base-description layers now exist, and the next AI milestones are price research and marketplace-specific generation.
+So the core recognition, description, price research, and marketplace generation layers now exist, and the next AI milestone is operational hardening.
 
 So Gemini should be added only after the catalog/media and worker foundations are in place, or in parallel with those foundations if we keep the write scope clean.
 

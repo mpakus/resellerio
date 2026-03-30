@@ -26,6 +26,11 @@ defmodule Reseller.AI do
     provider(opts).research_price(product_attrs, search_results, opts)
   end
 
+  @spec generate_marketplace_listing(map(), keyword()) :: Provider.provider_result()
+  def generate_marketplace_listing(attrs, opts \\ []) when is_map(attrs) do
+    provider(opts).generate_marketplace_listing(attrs, opts)
+  end
+
   @spec reconcile_product(map(), map(), keyword()) :: Provider.provider_result()
   def reconcile_product(recognition_result, search_results, opts \\ [])
       when is_map(recognition_result) and is_map(search_results) do

@@ -36,6 +36,7 @@ Implemented already:
 - Real AI-backed product processing that persists recognition fields and closes image states
 - AI-generated base description drafts stored separately from editable product fields
 - AI-generated price research stored separately from editable product pricing
+- Marketplace-specific listing records for eBay, Depop, and Poshmark
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -44,7 +45,6 @@ Not implemented yet:
 - Product edit/delete/sold lifecycle endpoints
 - Passkey authentication
 - Photoroom-powered image variants
-- Marketplace-specific listing generation
 - Import/export
 
 ## Local Development
@@ -76,6 +76,7 @@ Current implementation note:
 - `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
 - recognized products can now also receive a generated `product_price_research` during the same processing run
+- recognized products can now also receive generated `marketplace_listings` during the same processing run
 
 ## Admin Access
 

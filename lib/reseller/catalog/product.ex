@@ -26,6 +26,9 @@ defmodule Reseller.Catalog.Product do
     has_one :description_draft, Reseller.AI.ProductDescriptionDraft
     has_one :price_research, Reseller.AI.ProductPriceResearch
 
+    has_many :marketplace_listings, Reseller.Marketplaces.MarketplaceListing,
+      preload_order: [asc: :marketplace]
+
     has_many :processing_runs, Reseller.Workers.ProductProcessingRun,
       preload_order: [desc: :inserted_at, desc: :id]
 

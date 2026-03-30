@@ -25,6 +25,7 @@ config :reseller, Reseller.AI.Providers.Gemini,
   models: %{
     recognition: System.get_env("GEMINI_MODEL_RECOGNITION") || "gemini-2.5-flash",
     description: System.get_env("GEMINI_MODEL_DESCRIPTION") || "gemini-2.5-flash",
+    marketplace_listing: System.get_env("GEMINI_MODEL_MARKETPLACE_LISTING") || "gemini-2.5-flash",
     price_research: System.get_env("GEMINI_MODEL_PRICE_RESEARCH") || "gemini-2.5-flash",
     reconciliation: System.get_env("GEMINI_MODEL_RECONCILIATION") || "gemini-2.5-flash"
   }
