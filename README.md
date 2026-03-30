@@ -105,7 +105,8 @@ export GEMINI_API_KEY="..."
 export SERPAPI_API_KEY="..."
 export TIGRIS_ACCESS_KEY_ID="..."
 export TIGRIS_SECRET_ACCESS_KEY="..."
-export TIGRIS_BUCKET_URL="https://t3.storage.dev"
+export AWS_ENDPOINT_URL_S3="https://fly.storage.tigris.dev"
+export TIGRIS_PUBLIC_URL="https://t3.storage.dev"
 export TIGRIS_BUCKET_NAME="your-public-bucket-name"
 export PHOTOROOM_API_KEY="..."
 mix phx.server
@@ -145,15 +146,23 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
 - `TIGRIS_SECRET_ACCESS_KEY`
   Tigris S3-compatible secret key used for upload signing and object uploads
 
-- `TIGRIS_BUCKET_URL`
-  Tigris endpoint or bucket base URL used for upload signing and public URL generation
+- `AWS_ENDPOINT_URL_S3` or `TIGRIS_ENDPOINT_URL`
+  Tigris S3-compatible API endpoint used for upload signing and object uploads
+  Examples:
+  `https://fly.storage.tigris.dev`
+
+- `TIGRIS_PUBLIC_URL`
+  Public base URL used to build image/object URLs for AI fetches and downloads
   Examples:
   `https://t3.storage.dev`
-  `https://fly.storage.tigris.dev`
   `https://bucket-name.region.tigris.dev`
 
+- `TIGRIS_BUCKET_URL`
+  Backward-compatible fallback for the public base URL
+  If set alone, it is also used as the upload endpoint fallback
+
 - `TIGRIS_BUCKET_NAME`
-  Required when `TIGRIS_BUCKET_URL` points at a generic Tigris endpoint instead of a bucket-specific domain
+  Required when the upload endpoint points at a generic Tigris endpoint instead of a bucket-specific domain
   Example: `summer-grass-2004`
   This is the bucket name Tigris or Fly.io gives you separately from the endpoint URL
 
@@ -241,7 +250,8 @@ export GEMINI_API_KEY="..."
 export SERPAPI_API_KEY="..."
 export TIGRIS_ACCESS_KEY_ID="..."
 export TIGRIS_SECRET_ACCESS_KEY="..."
-export TIGRIS_BUCKET_URL="https://t3.storage.dev"
+export AWS_ENDPOINT_URL_S3="https://fly.storage.tigris.dev"
+export TIGRIS_PUBLIC_URL="https://t3.storage.dev"
 export TIGRIS_BUCKET_NAME="your-public-bucket-name"
 export PHOTOROOM_API_KEY="..."
 ```
@@ -269,8 +279,9 @@ The compose setup will:
 
 ## Implementation Notes
 
-- `TIGRIS_BUCKET_URL` is used both for upload signing and for building public image URLs consumed by Gemini and SerpApi during processing
-- If you use a generic endpoint like `https://t3.storage.dev` or `https://fly.storage.tigris.dev`, you must also set `TIGRIS_BUCKET_NAME`
+- Use `AWS_ENDPOINT_URL_S3` or `TIGRIS_ENDPOINT_URL` for upload signing and object PUTs
+- Use `TIGRIS_PUBLIC_URL` for public image URLs consumed by Gemini, SerpApi, export downloads, and import archive fetches
+- If you use a generic endpoint like `https://fly.storage.tigris.dev`, you must also set `TIGRIS_BUCKET_NAME`
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
 - recognized products can now also receive a generated `product_price_research` during the same processing run
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
