@@ -286,6 +286,20 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert List.first(refreshed_product.processing_runs).status == "completed"
   end
 
+  test "shows variant generation errors from processing runs in the web UI", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = variant_failure_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
+
+    assert has_element?(
+             view,
+             "#selected-product-card",
+             "Photoroom API key is missing. Add PHOTOROOM_API_KEY and retry processing."
+           )
+  end
+
   test "direct workspace routes render their matching sections", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
@@ -347,6 +361,107 @@ defmodule ResellerWeb.WorkspaceLiveTest do
              message: "Gemini quota is exhausted right now.",
              payload: %{"retryable" => true, "provider" => "gemini"}
            }}
+      )
+
+    Catalog.get_product_for_user(user, product.id)
+  end
+
+  defp variant_failure_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Variant failure item"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    {:ok, _run} =
+      Reseller.Workers.start_product_processing(finalized_product,
+        processor: Reseller.Workers.AIProductProcessor,
+        public_base_url: "https://cdn.example.com/catalog",
+        ai_provider: Reseller.Support.Fakes.AIProvider,
+        search_provider: Reseller.Support.Fakes.SearchProvider,
+        media_processor: Reseller.Support.Fakes.MediaProcessor,
+        storage: Reseller.Support.Fakes.MediaStorage,
+        recognize_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             output: %{
+               "brand" => "Nike",
+               "category" => "Sneakers",
+               "possible_model" => "Air Max 90",
+               "confidence_score" => 0.91,
+               "needs_review" => false
+             }
+           }},
+        description_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             model: "gemini-description",
+             output: %{
+               "suggested_title" => "Nike Air Max 90",
+               "short_description" => "Short copy"
+             }
+           }},
+        shopping_result: {:ok, %{provider: :serp_api, matches: []}},
+        price_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             model: "gemini-pricing",
+             output: %{
+               "currency" => "USD",
+               "suggested_target_price" => 125,
+               "pricing_confidence" => 0.8
+             }
+           }},
+        marketplace_listing_results: %{
+          "ebay" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "eBay title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 125
+               }
+             }},
+          "depop" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Depop title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 124
+               }
+             }},
+          "poshmark" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Poshmark title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 126
+               }
+             }}
+        },
+        variant_results: %{
+          "background_removed" => {:error, :missing_api_key}
+        }
       )
 
     Catalog.get_product_for_user(user, product.id)

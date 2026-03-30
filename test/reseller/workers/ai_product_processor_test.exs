@@ -483,6 +483,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert run.status == "completed"
     assert run.step == "variants_failed"
     assert run.payload["variant_generation"]["status"] == "failed"
+    assert run.payload["variant_generation"]["error"] =~ "Photoroom failed while generating"
     assert refreshed_product.status == "ready"
     assert Enum.map(refreshed_product.images, & &1.kind) == ["original"]
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))

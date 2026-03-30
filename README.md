@@ -172,6 +172,7 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
 
 - `PHOTOROOM_API_KEY`
   Photoroom API key used for background removal and white-background image variants
+  If this is missing, the main AI pipeline still completes, but `background_removed` / `white_background` variants are skipped and the processing run records a variant-generation failure
 
 ### Optional Runtime Variables
 

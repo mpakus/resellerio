@@ -1342,6 +1342,9 @@ defmodule ResellerWeb.WorkspaceLive do
       present?(run.error_message) ->
         run.error_message
 
+      present?(get_in(run.payload || %{}, ["variant_generation", "error"])) ->
+        get_in(run.payload || %{}, ["variant_generation", "error"])
+
       present?(get_in(run.payload || %{}, ["detail"])) ->
         get_in(run.payload || %{}, ["detail"])
 

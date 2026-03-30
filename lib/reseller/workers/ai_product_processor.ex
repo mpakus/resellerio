@@ -153,7 +153,8 @@ defmodule Reseller.Workers.AIProductProcessor do
         %{
           "status" => "failed",
           "count" => 0,
-          "error" => inspect(reason),
+          "error" => humanize_variant_generation_error(reason),
+          "error_reason" => inspect(reason),
           "variants" => []
         }
     end
@@ -475,6 +476,37 @@ defmodule Reseller.Workers.AIProductProcessor do
       "processing_status" => image.processing_status
     }
   end
+
+  defp humanize_variant_generation_error({:variant_generation_failed, _kind, :missing_api_key}) do
+    "Photoroom API key is missing. Add PHOTOROOM_API_KEY and retry processing."
+  end
+
+  defp humanize_variant_generation_error(
+         {:variant_generation_failed, kind, {:http_error, status, _body}}
+       ) do
+    "Photoroom failed while generating #{humanize_kind(kind)} (HTTP #{status})."
+  end
+
+  defp humanize_variant_generation_error(
+         {:variant_generation_failed, kind,
+          {:request_failed, %Req.TransportError{reason: reason}}}
+       ) do
+    "Photoroom timed out while generating #{humanize_kind(kind)} (#{reason})."
+  end
+
+  defp humanize_variant_generation_error({:variant_generation_failed, kind, reason}) do
+    "Photoroom failed while generating #{humanize_kind(kind)}: #{inspect(reason)}"
+  end
+
+  defp humanize_variant_generation_error(reason), do: inspect(reason)
+
+  defp humanize_kind(kind) when is_binary(kind) do
+    kind
+    |> String.replace("_", " ")
+    |> Phoenix.Naming.humanize()
+  end
+
+  defp humanize_kind(_kind), do: "variant"
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false
