@@ -10,11 +10,13 @@ defmodule Reseller.CatalogTest do
              Catalog.create_product_for_user(user, %{
                "title" => "Vintage blazer",
                "brand" => "Ralph Lauren",
-               "category" => "Blazers"
+               "category" => "Blazers",
+               "tags" => "vintage, blazer, wool"
              })
 
     assert product.user_id == user.id
     assert product.status == "draft"
+    assert product.tags == ["vintage", "blazer", "wool"]
     assert upload_bundle.images == []
     assert upload_bundle.upload_instructions == []
   end
@@ -68,7 +70,7 @@ defmodule Reseller.CatalogTest do
     assert Catalog.get_product_for_user(user, product.id) == nil
   end
 
-  test "update_product_for_user/3 updates editable fields and ignores lifecycle/system fields" do
+  test "update_product_for_user/3 updates editable fields and allows seller-managed status changes" do
     user = user_fixture()
 
     product =
@@ -80,14 +82,27 @@ defmodule Reseller.CatalogTest do
                "brand" => "Patagonia",
                "price" => "99.00",
                "status" => "sold",
+               "tags" => "technical, shell, winter",
                "source" => "import"
              })
 
     assert updated_product.title == "After"
     assert updated_product.brand == "Patagonia"
     assert Decimal.equal?(updated_product.price, Decimal.new("99.00"))
-    assert updated_product.status == "draft"
+    assert updated_product.status == "sold"
+    assert updated_product.tags == ["technical", "shell", "winter"]
+    assert updated_product.sold_at
     assert updated_product.source == "manual"
+  end
+
+  test "update_product_for_user/3 rejects system-only statuses in seller updates" do
+    user = user_fixture()
+    product = product_fixture(user, %{"title" => "Before", "status" => "draft"})
+
+    assert {:error, changeset} =
+             Catalog.update_product_for_user(user, product.id, %{"status" => "processing"})
+
+    assert %{status: ["is invalid"]} = errors_on(changeset)
   end
 
   test "delete_product_for_user/2 deletes the product" do

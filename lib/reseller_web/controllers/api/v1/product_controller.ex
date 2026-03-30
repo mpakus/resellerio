@@ -182,6 +182,7 @@ defmodule ResellerWeb.API.V1.ProductController do
       price: decimal_to_string(product.price),
       cost: decimal_to_string(product.cost),
       sku: product.sku,
+      tags: product.tags || [],
       notes: product.notes,
       ai_summary: product.ai_summary,
       ai_confidence: product.ai_confidence,

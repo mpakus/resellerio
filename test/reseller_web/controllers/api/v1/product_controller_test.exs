@@ -31,7 +31,8 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
         "product" => %{
           "title" => "Vintage blazer",
           "brand" => "Ralph Lauren",
-          "category" => "Blazers"
+          "category" => "Blazers",
+          "tags" => ["vintage", "wool"]
         }
       })
 
@@ -40,6 +41,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
                "product" => %{
                  "status" => "draft",
                  "title" => "Vintage blazer",
+                 "tags" => ["vintage", "wool"],
                  "images" => []
                },
                "upload_instructions" => []
@@ -126,7 +128,10 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            }
   end
 
-  test "PATCH /api/v1/products/:id updates editable fields only", %{conn: conn, user: user} do
+  test "PATCH /api/v1/products/:id updates editable fields, tags, and manual status", %{
+    conn: conn,
+    user: user
+  } do
     product =
       product_fixture(user, %{"title" => "Before", "status" => "draft", "source" => "manual"})
 
@@ -136,6 +141,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
           "title" => "After",
           "brand" => "Arc'teryx",
           "status" => "sold",
+          "tags" => ["gore-tex", "shell"],
           "source" => "import"
         }
       })
@@ -145,11 +151,33 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
                "product" => %{
                  "title" => "After",
                  "brand" => "Arc'teryx",
-                 "status" => "draft",
+                 "status" => "sold",
+                 "tags" => ["gore-tex", "shell"],
+                 "sold_at" => sold_at,
                  "source" => "manual"
                }
              }
            } = json_response(conn, 200)
+
+    assert is_binary(sold_at)
+  end
+
+  test "PATCH /api/v1/products/:id rejects system-only statuses", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"title" => "Before", "status" => "draft"})
+
+    conn =
+      patch(conn, "/api/v1/products/#{product.id}", %{
+        "product" => %{
+          "status" => "processing"
+        }
+      })
+
+    assert %{
+             "error" => %{
+               "code" => "validation_failed",
+               "fields" => %{"status" => [_]}
+             }
+           } = json_response(conn, 422)
   end
 
   test "DELETE /api/v1/products/:id deletes the product", %{conn: conn, user: user} do

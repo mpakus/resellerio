@@ -252,6 +252,7 @@ defmodule Reseller.Imports.ArchiveImporter do
       "price" => payload["price"],
       "cost" => payload["cost"],
       "sku" => payload["sku"],
+      "tags" => payload["tags"],
       "notes" => payload["notes"],
       "ai_summary" => payload["ai_summary"],
       "ai_confidence" => payload["ai_confidence"]

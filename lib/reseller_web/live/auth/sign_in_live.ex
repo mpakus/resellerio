@@ -5,7 +5,7 @@ defmodule ResellerWeb.Auth.SignInLive do
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       page_title: "Sign In",
+       page_title: ResellerWeb.PageTitle.build("Sign In", "Authentication"),
        current_scope: nil,
        form: to_form(%{}, as: :session)
      )}

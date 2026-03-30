@@ -20,6 +20,14 @@ defmodule ResellerWeb.WorkspaceLive do
     {"Archived", "archived"}
   ]
 
+  @manual_product_status_options [
+    {"Draft", "draft"},
+    {"Review", "review"},
+    {"Ready", "ready"},
+    {"Sold", "sold"},
+    {"Archived", "archived"}
+  ]
+
   @image_upload_accept ~w(.jpg .jpeg .png .webp)
   @zip_upload_accept ~w(.zip)
 
@@ -38,7 +46,7 @@ defmodule ResellerWeb.WorkspaceLive do
        max_file_size: 50_000_000
      )
      |> assign(
-       page_title: "Workspace",
+       page_title: ResellerWeb.PageTitle.build("Dashboard", "Workspace"),
        current_scope: nil,
        section_key: :dashboard,
        workspace_nav: [],
@@ -51,6 +59,7 @@ defmodule ResellerWeb.WorkspaceLive do
        selected_product: nil,
        selected_product_id: nil,
        product_filter: "all",
+       manual_product_status_options: @manual_product_status_options,
        current_params: %{},
        current_url: nil,
        product_form: build_new_product_form(),
@@ -490,6 +499,12 @@ defmodule ResellerWeb.WorkspaceLive do
                         label="Category"
                         placeholder="Outerwear"
                       />
+                      <.input
+                        field={@product_form[:tags]}
+                        label="Tags"
+                        placeholder="denim, vintage, outerwear"
+                        value={tag_input_value(@product_form[:tags].value)}
+                      />
                       <.input field={@product_form[:price]} type="number" step="0.01" label="Price" />
                     </div>
                     <.input
@@ -564,6 +579,12 @@ defmodule ResellerWeb.WorkspaceLive do
                       class="mt-6 grid gap-3"
                     >
                       <div class="grid gap-3 md:grid-cols-2">
+                        <.input
+                          field={@product_edit_form[:status]}
+                          type="select"
+                          label="Status"
+                          options={@manual_product_status_options}
+                        />
                         <.input field={@product_edit_form[:title]} label="Title" />
                         <.input field={@product_edit_form[:brand]} label="Brand" />
                         <.input field={@product_edit_form[:category]} label="Category" />
@@ -572,6 +593,12 @@ defmodule ResellerWeb.WorkspaceLive do
                         <.input field={@product_edit_form[:size]} label="Size" />
                         <.input field={@product_edit_form[:material]} label="Material" />
                         <.input field={@product_edit_form[:sku]} label="SKU" />
+                        <.input
+                          field={@product_edit_form[:tags]}
+                          label="Tags"
+                          placeholder="denim, vintage, outerwear"
+                          value={tag_input_value(@product_edit_form[:tags].value)}
+                        />
                         <.input
                           field={@product_edit_form[:price]}
                           type="number"
@@ -1125,12 +1152,12 @@ defmodule ResellerWeb.WorkspaceLive do
     ]
   end
 
-  defp page_title(:dashboard), do: "Workspace"
-  defp page_title(:products), do: "Products"
-  defp page_title(:listings), do: "Listings"
-  defp page_title(:exports), do: "Exports"
-  defp page_title(:settings), do: "Settings"
-  defp page_title(_section), do: "Workspace"
+  defp page_title(:dashboard), do: ResellerWeb.PageTitle.build("Dashboard", "Workspace")
+  defp page_title(:products), do: ResellerWeb.PageTitle.build("Products", "Workspace / Inventory")
+  defp page_title(:listings), do: ResellerWeb.PageTitle.build("Listings", "Workspace / Markets")
+  defp page_title(:exports), do: ResellerWeb.PageTitle.build("Exports", "Workspace / Transfers")
+  defp page_title(:settings), do: ResellerWeb.PageTitle.build("Settings", "Workspace")
+  defp page_title(_section), do: ResellerWeb.PageTitle.build("Workspace", nil)
 
   defp section_eyebrow(:dashboard), do: "Dashboard"
   defp section_eyebrow(:products), do: "Inventory"
@@ -1257,6 +1284,11 @@ defmodule ResellerWeb.WorkspaceLive do
   defp error_to_string(:too_many_files), do: "Too many files selected"
   defp error_to_string(:not_accepted), do: "File type is not accepted"
   defp error_to_string(other), do: inspect(other)
+
+  defp tag_input_value(nil), do: nil
+  defp tag_input_value(value) when is_binary(value), do: value
+  defp tag_input_value(values) when is_list(values), do: Enum.join(values, ", ")
+  defp tag_input_value(_value), do: nil
 
   defp format_reason(%Changeset{} = changeset), do: inspect(changeset.errors)
   defp format_reason(reason), do: inspect(reason)

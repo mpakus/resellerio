@@ -10,7 +10,12 @@ defmodule Reseller.ExportsTest do
     {:ok, %{product: product}} =
       Catalog.create_product_for_user(
         user,
-        %{"title" => "Nike Air Max", "brand" => "Nike", "category" => "Sneakers"},
+        %{
+          "title" => "Nike Air Max",
+          "brand" => "Nike",
+          "category" => "Sneakers",
+          "tags" => ["running", "air-max"]
+        },
         [%{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
         storage: Reseller.Support.Fakes.MediaStorage
       )
@@ -62,6 +67,7 @@ defmodule Reseller.ExportsTest do
     [exported_product] = index["products"]
 
     assert exported_product["title"] == "Nike Air Max"
+    assert exported_product["tags"] == ["running", "air-max"]
 
     assert exported_product["images"] == [
              %{

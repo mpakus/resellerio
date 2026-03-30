@@ -112,7 +112,7 @@ Primary modules:
 Responsibilities:
 
 - product creation
-- editable product fields
+- editable product fields, tags, and seller-managed status changes
 - explicit lifecycle transitions
 - ownership-scoped access
 - preload orchestration for the product aggregate
@@ -382,6 +382,7 @@ Key fields:
 | `brand` / `category` / `condition` / `color` / `size` / `material` | `string` | editable product metadata |
 | `price` / `cost` | `decimal(12,2)` | user-entered commercial values |
 | `sku` | `string` | unique per user when present |
+| `tags` | `string[]` | seller-defined labels for search/filtering/grouping |
 | `notes` | `text` | reseller notes |
 | `ai_summary` | `text` | AI-generated short summary |
 | `ai_confidence` | `float` | normalized recognition confidence |
@@ -394,6 +395,14 @@ Constraints:
 - index on `user_id`
 - compound index on `user_id, status`
 - unique partial index on `user_id, sku` where `sku IS NOT NULL`
+
+Manual status rules:
+
+- sellers may set `draft`, `review`, `ready`, `sold`, and `archived`
+- system-only statuses `uploading` and `processing` remain pipeline-controlled
+- moving to `sold` sets `sold_at`
+- moving to `archived` sets `archived_at`
+- moving back to `draft`, `review`, or `ready` clears both timestamps
 
 ### `product_images`
 

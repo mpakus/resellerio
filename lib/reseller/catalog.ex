@@ -54,8 +54,14 @@ defmodule Reseller.Catalog do
         {:error, :not_found}
 
       product ->
+        attrs =
+          attrs
+          |> editable_product_attrs()
+          |> apply_manual_status_transition(product)
+
         product
-        |> Product.update_changeset(editable_product_attrs(attrs))
+        |> Product.update_changeset(attrs)
+        |> validate_manual_status_change()
         |> Repo.update()
         |> case do
           {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
@@ -177,6 +183,7 @@ defmodule Reseller.Catalog do
 
   defp editable_product_attrs(attrs) do
     Map.take(attrs, [
+      "status",
       "title",
       "brand",
       "category",
@@ -187,8 +194,54 @@ defmodule Reseller.Catalog do
       "price",
       "cost",
       "sku",
+      "tags",
       "notes"
     ])
+  end
+
+  defp apply_manual_status_transition(attrs, %Product{} = product) do
+    case Map.get(attrs, "status") do
+      nil ->
+        attrs
+
+      status ->
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+        attrs
+        |> Map.merge(status_transition_attrs(product, status, now))
+    end
+  end
+
+  defp status_transition_attrs(%Product{} = product, "sold", now) do
+    %{
+      "sold_at" => product.sold_at || now,
+      "archived_at" => nil
+    }
+  end
+
+  defp status_transition_attrs(_product, "archived", now) do
+    %{
+      "archived_at" => now
+    }
+  end
+
+  defp status_transition_attrs(_product, status, _now) when status in ~w(draft review ready) do
+    %{
+      "sold_at" => nil,
+      "archived_at" => nil
+    }
+  end
+
+  defp status_transition_attrs(_product, _status, _now), do: %{}
+
+  defp validate_manual_status_change(changeset) do
+    case Ecto.Changeset.fetch_change(changeset, :status) do
+      {:ok, _status} ->
+        Ecto.Changeset.validate_inclusion(changeset, :status, Product.manual_statuses())
+
+      :error ->
+        changeset
+    end
   end
 
   defp product_preload do

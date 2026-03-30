@@ -6,12 +6,13 @@ defmodule ResellerWeb.Auth.SignUpLiveTest do
   alias Reseller.Accounts
 
   test "renders the sign up page", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/sign-up")
+    {:ok, view, html} = live(conn, "/sign-up")
 
     assert has_element?(view, "#sign-up-form")
     assert has_element?(view, "#sign-up-submit")
     assert has_element?(view, ~s(a[href="/sign-in"]))
     assert render(view) =~ "Create your account"
+    assert html =~ "Create Account - Authentication - Resellio - AI Inventory for Resellers"
   end
 
   test "redirects authenticated users to the app shell", %{conn: conn} do

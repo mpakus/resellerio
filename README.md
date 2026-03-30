@@ -27,7 +27,7 @@ Implemented already:
 - Browser sign-in and sign-up LiveViews
 - Protected web workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`
 - Web product intake with browser photo uploads and product creation
-- Web product detail editing plus sold/archive/restore/delete lifecycle actions
+- Web product detail editing with seller-managed tags and statuses, plus sold/archive/restore/delete lifecycle actions
 - Web export requests and ZIP imports from the Resellerio workspace
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
@@ -43,6 +43,7 @@ Implemented already:
 - Photoroom-backed processed image variants
 - ZIP export generation with email-ready notifications
 - ZIP import flow that recreates products, images, and generated metadata from reseller archives
+- Product tags stored directly on `products` and preserved through ZIP export/import
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 

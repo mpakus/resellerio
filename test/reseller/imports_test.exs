@@ -22,6 +22,7 @@ defmodule Reseller.ImportsTest do
             "price" => "89.00",
             "cost" => "20.00",
             "sku" => "IMP-1",
+            "tags" => ["denim", "vintage"],
             "notes" => "Imported from archive",
             "ai_summary" => "Classic denim jacket",
             "ai_confidence" => 0.92,
@@ -92,6 +93,7 @@ defmodule Reseller.ImportsTest do
     assert product.title == "Vintage Levi's Jacket"
     assert product.brand == "Levi's"
     assert product.status == "ready"
+    assert product.tags == ["denim", "vintage"]
     assert product.description_draft.short_description == "Vintage denim jacket with classic wash"
     assert Decimal.equal?(product.price_research.suggested_target_price, Decimal.new("89.00"))
     assert Enum.map(product.marketplace_listings, & &1.marketplace) == ["ebay"]

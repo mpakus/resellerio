@@ -3,7 +3,11 @@ defmodule ResellerWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Resellerio Web", current_scope: nil)}
+    {:ok,
+     assign(socket,
+       page_title: ResellerWeb.PageTitle.build("Home", "Marketing"),
+       current_scope: nil
+     )}
   end
 
   @impl true
@@ -31,6 +35,12 @@ defmodule ResellerWeb.HomeLive do
               title_class="reseller-display mt-5 text-5xl font-semibold leading-[0.92] tracking-[-0.04em] text-balance sm:text-6xl lg:text-7xl"
               class="gap-0"
             >
+              <p
+                id="home-slogan"
+                class="mt-4 text-sm font-semibold uppercase tracking-[0.32em] text-base-content/55"
+              >
+                Resellio · AI Inventory for Resellers
+              </p>
               <div class="mt-10 flex flex-col gap-3 sm:flex-row">
                 <%= if @current_user do %>
                   <.link

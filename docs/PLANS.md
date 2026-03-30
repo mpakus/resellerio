@@ -16,10 +16,11 @@
 - [x] Step 8: ZIP import flow.
 - [x] Step 9: Product lifecycle endpoints for edit, delete, sold, archive, and restore flows.
 - [x] Step 10: Production Docker packaging with release-based container startup.
+ - [x] Step 11: Product tags plus seller-managed status changes in API and web workspace.
 
 ## Latest Progress
 
-- Completed: Step 10 production Docker packaging.
+- Completed: Step 11 product tags plus seller-managed status changes.
 - Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, `DELETE /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, `POST /api/v1/products/:id/unarchive`, `POST /api/v1/exports`, `GET /api/v1/exports/:id`, `POST /api/v1/imports`, and `GET /api/v1/imports/:id`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
@@ -32,6 +33,7 @@
 - Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
 - Imports: `Reseller.Imports` now stores source ZIP archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
 - Product lifecycle: editable product fields can now be updated, products can be deleted, and explicit sold/archive/unarchive flows now exist
+- Product metadata: products now support seller-managed `tags`, and seller edits can directly move products between manual statuses like `draft`, `review`, `ready`, `sold`, and `archived`
 - Deployment: the repo now includes a production-focused `Dockerfile`, `.dockerignore`, and `docker-compose.yml` with release migrations on boot
 - Next target: add passkey authentication and device-friendly browser/API flows.
 

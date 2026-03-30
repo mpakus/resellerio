@@ -29,7 +29,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Browser sign-up and sign-in flows at `/sign-up` and `/sign-in`.
 - Authenticated LiveView workspace shell with routed reseller sections at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`.
 - Web workspace product intake now supports browser-side product creation with image uploads.
-- Web workspace product management now supports detail editing plus sold/archive/restore/delete lifecycle actions.
+- Web workspace product management now supports detail editing, tags, seller-managed status changes, plus sold/archive/restore/delete lifecycle actions.
 - Web workspace exports screen now supports requesting ZIP exports and uploading ZIP imports directly from LiveView.
 - Versioned `/api/v1` namespace.
 - `GET /api/v1` and `GET /api/v1/health` endpoints.
@@ -37,6 +37,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Stable JSON API error shape.
 - `Reseller.Accounts` context with `users` and `api_tokens`.
 - `Reseller.Catalog` context with `products`.
+- `products` now include seller-managed `tags`.
 - `Reseller.Media` context with `product_images` and signed upload intent generation.
 - Uploaded-image finalization via `POST /api/v1/products/:id/finalize_uploads`.
 - Authenticated product API endpoints now include list/create/show/update/delete plus explicit sold/archive/unarchive lifecycle actions.
@@ -102,7 +103,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
   Handles users, password auth, sessions/tokens, passkeys, and auth auditing.
 
 - `Reseller.Catalog`
-  Handles products, statuses, tags, notes, pricing, sold state, and product-level lifecycle rules.
+  Handles products, seller-managed statuses, tags, notes, pricing, sold state, and product-level lifecycle rules.
 
 - `Reseller.Media`
   Handles upload intents, object keys, image variants, storage metadata, and media processing orchestration.
@@ -128,7 +129,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 ## Data and workflow guidance
 
 - Model product creation as an asynchronous pipeline with explicit statuses such as `draft`, `uploading`, `processing`, `review`, `ready`, `sold`, and `archived`.
-- Keep product lifecycle changes explicit. Editable field updates should go through `Reseller.Catalog.update_product_for_user/3`, while status changes should go through dedicated lifecycle functions instead of raw status patches.
+- Keep product lifecycle changes explicit. Seller-facing edits go through `Reseller.Catalog.update_product_for_user/3`, which may change manual statuses only for `draft`, `review`, `ready`, `sold`, and `archived`; pipeline/system statuses should still be managed through dedicated lifecycle functions and workers.
 - Track processing runs or job events so failures are debuggable and retryable.
 - Marketplace-specific copy should live in separate records keyed by product and marketplace, not as one giant blob on `products`.
 - Export archives should contain `index.json` plus an `images/` directory exactly as described in the product plan.

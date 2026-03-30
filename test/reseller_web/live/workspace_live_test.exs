@@ -15,7 +15,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
 
-    {:ok, view, _html} = live(conn, "/app")
+    {:ok, view, html} = live(conn, "/app")
 
     assert has_element?(view, "#workspace-heading")
     assert has_element?(view, "#workspace-user-email")
@@ -25,6 +25,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, ~s(a[href="/app/exports"]))
     assert has_element?(view, ~s(a[href="/app/settings"]))
     assert render(view) =~ "seller@example.com"
+    assert html =~ "Dashboard - Workspace - Resellio - AI Inventory for Resellers"
   end
 
   test "sidebar menu patches between workspace sections", %{conn: conn} do
@@ -98,6 +99,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
         title: "Web Jacket",
         brand: "Levi's",
         category: "Outerwear",
+        tags: "denim, vintage",
         price: "79.00",
         notes: "Created from LiveView"
       }
@@ -108,6 +110,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
 
     assert_patch(view, "/app/products?product_id=#{product.id}")
     assert product.title == "Web Jacket"
+    assert product.tags == ["denim", "vintage"]
     assert length(product.images) == 1
     assert has_element?(view, "#selected-product-card")
     assert has_element?(view, "#product-images-upload-panel")
@@ -125,9 +128,11 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     view
     |> form("#product-edit-form",
       product_update: %{
+        status: "review",
         title: "Updated product",
         brand: "Nike",
         category: "Sneakers",
+        tags: "running, retro",
         notes: "Updated in browser"
       }
     )
@@ -136,6 +141,8 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     updated_product = Catalog.get_product_for_user(user, product.id)
     assert updated_product.title == "Updated product"
     assert updated_product.brand == "Nike"
+    assert updated_product.status == "review"
+    assert updated_product.tags == ["running", "retro"]
 
     view
     |> element(~s(button[phx-click="mark_sold"]))

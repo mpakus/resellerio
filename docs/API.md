@@ -73,7 +73,7 @@ Example response:
       {
         "method": "PATCH",
         "path": "/api/v1/products/:id",
-        "description": "Updates editable fields for one product."
+        "description": "Updates seller-managed product fields, including tags and manual statuses."
       },
       {
         "method": "DELETE",
@@ -247,6 +247,7 @@ Response:
         "title": "Vintage blazer",
         "brand": "Ralph Lauren",
         "category": "Blazers",
+        "tags": ["vintage", "wool"],
         "latest_processing_run": null,
         "description_draft": null,
         "price_research": null,
@@ -276,7 +277,8 @@ Request body without uploads:
   "product": {
     "title": "Vintage blazer",
     "brand": "Ralph Lauren",
-    "category": "Blazers"
+    "category": "Blazers",
+    "tags": ["vintage", "wool"]
   }
 }
 ```
@@ -288,7 +290,8 @@ Request body with uploads:
   "product": {
     "title": "Nike Air Max",
     "brand": "Nike",
-    "category": "Sneakers"
+    "category": "Sneakers",
+    "tags": ["running", "air-max"]
   },
   "uploads": [
     {
@@ -312,6 +315,7 @@ Response:
       "title": "Nike Air Max",
       "brand": "Nike",
       "category": "Sneakers",
+      "tags": ["running", "air-max"],
       "latest_processing_run": null,
       "description_draft": null,
       "price_research": null,
@@ -370,7 +374,7 @@ Unknown or unauthorized product IDs return:
 
 ### `PATCH /api/v1/products/:id`
 
-Updates editable product fields for the authenticated user.
+Updates seller-managed product fields for the authenticated user.
 
 Required header:
 
@@ -386,7 +390,9 @@ Request body:
     "title": "Updated title",
     "brand": "Patagonia",
     "price": "99.00",
-    "notes": "Measured and cleaned"
+    "notes": "Measured and cleaned",
+    "tags": ["outerwear", "denim"],
+    "status": "review"
   }
 }
 ```
@@ -403,9 +409,19 @@ Editable fields currently include:
 - `price`
 - `cost`
 - `sku`
+- `tags`
 - `notes`
+- `status`
 
-Lifecycle fields like `status` and system fields like `source` are ignored by this endpoint.
+Manual status values accepted by this endpoint are:
+
+- `draft`
+- `review`
+- `ready`
+- `sold`
+- `archived`
+
+System-managed statuses like `uploading` and `processing`, and system fields like `source`, are still not seller-editable through this endpoint.
 
 ### `DELETE /api/v1/products/:id`
 

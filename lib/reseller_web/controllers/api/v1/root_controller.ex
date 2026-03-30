@@ -36,7 +36,8 @@ defmodule ResellerWeb.API.V1.RootController do
           %{
             method: "PATCH",
             path: "/api/v1/products/:id",
-            description: "Updates editable fields for one product."
+            description:
+              "Updates seller-managed product fields, including tags and manual statuses."
           },
           %{
             method: "DELETE",
