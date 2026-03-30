@@ -34,17 +34,19 @@ defmodule Reseller.Workers.AIProductProcessor do
              price_research,
              opts
            ),
+         variant_generation = generate_image_variants(updated_product, opts),
          {:ok, _updated_count} <- Media.mark_product_images_ready(updated_product) do
       {:ok,
        %{
-         step: "marketplace_listings_generated",
+         step: variant_generation_step(variant_generation),
          payload:
            build_payload(
              updated_product,
              result,
              description_draft,
              price_research,
-             marketplace_listings
+             marketplace_listings,
+             variant_generation
            )
        }}
     else
@@ -98,7 +100,8 @@ defmodule Reseller.Workers.AIProductProcessor do
          result,
          description_draft,
          price_research,
-         marketplace_listings
+         marketplace_listings,
+         variant_generation
        ) do
     %{
       "pipeline_status" => Atom.to_string(result.status),
@@ -122,6 +125,7 @@ defmodule Reseller.Workers.AIProductProcessor do
         "pricing_confidence" => price_research.pricing_confidence
       },
       "marketplace_listings" => Enum.map(marketplace_listings, &marketplace_listing_payload/1),
+      "variant_generation" => variant_generation,
       "product" => %{
         "id" => product.id,
         "status" => product.status,
@@ -134,6 +138,28 @@ defmodule Reseller.Workers.AIProductProcessor do
       }
     }
   end
+
+  defp generate_image_variants(%Product{} = product, opts) do
+    case Media.generate_product_variants(product, opts) do
+      {:ok, variants} ->
+        %{
+          "status" => "generated",
+          "count" => length(variants),
+          "variants" => Enum.map(variants, &variant_payload/1)
+        }
+
+      {:error, reason} ->
+        %{
+          "status" => "failed",
+          "count" => 0,
+          "error" => inspect(reason),
+          "variants" => []
+        }
+    end
+  end
+
+  defp variant_generation_step(%{"status" => "generated"}), do: "variants_generated"
+  defp variant_generation_step(_variant_generation), do: "variants_failed"
 
   defp generate_marketplace_listings(
          %Product{} = product,
@@ -334,6 +360,16 @@ defmodule Reseller.Workers.AIProductProcessor do
       "status" => listing.status,
       "generated_title" => listing.generated_title,
       "generated_price_suggestion" => decimal_to_string(listing.generated_price_suggestion)
+    }
+  end
+
+  defp variant_payload(image) do
+    %{
+      "id" => image.id,
+      "kind" => image.kind,
+      "position" => image.position,
+      "background_style" => image.background_style,
+      "processing_status" => image.processing_status
     }
   end
 

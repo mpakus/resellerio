@@ -400,6 +400,7 @@ Current behavior notes:
 - when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
 - when price research finishes, the product may also include a `price_research` object with grounded price ranges and comparables
 - when marketplace generation finishes, the product may also include `marketplace_listings` for eBay, Depop, and Poshmark
+- when image-variant generation finishes, the product may also include processed `images` such as `background_removed` and `white_background`
 - on success, in-flight images move from `processing` to `ready`
 - on worker failure, in-flight images move from `processing` to `failed` and the product falls back to `review`
 
@@ -414,7 +415,7 @@ Example:
   "latest_processing_run": {
     "id": 12,
     "status": "completed",
-    "step": "marketplace_listings_generated",
+    "step": "variants_generated",
     "started_at": "2026-03-29T20:30:00Z",
     "finished_at": "2026-03-29T20:30:01Z",
     "error_code": null,
@@ -444,6 +445,22 @@ Example:
           "generated_price_suggestion": "129.00"
         }
       ],
+      "variant_generation": {
+        "status": "generated",
+        "count": 2,
+        "variants": [
+          {
+            "kind": "background_removed",
+            "background_style": "transparent",
+            "processing_status": "ready"
+          },
+          {
+            "kind": "white_background",
+            "background_style": "white",
+            "processing_status": "ready"
+          }
+        ]
+      },
       "final": {
         "brand": "Nike",
         "category": "Sneakers",
@@ -463,7 +480,7 @@ Run status values currently used:
 - `completed`
 - `failed`
 
-The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, `price_researched`, and `marketplace_listings_generated`.
+The `step` field is used to show finer-grained progress such as `queued`, `prepare_images`, `recognition_completed`, `description_generated`, `price_researched`, `marketplace_listings_generated`, `variants_generated`, and `variants_failed`.
 
 ### Description Drafts
 
@@ -554,6 +571,36 @@ Product payloads may include a `marketplace_listings` array after AI processing 
 ```
 
 These records are generated per marketplace and can be regenerated without overwriting core product fields.
+
+### Image Variants
+
+The `images` array may include processed variants in addition to originals:
+
+```json
+{
+  "images": [
+    {
+      "kind": "original",
+      "position": 1,
+      "processing_status": "ready"
+    },
+    {
+      "kind": "background_removed",
+      "position": 1,
+      "background_style": "transparent",
+      "processing_status": "ready"
+    },
+    {
+      "kind": "white_background",
+      "position": 1,
+      "background_style": "white",
+      "processing_status": "ready"
+    }
+  ]
+}
+```
+
+These processed variants are stored as additional `product_images`; the original upload is preserved.
 
 If the provided image IDs do not belong to the selected product, the API returns:
 

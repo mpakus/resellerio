@@ -73,9 +73,42 @@ defmodule Reseller.Media.Storage.Tigris do
     end
   end
 
+  @impl true
+  def upload_object(storage_key, body, opts \\ [])
+      when is_binary(storage_key) and is_binary(body) do
+    with {:ok, upload} <- sign_upload(storage_key, opts),
+         {:ok, response} <- execute_upload(upload, body, opts) do
+      status = Map.get(response, :status, 200)
+
+      if status in 200..299 do
+        {:ok,
+         %{
+           storage_key: storage_key,
+           content_type: upload.headers["content-type"],
+           byte_size: byte_size(body)
+         }}
+      else
+        {:error, {:http_error, status, Map.get(response, :body)}}
+      end
+    end
+  end
+
   defp config(opts) do
     app_config = Application.fetch_env!(:reseller, __MODULE__)
     Keyword.merge(app_config, Keyword.get(opts, :config, []))
+  end
+
+  defp execute_upload(upload, body, opts) do
+    request_fun = Keyword.get(opts, :upload_request_fun, &default_upload_request/2)
+
+    case request_fun.(upload, body) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, {:request_failed, reason}}
+    end
+  end
+
+  defp default_upload_request(upload, body) do
+    Req.put(url: upload.upload_url, headers: upload.headers, body: body)
   end
 
   defp fetch_required(config, key) do

@@ -4,12 +4,17 @@ defmodule Reseller.Media do
   alias Ecto.Multi
   alias Reseller.Catalog.Product
   alias Reseller.Media.FinalizeUploadBatch
+  alias Reseller.Media.Processor
   alias Reseller.Media.ProductImage
   alias Reseller.Media.Storage
   alias Reseller.Media.UploadBatch
   alias Reseller.Repo
 
   @processable_image_statuses ~w(uploaded processing ready)
+  @variant_profiles [
+    %{kind: "background_removed", background_style: "transparent"},
+    %{kind: "white_background", background_style: "white"}
+  ]
 
   @spec prepare_product_uploads(module(), Product.t(), [map()], keyword()) ::
           {:ok, %{images: [ProductImage.t()], upload_instructions: [map()]}}
@@ -114,6 +119,23 @@ defmodule Reseller.Media do
       |> Repo.update_all(set: [processing_status: "failed"])
 
     {:ok, count}
+  end
+
+  @spec generate_product_variants(Product.t(), keyword()) ::
+          {:ok, [ProductImage.t()]} | {:error, term()}
+  def generate_product_variants(%Product{} = product, opts \\ []) do
+    product = Repo.preload(product, :images, force: true)
+
+    with {:ok, base_url} <- public_base_url(opts) do
+      product.images
+      |> Enum.filter(&variant_source_image?/1)
+      |> Enum.reduce_while({:ok, []}, fn source_image, {:ok, variants} ->
+        case generate_variants_for_image(product, source_image, base_url, opts) do
+          {:ok, created_variants} -> {:cont, {:ok, variants ++ created_variants}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+    end
   end
 
   defp upload_multi(product, upload_specs, opts) do
@@ -277,6 +299,21 @@ defmodule Reseller.Media do
     |> repo.update()
   end
 
+  defp upsert_variant_image(repo, product, source_image, profile, attrs) do
+    case find_variant_image(product, profile.kind, source_image.position) do
+      nil ->
+        %ProductImage{}
+        |> ProductImage.create_changeset(attrs)
+        |> Ecto.Changeset.put_assoc(:product, product)
+        |> repo.insert()
+
+      variant_image ->
+        variant_image
+        |> ProductImage.create_changeset(attrs)
+        |> repo.update()
+    end
+  end
+
   defp finalized_image_attrs(image, upload_spec) do
     %{
       kind: image.kind,
@@ -316,6 +353,78 @@ defmodule Reseller.Media do
       external_url: public_url,
       storage_key: image.storage_key
     }
+  end
+
+  defp generate_variants_for_image(product, source_image, base_url, opts) do
+    image_url = build_public_url(base_url, source_image.storage_key)
+
+    @variant_profiles
+    |> Enum.reduce_while({:ok, []}, fn profile, {:ok, variants} ->
+      storage_key = build_variant_storage_key(product, source_image, profile)
+
+      with {:ok, processed_image} <- process_variant(image_url, profile, opts),
+           {:ok, _upload} <-
+             Storage.upload_object(
+               storage_key,
+               processed_image.body,
+               Keyword.merge(
+                 [
+                   content_type: processed_image.content_type,
+                   provider: Keyword.get(opts, :storage, Storage.provider())
+                 ],
+                 Keyword.take(opts, [:upload_request_fun, :request_time, :expires_in, :config])
+               )
+             ),
+           {:ok, variant} <-
+             upsert_variant_image(
+               Repo,
+               product,
+               source_image,
+               profile,
+               variant_image_attrs(source_image, profile, processed_image, storage_key)
+             ) do
+        {:cont, {:ok, variants ++ [variant]}}
+      else
+        {:error, reason} -> {:halt, {:error, {:variant_generation_failed, profile.kind, reason}}}
+      end
+    end)
+  end
+
+  defp process_variant(image_url, profile, opts) do
+    Processor.process_image(
+      image_url,
+      profile,
+      opts
+      |> Keyword.put_new(:provider, Keyword.get(opts, :media_processor, Processor.provider()))
+    )
+  end
+
+  defp variant_image_attrs(source_image, profile, processed_image, storage_key) do
+    %{
+      kind: profile.kind,
+      position: source_image.position,
+      storage_key: storage_key,
+      content_type: processed_image.content_type,
+      byte_size: processed_image.byte_size,
+      checksum: source_image.checksum,
+      width: Map.get(processed_image, :width) || source_image.width,
+      height: Map.get(processed_image, :height) || source_image.height,
+      original_filename: source_image.original_filename,
+      background_style: profile.background_style,
+      processing_status: "ready"
+    }
+  end
+
+  defp build_variant_storage_key(%Product{} = product, %ProductImage{} = source_image, profile) do
+    "users/#{product.user_id}/products/#{product.id}/variants/#{source_image.id}-#{profile.kind}.png"
+  end
+
+  defp find_variant_image(%Product{} = product, kind, position) do
+    Enum.find(product.images || [], &(&1.kind == kind and &1.position == position))
+  end
+
+  defp variant_source_image?(%ProductImage{} = image) do
+    image.kind == "original" and image.processing_status in @processable_image_statuses
   end
 
   defp public_base_url(opts) do

@@ -12,8 +12,8 @@
 
 ## Latest AI Planning Status
 
-- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, generates marketplace listings, and marks image states `ready` or `failed`.
-- Current limitation: this step uses finalized uploaded originals as the AI input source via `TIGRIS_BUCKET_URL`; normalization variants and Photoroom derivatives are still future work.
+- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds public image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, generates marketplace listings, creates Photoroom-backed processed variants, and marks image states `ready` or `failed`.
+- Current limitation: this step still uses finalized uploaded originals as the AI input source via `TIGRIS_BUCKET_URL`; the new Photoroom variants are generated for listing quality and future workflows rather than feeding a second-pass recognition loop yet.
 - Next implementation target: Step AI6 admin observability, retries, and cost controls.
 
 ## 1. Goal
@@ -45,6 +45,7 @@ The repo already has:
 - `Reseller.AI.ProductDescriptionDraft`
 - `Reseller.AI.ProductPriceResearch`
 - `Reseller.Marketplaces.MarketplaceListing`
+- `Reseller.Media.Processor` plus `Reseller.Media.Processors.Photoroom`
 - signed upload intent generation for product images
 - upload finalization and uploaded-image state transitions
 - `Reseller.Workers.ProductProcessingRun` plus lightweight async worker orchestration
@@ -52,6 +53,7 @@ The repo already has:
 - generated `product_description_drafts` stored separately from editable product fields
 - generated `product_price_researches` stored separately from editable product pricing
 - generated `marketplace_listings` stored separately per marketplace
+- generated processed image variants stored as additional `product_images`
 
 The repo does not yet have:
 

@@ -48,6 +48,6 @@ defmodule Reseller.Media.ProductImage do
     |> validate_length(:storage_key, max: 512)
     |> validate_format(:content_type, ~r/^image\//, message: "must be an image content type")
     |> unique_constraint(:storage_key)
-    |> unique_constraint([:product_id, :position])
+    |> unique_constraint([:product_id, :kind, :position])
   end
 end

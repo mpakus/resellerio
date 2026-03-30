@@ -11,13 +11,13 @@
 - [x] Step 5.1: Base AI description generation and product description draft storage.
 - [x] Step 5.2: Grounded price research with Gemini plus SerpApi comparables.
 - [x] Step 5.3: Marketplace listing generation.
-- [ ] Step 6: Photoroom-powered image processing variants.
+- [x] Step 6: Photoroom-powered image processing variants.
 - [ ] Step 7: ZIP export generation and export-ready email flow.
 - [ ] Step 8: ZIP import flow.
 
 ## Latest Progress
 
-- Completed: Step 5.3 marketplace listing generation.
+- Completed: Step 6 Photoroom-powered image processing variants.
 - Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, and `POST /api/v1/products/:id/finalize_uploads`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
@@ -26,7 +26,8 @@
 - Generated copy: `product_description_drafts` now store AI-authored base copy separately from editable product fields
 - Pricing: `product_price_researches` now store grounded price suggestions and comparable evidence separately from editable product fields
 - Marketplace output: `marketplace_listings` now store generated eBay, Depop, and Poshmark copy per product
-- Next target: Step 6 add Photoroom-powered image variants.
+- Media variants: processed `background_removed` and `white_background` images can now be generated and stored per original image
+- Next target: Step 7 add ZIP export generation and export-ready email flow.
 
 ## Working Rules
 

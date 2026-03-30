@@ -37,6 +37,7 @@ Implemented already:
 - AI-generated base description drafts stored separately from editable product fields
 - AI-generated price research stored separately from editable product pricing
 - Marketplace-specific listing records for eBay, Depop, and Poshmark
+- Photoroom-backed processed image variants
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -44,7 +45,6 @@ Not implemented yet:
 
 - Product edit/delete/sold lifecycle endpoints
 - Passkey authentication
-- Photoroom-powered image variants
 - Import/export
 
 ## Local Development
@@ -77,6 +77,7 @@ Current implementation note:
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
 - recognized products can now also receive a generated `product_price_research` during the same processing run
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
+- recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
 
 ## Admin Access
 

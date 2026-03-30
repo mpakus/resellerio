@@ -37,6 +37,9 @@ config :reseller, Reseller.Media.Storage.Tigris,
   secret_access_key: System.get_env("TIGRIS_SECRET_ACCESS_KEY"),
   base_url: System.get_env("TIGRIS_BUCKET_URL")
 
+config :reseller, Reseller.Media.Processors.Photoroom,
+  api_key: System.get_env("PHOTOROOM_API_KEY")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

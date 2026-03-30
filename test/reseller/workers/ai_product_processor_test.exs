@@ -33,6 +33,8 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                public_base_url: "https://cdn.example.com/catalog",
                ai_provider: Reseller.Support.Fakes.AIProvider,
                search_provider: Reseller.Support.Fakes.SearchProvider,
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
                recognize_result: recognize_result,
                description_result:
                  {:ok,
@@ -123,7 +125,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              )
 
     assert run.status == "completed"
-    assert run.step == "marketplace_listings_generated"
+    assert run.step == "variants_generated"
     assert run.payload["pipeline_status"] == "recognized"
     assert run.payload["final"]["brand"] == "Nike"
     assert run.payload["description_draft"]["suggested_title"] == "Nike Air Max 90"
@@ -134,6 +136,9 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              "depop",
              "poshmark"
            ]
+
+    assert run.payload["variant_generation"]["status"] == "generated"
+    assert run.payload["variant_generation"]["count"] == 2
 
     refreshed_product = Catalog.get_product_for_user(user, product.id)
 
@@ -160,6 +165,12 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              "poshmark"
            ]
 
+    assert Enum.map(refreshed_product.images, & &1.kind) == [
+             "original",
+             "background_removed",
+             "white_background"
+           ]
+
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
     assert_received {:ai_provider_called, :recognize_images, [image_input], metadata, _opts}
@@ -184,6 +195,12 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert_received {:ai_provider_called, :generate_marketplace_listing,
                      %{"marketplace" => "poshmark"}, _opts}
+
+    assert_received {:media_processor_called, "https://cdn.example.com/catalog/" <> _,
+                     %{kind: "background_removed"}, _opts}
+
+    assert_received {:media_processor_called, "https://cdn.example.com/catalog/" <> _,
+                     %{kind: "white_background"}, _opts}
 
     refute_received {:search_provider_called, :lens_matches, _, _}
   end
@@ -231,6 +248,8 @@ defmodule Reseller.Workers.AIProductProcessorTest do
                public_base_url: "https://cdn.example.com/catalog",
                ai_provider: Reseller.Support.Fakes.AIProvider,
                search_provider: Reseller.Support.Fakes.SearchProvider,
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
                recognize_result: recognize_result,
                lens_result: lens_result,
                reconcile_result: reconcile_result,
@@ -330,7 +349,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              )
 
     assert run.status == "completed"
-    assert run.step == "marketplace_listings_generated"
+    assert run.step == "variants_generated"
     assert run.payload["pipeline_status"] == "reconciled"
     assert length(run.payload["search_matches"]) == 1
     assert run.payload["final"]["possible_model"] == "Tabby 26"
@@ -353,6 +372,12 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              listing.marketplace == "depop" and listing.status == "review"
            end)
 
+    assert Enum.map(refreshed_product.images, & &1.kind) == [
+             "original",
+             "background_removed",
+             "white_background"
+           ]
+
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
 
     assert_received {:search_provider_called, :lens_matches,
@@ -363,6 +388,104 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert recognition_output["brand"] == "Coach"
     assert length(search_output.matches) == 1
+  end
+
+  test "keeps the product usable when variant generation fails" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    recognize_result =
+      {:ok,
+       %{
+         provider: :gemini,
+         output: %{
+           "brand" => "Nike",
+           "category" => "Sneakers",
+           "possible_model" => "Air Max 90",
+           "confidence_score" => 0.91,
+           "needs_review" => false
+         }
+       }}
+
+    assert {:ok, run} =
+             Workers.start_product_processing(product,
+               processor: AIProductProcessor,
+               public_base_url: "https://cdn.example.com/catalog",
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               search_provider: Reseller.Support.Fakes.SearchProvider,
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
+               recognize_result: recognize_result,
+               description_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-description",
+                    output: %{
+                      "suggested_title" => "Nike Air Max 90",
+                      "short_description" => "Short copy"
+                    }
+                  }},
+               shopping_result: {:ok, %{provider: :serp_api, matches: []}},
+               price_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-pricing",
+                    output: %{
+                      "currency" => "USD",
+                      "suggested_target_price" => 125,
+                      "pricing_confidence" => 0.8
+                    }
+                  }},
+               marketplace_listing_results: %{
+                 "ebay" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "eBay title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 125
+                      }
+                    }},
+                 "depop" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Depop title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 124
+                      }
+                    }},
+                 "poshmark" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Poshmark title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 126
+                      }
+                    }}
+               },
+               variant_results: %{
+                 "background_removed" => {:error, :photoroom_rate_limited}
+               }
+             )
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert run.status == "completed"
+    assert run.step == "variants_failed"
+    assert run.payload["variant_generation"]["status"] == "failed"
+    assert refreshed_product.status == "ready"
+    assert Enum.map(refreshed_product.images, & &1.kind) == ["original"]
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
   end
 
   test "marks the run, product, and images as failed when public image URLs are unavailable" do

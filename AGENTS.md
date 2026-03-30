@@ -51,6 +51,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `product_description_drafts` now store AI-authored base titles and descriptions separately from user-editable product fields.
 - `product_price_researches` now store AI-authored pricing guidance and comparable evidence separately from user-entered product pricing.
 - `Reseller.Marketplaces` now stores per-marketplace generated listings for eBay, Depop, and Poshmark.
+- `Reseller.Media.Processor` and `Reseller.Media.Processors.Photoroom` now generate processed image variants like `background_removed` and `white_background`.
 - No export context yet.
 - No background job system yet.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
@@ -80,10 +81,12 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Use background jobs for all long-running work: AI recognition, image processing, ZIP export generation, email delivery fan-out, and large imports.
 - Prefer direct-to-object-storage uploads via signed URLs for mobile clients whenever possible.
 - Store both original and processed image variants; never overwrite the original upload.
+- Processed image variants should be stored as additional `product_images`, not as replacements for the original upload.
 - AI output should be reviewable and editable by the user. Do not design flows that assume AI is always correct.
 - Keep generated base copy in dedicated draft records instead of overwriting user-edited product fields.
 - Keep generated pricing guidance in dedicated research records instead of overwriting any user-entered `products.price`.
 - Keep generated marketplace copy in dedicated listing records instead of storing marketplace blobs directly on `products`.
+- Keep processed Photoroom outputs as separate `product_images` and allow variant-generation failures to leave the product otherwise usable.
 
 ## Suggested context boundaries
 

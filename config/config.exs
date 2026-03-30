@@ -35,7 +35,15 @@ config :reseller, Reseller.Search.Providers.SerpApi,
   default_country: "us",
   timeout: 10_000
 
-config :reseller, Reseller.Media, storage: Reseller.Media.Storage.Tigris
+config :reseller, Reseller.Media,
+  storage: Reseller.Media.Storage.Tigris,
+  processor: Reseller.Media.Processors.Photoroom
+
+config :reseller, Reseller.Media.Processors.Photoroom,
+  base_url: "https://image-api.photoroom.com/v2/edit",
+  timeout: 15_000,
+  padding: 0.15,
+  output_format: "png"
 
 config :reseller, Reseller.Media.Storage.Tigris,
   region: "auto",

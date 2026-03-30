@@ -15,4 +15,16 @@ defmodule Reseller.Support.Fakes.MediaStorage do
        "expires_at" => "2026-03-29T12:00:00Z"
      }}
   end
+
+  @impl true
+  def upload_object(storage_key, body, opts) do
+    send(self(), {:media_storage_uploaded, storage_key, body, opts})
+
+    {:ok,
+     %{
+       storage_key: storage_key,
+       content_type: Keyword.get(opts, :content_type, "application/octet-stream"),
+       byte_size: byte_size(body)
+     }}
+  end
 end
