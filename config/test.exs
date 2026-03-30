@@ -71,3 +71,5 @@ config :reseller, Reseller.Exports,
   builder: Reseller.Exports.ZipBuilder,
   notifier: Reseller.Support.Fakes.ExportNotifier,
   from_email: "exports@test.local"
+
+config :reseller, Reseller.Imports, processing_mode: :inline

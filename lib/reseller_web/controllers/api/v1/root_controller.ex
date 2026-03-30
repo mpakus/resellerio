@@ -47,6 +47,16 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "GET",
             path: "/api/v1/exports/:id",
             description: "Returns one export request for the authenticated user."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/imports",
+            description: "Queues a ZIP import for the authenticated user."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/imports/:id",
+            description: "Returns one import request for the authenticated user."
           }
         ]
       }

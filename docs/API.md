@@ -84,6 +84,16 @@ Example response:
         "method": "GET",
         "path": "/api/v1/exports/:id",
         "description": "Returns one export request for the authenticated user."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/imports",
+        "description": "Queues a ZIP import for the authenticated user."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/imports/:id",
+        "description": "Returns one import request for the authenticated user."
       }
     ]
   }
@@ -676,6 +686,92 @@ Unknown or unauthorized export IDs return:
   "error": {
     "code": "not_found",
     "detail": "Export not found",
+    "status": 404
+  }
+}
+```
+
+### `POST /api/v1/imports`
+
+Queues an import for the authenticated user. The current API accepts the ZIP archive as base64 in JSON, stores the source archive, and then recreates products in the background.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request:
+
+```json
+{
+  "import": {
+    "filename": "catalog.zip",
+    "archive_base64": "<base64 zip archive>"
+  }
+}
+```
+
+Response status: `202 Accepted`
+
+Example response:
+
+```json
+{
+  "data": {
+    "import": {
+      "id": 1,
+      "status": "queued",
+      "source_filename": "catalog.zip",
+      "source_storage_key": "users/1/imports/1/source.zip",
+      "requested_at": "2026-03-30T02:10:00Z",
+      "started_at": null,
+      "finished_at": null,
+      "total_products": 0,
+      "imported_products": 0,
+      "failed_products": 0,
+      "error_message": null,
+      "failure_details": {},
+      "payload": {}
+    }
+  }
+}
+```
+
+Validation failures return:
+
+```json
+{
+  "error": {
+    "code": "validation_failed",
+    "detail": "Validation failed",
+    "status": 422,
+    "fields": {
+      "archive_base64": ["must be valid base64"]
+    }
+  }
+}
+```
+
+### `GET /api/v1/imports/:id`
+
+Returns one import record for the authenticated user.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Completed imports report archive-level totals plus any per-product failures under `failure_details.items`.
+
+Unknown or unauthorized import IDs return:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "detail": "Import not found",
     "status": 404
   }
 }

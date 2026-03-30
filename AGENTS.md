@@ -53,6 +53,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Marketplaces` now stores per-marketplace generated listings for eBay, Depop, and Poshmark.
 - `Reseller.Media.Processor` and `Reseller.Media.Processors.Photoroom` now generate processed image variants like `background_removed` and `white_background`.
 - `Reseller.Exports` now builds ZIP archives, uploads them to storage, and triggers export-ready notifications.
+- `Reseller.Imports` now stores uploaded ZIP archives, recreates products and images, restores generated metadata, and records per-product import failures.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 
@@ -111,6 +112,9 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - `Reseller.Exports`
   Handles ZIP assembly, export artifact retention, and emailing download links.
 
+- `Reseller.Imports`
+  Handles source ZIP intake, archive parsing, import run bookkeeping, and product recreation from archives.
+
 - `Reseller.Workers`
   Houses background workers and job orchestration modules.
 
@@ -137,6 +141,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - The current AI worker builds public object URLs from `TIGRIS_BUCKET_URL`. Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.
 - Upload finalization should go through `Reseller.Media.finalize_product_uploads/3` or `Reseller.Catalog.finalize_product_uploads_for_user/3`, not custom controller logic.
 - Product processing should be queued through `Reseller.Workers.start_product_processing/2`, not by spawning ad hoc tasks from controllers.
+- ZIP imports should go through `Reseller.Imports.request_import_for_user/3`. Keep archive validation, storage, parsing, and recreation out of controllers.
 
 ## Testing guidance
 

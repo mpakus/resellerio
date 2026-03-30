@@ -82,6 +82,8 @@ defmodule ResellerWeb.Router do
       post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
       post "/exports", ExportController, :create
       get "/exports/:id", ExportController, :show
+      post "/imports", ImportController, :create
+      get "/imports/:id", ImportController, :show
     end
   end
 

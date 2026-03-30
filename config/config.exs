@@ -62,6 +62,8 @@ config :reseller, Reseller.Exports,
   notifier: Reseller.Exports.Notifiers.Email,
   from_email: "exports@reseller.local"
 
+config :reseller, Reseller.Imports, processing_mode: :async
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

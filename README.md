@@ -39,6 +39,7 @@ Implemented already:
 - Marketplace-specific listing records for eBay, Depop, and Poshmark
 - Photoroom-backed processed image variants
 - ZIP export generation with email-ready notifications
+- ZIP import flow that recreates products, images, and generated metadata from reseller archives
 - In-repo API reference in `docs/API.md`
 - Planning tracker in `docs/PLANS.md`
 
@@ -46,7 +47,6 @@ Not implemented yet:
 
 - Product edit/delete/sold lifecycle endpoints
 - Passkey authentication
-- ZIP import flow
 
 ## Local Development
 
@@ -80,6 +80,7 @@ Current implementation note:
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
 - recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
 - authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
+- authenticated users can now import reseller ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
 
 ## Admin Access
 
