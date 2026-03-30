@@ -156,6 +156,53 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert restored_product.status == "sold"
   end
 
+  test "filters products by status and ignores another user's product selection", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    ready_product = product_fixture(user, %{"title" => "Ready coat", "status" => "ready"})
+    _sold_product = product_fixture(user, %{"title" => "Sold shoes", "status" => "sold"})
+    other_user = user_fixture(%{"email" => "other@example.com"})
+
+    other_product =
+      product_fixture(other_user, %{"title" => "Other user item", "status" => "ready"})
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products?status=ready&product_id=#{other_product.id}")
+
+    assert has_element?(view, "#workspace-products-table", "Ready coat")
+    refute has_element?(view, "#workspace-products-table", "Sold shoes")
+    refute render(view) =~ "Other user item"
+    assert render(view) =~ "Ready coat"
+
+    view
+    |> element("#product-filters a", "Sold")
+    |> render_click()
+
+    assert_patch(view, "/app/products?product_id=#{ready_product.id}&status=sold")
+    assert has_element?(view, "#workspace-products-table", "Sold shoes")
+    refute has_element?(view, "#workspace-products-table", "Ready coat")
+    refute render(view) =~ "Other user item"
+    assert ready_product.id != other_product.id
+  end
+
+  test "deletes the selected product from the web UI", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = product_fixture(user, %{"title" => "Delete me"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
+
+    assert has_element?(view, "#selected-product-card", "Delete me")
+
+    view
+    |> element(~s(button[phx-click="delete_product"]))
+    |> render_click()
+
+    assert Catalog.get_product_for_user(user, product.id) == nil
+    refute has_element?(view, "#workspace-products-table", "Delete me")
+    assert has_element?(view, "#selected-product-card", "Pick a product from the list")
+  end
+
   test "requests exports and uploads imports from the web UI", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     product_fixture(user, %{"title" => "Export candidate"})
@@ -192,6 +239,19 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert import_record.source_filename == "catalog-import.zip"
     assert Enum.any?(Catalog.list_products_for_user(user), &(&1.title == "Imported trench coat"))
     assert render(view) =~ "catalog-import.zip"
+  end
+
+  test "shows an error when import is submitted without an archive", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/exports")
+
+    view
+    |> form("#import-archive-form")
+    |> render_submit()
+
+    assert has_element?(view, "#flash-error", "Choose a ZIP archive before starting an import.")
   end
 
   test "direct workspace routes render their matching sections", %{conn: conn} do

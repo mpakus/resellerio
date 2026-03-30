@@ -10,6 +10,7 @@ defmodule ResellerWeb.Auth.SignUpLiveTest do
 
     assert has_element?(view, "#sign-up-form")
     assert has_element?(view, "#sign-up-submit")
+    assert has_element?(view, ~s(a[href="/sign-in"]))
     assert render(view) =~ "Create your account"
   end
 
