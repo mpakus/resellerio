@@ -45,7 +45,7 @@ defmodule ResellerWeb.Layouts do
               <.icon name="hero-sparkles" class="size-5 text-primary" />
             </div>
             <div>
-              <p class="reseller-display text-xl font-semibold leading-none">Reseller</p>
+              <p class="reseller-display text-xl font-semibold leading-none">Resellerio</p>
               <p class="text-xs uppercase tracking-[0.28em] text-base-content/55">Web Workspace</p>
             </div>
           </.link>
@@ -107,7 +107,7 @@ defmodule ResellerWeb.Layouts do
     <div class="min-h-screen bg-base-200/45 text-base-content lg:grid lg:grid-cols-[280px_1fr]">
       <aside class="hidden border-r border-base-300 bg-base-100 lg:flex lg:flex-col">
         <div class="border-b border-base-300 px-6 py-6">
-          <p class="reseller-display text-3xl font-semibold tracking-[-0.03em]">Reseller</p>
+          <p class="reseller-display text-3xl font-semibold tracking-[-0.03em]">Resellerio</p>
           <p class="mt-2 text-xs uppercase tracking-[0.3em] text-base-content/50">Workspace shell</p>
         </div>
 

@@ -6,7 +6,7 @@ defmodule ResellerWeb.API.V1.HealthControllerTest do
 
     assert json_response(conn, 200) == %{
              "data" => %{
-               "name" => "reseller",
+               "name" => "resellerio",
                "status" => "ok",
                "version" => "0.1.0"
              }

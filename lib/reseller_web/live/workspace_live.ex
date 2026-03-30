@@ -263,22 +263,16 @@ defmodule ResellerWeb.WorkspaceLive do
     <Layouts.app_shell flash={@flash} current_user={@current_user} workspace_nav={@workspace_nav}>
       <section class="grid gap-8">
         <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">
-              {section_eyebrow(@section_key)}
-            </p>
-            <h1
-              id="workspace-heading"
-              class="reseller-display mt-4 text-5xl font-semibold tracking-[-0.04em] text-balance"
-            >
-              {section_heading(@section_key)}
-            </h1>
-            <p class="mt-5 max-w-2xl text-base leading-7 text-base-content/70">
-              {section_description(@section_key)}
-            </p>
-          </div>
+          <.section_intro
+            id="workspace-heading"
+            eyebrow={section_eyebrow(@section_key)}
+            title={section_heading(@section_key)}
+            description={section_description(@section_key)}
+            title_class="reseller-display mt-4 text-5xl font-semibold tracking-[-0.04em] text-balance"
+            class="gap-0"
+          />
 
-          <div class="rounded-[2rem] border border-base-300 bg-base-100 p-6 shadow-[0_24px_70px_rgba(20,20,20,0.08)]">
+          <.surface tag="div" class="rounded-[2rem]">
             <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Current user</p>
             <p id="workspace-user-email" class="mt-4 text-2xl font-semibold tracking-[-0.03em]">
               {@current_user.email}
@@ -294,24 +288,22 @@ defmodule ResellerWeb.WorkspaceLive do
                 Exports & imports
               </.link>
             </div>
-          </div>
+          </.surface>
         </div>
 
         <%= case @section_key do %>
           <% :dashboard -> %>
             <section id="workspace-dashboard" class="grid gap-4 xl:grid-cols-4">
-              <article
+              <.metric_card
                 :for={stat <- @stats}
-                class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6"
-              >
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">{stat.label}</p>
-                <p class="mt-4 text-3xl font-semibold tracking-[-0.03em]">{stat.value}</p>
-                <p class="mt-3 text-sm leading-6 text-base-content/68">{stat.description}</p>
-              </article>
+                label={stat.label}
+                value={stat.value}
+                description={stat.description}
+              />
             </section>
 
             <section class="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-              <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+              <.surface tag="article">
                 <div class="flex items-center justify-between gap-4">
                   <div>
                     <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
@@ -338,43 +330,51 @@ defmodule ResellerWeb.WorkspaceLive do
                           {product.brand || "No brand"} · {product.category || "No category"}
                         </p>
                       </div>
-                      <span class={status_badge_classes(product.status)}>{product.status}</span>
+                      <.status_badge status={product.status} />
                     </div>
                   </div>
                   <p :if={@products == []} class="text-sm text-base-content/60">
                     No products yet. Open the products screen to create one with photos.
                   </p>
                 </div>
-              </article>
+              </.surface>
 
-              <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+              <.surface tag="article">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Quick actions</p>
                 <div class="mt-5 grid gap-3 sm:grid-cols-2">
-                  <.link
+                  <.feature_tile
                     patch={~p"/app/products"}
-                    class="rounded-2xl border border-base-300 bg-base-50 px-4 py-4 transition hover:border-primary/40 hover:bg-base-200/60"
+                    title="Create product"
+                    description="Upload up to five photos and create the record from the web."
+                    accent="primary"
+                    class="rounded-2xl bg-base-50/95"
                   >
-                    <p class="text-sm font-semibold">Create product</p>
-                    <p class="mt-2 text-sm text-base-content/65">
-                      Upload up to five photos and create the record from the web.
-                    </p>
-                  </.link>
-                  <.link
+                    <:meta>
+                      <span class="text-xs uppercase tracking-[0.2em] text-base-content/45">
+                        Intake
+                      </span>
+                    </:meta>
+                  </.feature_tile>
+                  <.feature_tile
                     patch={~p"/app/exports"}
-                    class="rounded-2xl border border-base-300 bg-base-50 px-4 py-4 transition hover:border-primary/40 hover:bg-base-200/60"
+                    title="Request export"
+                    description="Generate a Resellerio ZIP archive without leaving the dashboard."
+                    accent="secondary"
+                    class="rounded-2xl bg-base-50/95"
                   >
-                    <p class="text-sm font-semibold">Request export</p>
-                    <p class="mt-2 text-sm text-base-content/65">
-                      Generate a reseller ZIP archive without leaving the dashboard.
-                    </p>
-                  </.link>
+                    <:meta>
+                      <span class="text-xs uppercase tracking-[0.2em] text-base-content/45">
+                        Transfer
+                      </span>
+                    </:meta>
+                  </.feature_tile>
                 </div>
-              </article>
+              </.surface>
             </section>
           <% :products -> %>
             <section id="workspace-products" class="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
               <div class="grid gap-4">
-                <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+                <.surface tag="article">
                   <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
@@ -406,9 +406,9 @@ defmodule ResellerWeb.WorkspaceLive do
                       {label}
                     </.link>
                   </div>
-                </article>
+                </.surface>
 
-                <article class="overflow-hidden rounded-[1.75rem] border border-base-300 bg-base-100">
+                <.surface tag="article" padding="none" class="overflow-hidden">
                   <table class="table table-zebra" id="workspace-products-table">
                     <thead>
                       <tr>
@@ -431,7 +431,7 @@ defmodule ResellerWeb.WorkspaceLive do
                           </div>
                         </td>
                         <td>
-                          <span class={status_badge_classes(product.status)}>{product.status}</span>
+                          <.status_badge status={product.status} />
                         </td>
                         <td>{decimal_to_string(product.price) || "—"}</td>
                         <td>{format_datetime(product.updated_at)}</td>
@@ -456,13 +456,13 @@ defmodule ResellerWeb.WorkspaceLive do
                       </tr>
                     </tbody>
                   </table>
-                </article>
+                </.surface>
               </div>
 
               <div class="grid gap-4">
-                <article
+                <.surface
                   id="new-product-intake"
-                  class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6"
+                  tag="article"
                 >
                   <.header>
                     Create product
@@ -500,57 +500,22 @@ defmodule ResellerWeb.WorkspaceLive do
                       placeholder="Anything the AI should keep in mind?"
                     />
 
-                    <div class="rounded-3xl border border-dashed border-base-300 bg-base-50 p-4">
-                      <div class="flex items-center justify-between gap-4">
-                        <div>
-                          <p class="text-sm font-semibold">Photos</p>
-                          <p class="mt-1 text-sm text-base-content/60">
-                            Upload JPG, PNG, or WEBP images. The backend will create the product and image records for them.
-                          </p>
-                        </div>
-                        <.live_file_input
-                          upload={@uploads.product_images}
-                          class="file-input file-input-bordered file-input-sm w-full max-w-xs"
-                        />
-                      </div>
-
-                      <div :if={@uploads.product_images.entries != []} class="mt-4 space-y-2">
-                        <div
-                          :for={entry <- @uploads.product_images.entries}
-                          class="flex items-center justify-between rounded-2xl border border-base-300 bg-base-100 px-3 py-3 text-sm"
-                        >
-                          <div>
-                            <p class="font-medium">{entry.client_name}</p>
-                            <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
-                              {entry.progress}% uploaded
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            phx-click="cancel-product-image"
-                            phx-value-ref={entry.ref}
-                            class="btn btn-ghost btn-xs rounded-full"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-
-                      <p
-                        :for={error <- upload_errors(@uploads.product_images)}
-                        class="mt-3 text-sm text-error"
-                      >
-                        {error_to_string(error)}
-                      </p>
-                    </div>
+                    <.upload_panel
+                      id="product-images-upload-panel"
+                      title="Photos"
+                      description="Upload JPG, PNG, or WEBP images. The backend will create the product and image records for them."
+                      upload={@uploads.product_images}
+                      cancel_event="cancel-product-image"
+                      errors={Enum.map(upload_errors(@uploads.product_images), &error_to_string/1)}
+                    />
 
                     <.button class="btn btn-primary rounded-full">Create product</.button>
                   </.form>
-                </article>
+                </.surface>
 
-                <article
+                <.surface
                   id="selected-product-card"
-                  class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6"
+                  tag="article"
                 >
                   <%= if @selected_product do %>
                     <.header>
@@ -561,9 +526,7 @@ defmodule ResellerWeb.WorkspaceLive do
                     </.header>
 
                     <div class="flex flex-wrap items-center gap-2">
-                      <span class={status_badge_classes(@selected_product.status)}>
-                        {@selected_product.status}
-                      </span>
+                      <.status_badge status={@selected_product.status} />
                       <span :if={@selected_product.ai_confidence} class="badge badge-outline">
                         AI {Float.round(@selected_product.ai_confidence, 2)}
                       </span>
@@ -671,18 +634,20 @@ defmodule ResellerWeb.WorkspaceLive do
                     </.form>
 
                     <div class="mt-6 grid gap-4">
-                      <div class="rounded-3xl border border-base-300 bg-base-50 p-4">
+                      <.surface tag="div" variant="soft" padding="md">
                         <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
                           AI summary
                         </p>
                         <p class="mt-2 text-sm leading-6 text-base-content/75">
                           {@selected_product.ai_summary || "No AI summary has been generated yet."}
                         </p>
-                      </div>
+                      </.surface>
 
-                      <div
+                      <.surface
                         :if={@selected_product.description_draft}
-                        class="rounded-3xl border border-base-300 bg-base-50 p-4"
+                        tag="div"
+                        variant="soft"
+                        padding="md"
                       >
                         <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
                           Description draft
@@ -693,11 +658,13 @@ defmodule ResellerWeb.WorkspaceLive do
                         <p class="mt-2 text-sm leading-6 text-base-content/75">
                           {@selected_product.description_draft.short_description}
                         </p>
-                      </div>
+                      </.surface>
 
-                      <div
+                      <.surface
                         :if={@selected_product.price_research}
-                        class="rounded-3xl border border-base-300 bg-base-50 p-4"
+                        tag="div"
+                        variant="soft"
+                        padding="md"
                       >
                         <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
                           Price research
@@ -713,11 +680,13 @@ defmodule ResellerWeb.WorkspaceLive do
                         <p class="mt-2 text-sm leading-6 text-base-content/75">
                           {@selected_product.price_research.rationale_summary}
                         </p>
-                      </div>
+                      </.surface>
 
-                      <div
+                      <.surface
                         :if={@selected_product.marketplace_listings != []}
-                        class="rounded-3xl border border-base-300 bg-base-50 p-4"
+                        tag="div"
+                        variant="soft"
+                        padding="md"
                       >
                         <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
                           Marketplace listings
@@ -732,11 +701,13 @@ defmodule ResellerWeb.WorkspaceLive do
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </.surface>
 
-                      <div
+                      <.surface
                         :if={@selected_product.processing_runs != []}
-                        class="rounded-3xl border border-base-300 bg-base-50 p-4"
+                        tag="div"
+                        variant="soft"
+                        padding="md"
                       >
                         <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
                           Processing runs
@@ -749,7 +720,7 @@ defmodule ResellerWeb.WorkspaceLive do
                             <p class="text-base-content/60">{format_datetime(run.inserted_at)}</p>
                           </div>
                         </div>
-                      </div>
+                      </.surface>
                     </div>
                   <% else %>
                     <.header>
@@ -762,14 +733,14 @@ defmodule ResellerWeb.WorkspaceLive do
                       The selected product panel becomes your web control center for edits, AI review, and lifecycle actions.
                     </p>
                   <% end %>
-                </article>
+                </.surface>
               </div>
             </section>
           <% :listings -> %>
             <section id="workspace-listings" class="grid gap-4 md:grid-cols-2">
-              <article
+              <.surface
                 :for={listing <- @listing_rows}
-                class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6"
+                tag="article"
               >
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
                   {listing.marketplace}
@@ -779,7 +750,7 @@ defmodule ResellerWeb.WorkspaceLive do
                 <p class="mt-4 text-sm leading-6 text-base-content/70 line-clamp-3">
                   {listing.description}
                 </p>
-              </article>
+              </.surface>
               <p :if={@listing_rows == []} class="text-sm text-base-content/60">
                 No marketplace listings yet.
               </p>
@@ -787,11 +758,11 @@ defmodule ResellerWeb.WorkspaceLive do
           <% :exports -> %>
             <section id="workspace-exports" class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
               <div class="grid gap-4">
-                <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+                <.surface tag="article">
                   <.header>
                     Export catalog
                     <:subtitle>
-                      Generate the reseller ZIP archive directly from the web workspace.
+                      Generate the Resellerio ZIP archive directly from the web workspace.
                     </:subtitle>
                     <:actions>
                       <button
@@ -807,13 +778,13 @@ defmodule ResellerWeb.WorkspaceLive do
                   <p class="text-sm leading-6 text-base-content/70">
                     The export worker packages `index.json` plus images into a ZIP archive and stores it for download.
                   </p>
-                </article>
+                </.surface>
 
-                <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+                <.surface tag="article">
                   <.header>
                     Import archive
                     <:subtitle>
-                      Upload a reseller ZIP to recreate products, images, and generated AI metadata.
+                      Upload a Resellerio ZIP to recreate products, images, and generated AI metadata.
                     </:subtitle>
                   </.header>
 
@@ -822,62 +793,29 @@ defmodule ResellerWeb.WorkspaceLive do
                     id="import-archive-form"
                     phx-submit="run_import"
                   >
-                    <div class="rounded-3xl border border-dashed border-base-300 bg-base-50 p-4">
-                      <div class="flex items-center justify-between gap-4">
-                        <div>
-                          <p class="text-sm font-semibold">ZIP archive</p>
-                          <p class="mt-1 text-sm text-base-content/60">
-                            Upload one `.zip` file exported from Reseller.
-                          </p>
-                        </div>
-                        <.live_file_input
-                          upload={@uploads.import_archive}
-                          class="file-input file-input-bordered file-input-sm w-full max-w-xs"
-                        />
-                      </div>
-
-                      <div :if={@uploads.import_archive.entries != []} class="mt-4 space-y-2">
-                        <div
-                          :for={entry <- @uploads.import_archive.entries}
-                          class="flex items-center justify-between rounded-2xl border border-base-300 bg-base-100 px-3 py-3 text-sm"
-                        >
-                          <div>
-                            <p class="font-medium">{entry.client_name}</p>
-                            <p class="text-xs uppercase tracking-[0.2em] text-base-content/50">
-                              {entry.progress}% uploaded
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            phx-click="cancel-import-archive"
-                            phx-value-ref={entry.ref}
-                            class="btn btn-ghost btn-xs rounded-full"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-
-                      <p
-                        :for={error <- upload_errors(@uploads.import_archive)}
-                        class="mt-3 text-sm text-error"
-                      >
-                        {error_to_string(error)}
-                      </p>
-                    </div>
+                    <.upload_panel
+                      id="import-archive-upload-panel"
+                      title="ZIP archive"
+                      description="Upload one `.zip` file exported from Resellerio."
+                      upload={@uploads.import_archive}
+                      cancel_event="cancel-import-archive"
+                      errors={Enum.map(upload_errors(@uploads.import_archive), &error_to_string/1)}
+                    />
 
                     <.button class="btn btn-outline mt-4 rounded-full">Start import</.button>
                   </.form>
-                </article>
+                </.surface>
               </div>
 
               <div class="grid gap-4">
-                <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+                <.surface tag="article">
                   <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Exports</p>
                   <div class="mt-5 space-y-3">
-                    <div
+                    <.surface
                       :for={export <- @exports}
-                      class="rounded-2xl border border-base-300 bg-base-50 px-4 py-4"
+                      tag="div"
+                      variant="soft"
+                      padding="sm"
                     >
                       <div class="flex items-center justify-between gap-4">
                         <div>
@@ -890,7 +828,7 @@ defmodule ResellerWeb.WorkspaceLive do
                           </p>
                         </div>
                         <div class="flex flex-col items-end gap-2">
-                          <span class={status_badge_classes(export.status)}>{export.status}</span>
+                          <.status_badge status={export.status} />
                           <a
                             :if={download_url = export_download_url(export)}
                             href={download_url}
@@ -902,17 +840,19 @@ defmodule ResellerWeb.WorkspaceLive do
                           </a>
                         </div>
                       </div>
-                    </div>
+                    </.surface>
                     <p :if={@exports == []} class="text-sm text-base-content/60">No exports yet.</p>
                   </div>
-                </article>
+                </.surface>
 
-                <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+                <.surface tag="article">
                   <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Imports</p>
                   <div class="mt-5 space-y-3">
-                    <div
+                    <.surface
                       :for={import_row <- @imports}
-                      class="rounded-2xl border border-base-300 bg-base-50 px-4 py-4"
+                      tag="div"
+                      variant="soft"
+                      padding="sm"
                     >
                       <div class="flex items-center justify-between gap-4">
                         <div>
@@ -924,27 +864,25 @@ defmodule ResellerWeb.WorkspaceLive do
                             {import_row.imported_products} imported · {import_row.failed_products} failed
                           </p>
                         </div>
-                        <span class={status_badge_classes(import_row.status)}>
-                          {import_row.status}
-                        </span>
+                        <.status_badge status={import_row.status} />
                       </div>
-                    </div>
+                    </.surface>
                     <p :if={@imports == []} class="text-sm text-base-content/60">No imports yet.</p>
                   </div>
-                </article>
+                </.surface>
               </div>
             </section>
           <% :settings -> %>
             <section id="workspace-settings" class="grid gap-4 lg:grid-cols-[1fr_1fr]">
-              <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+              <.surface tag="article">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Account</p>
                 <p class="mt-3 text-2xl font-semibold tracking-[-0.03em]">{@current_user.email}</p>
                 <p class="mt-3 text-sm leading-6 text-base-content/70">
                   Browser account settings and passkey setup will live here next.
                 </p>
-              </article>
+              </.surface>
 
-              <article class="rounded-[1.75rem] border border-base-300 bg-base-100 p-6">
+              <.surface tag="article">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Workspace</p>
                 <ul class="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
                   <li>Theme switcher is already available in the header.</li>
@@ -953,7 +891,7 @@ defmodule ResellerWeb.WorkspaceLive do
                     The products and exports screens now cover the main backend workflows on the web.
                   </li>
                 </ul>
-              </article>
+              </.surface>
             </section>
         <% end %>
       </section>
@@ -1201,12 +1139,12 @@ defmodule ResellerWeb.WorkspaceLive do
   defp section_eyebrow(:settings), do: "Settings"
   defp section_eyebrow(_section), do: "Workspace"
 
-  defp section_heading(:dashboard), do: "Your reseller workspace is now operational."
+  defp section_heading(:dashboard), do: "Your Resellerio workspace is now operational."
   defp section_heading(:products), do: "Create, upload, and manage inventory."
   defp section_heading(:listings), do: "See marketplace-ready copy in one place."
   defp section_heading(:exports), do: "Run archive exports and imports from the web."
   defp section_heading(:settings), do: "Manage your workspace defaults."
-  defp section_heading(_section), do: "Your reseller workspace is ready."
+  defp section_heading(_section), do: "Your Resellerio workspace is ready."
 
   defp section_description(:dashboard) do
     "The dashboard now links straight into the web workflows for product intake and archive generation."
@@ -1229,7 +1167,7 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   defp section_description(_section) do
-    "Protected browser session is active and the reseller workspace now covers core operational flows."
+    "Protected browser session is active and the Resellerio workspace now covers core operational flows."
   end
 
   defp dashboard_stats(products, exports, imports) do
@@ -1314,24 +1252,6 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   defp humanize_kind(_kind), do: "Image"
-
-  defp status_badge_classes(status) do
-    [
-      "badge border-0 capitalize",
-      case status do
-        "ready" -> "bg-success/15 text-success"
-        "review" -> "bg-warning/20 text-warning"
-        "processing" -> "bg-info/15 text-info"
-        "uploading" -> "bg-info/15 text-info"
-        "sold" -> "bg-neutral text-neutral-content"
-        "archived" -> "bg-base-300 text-base-content/70"
-        "completed" -> "bg-success/15 text-success"
-        "running" -> "bg-info/15 text-info"
-        "failed" -> "bg-error/15 text-error"
-        _other -> "bg-base-200 text-base-content/75"
-      end
-    ]
-  end
 
   defp error_to_string(:too_large), do: "File is too large"
   defp error_to_string(:too_many_files), do: "Too many files selected"

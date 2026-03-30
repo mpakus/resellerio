@@ -4,7 +4,7 @@ defmodule ResellerWeb.API.V1.HealthController do
   def show(conn, _params) do
     json(conn, %{
       data: %{
-        name: "reseller",
+        name: "resellerio",
         status: "ok",
         version: app_version()
       }

@@ -1,4 +1,4 @@
-# Reseller AI Plan
+# Resellerio AI Plan
 
 ## Progress Tracker
 

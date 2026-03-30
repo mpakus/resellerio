@@ -86,7 +86,7 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "path" => "/api/v1/imports/:id"
                  }
                ],
-               "name" => "reseller",
+               "name" => "resellerio",
                "version" => "v1"
              }
            }

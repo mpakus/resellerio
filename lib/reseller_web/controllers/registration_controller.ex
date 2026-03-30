@@ -9,7 +9,7 @@ defmodule ResellerWeb.RegistrationController do
       {:ok, user} ->
         conn
         |> BrowserAuth.log_in_user(user)
-        |> put_flash(:info, "Account created. Welcome to Reseller Web.")
+        |> put_flash(:info, "Account created. Welcome to Resellerio Web.")
         |> redirect(to: ~p"/app")
 
       {:error, _changeset} ->

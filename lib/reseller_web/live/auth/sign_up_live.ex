@@ -24,32 +24,29 @@ defmodule ResellerWeb.Auth.SignUpLive do
 
         <div class="relative mx-auto grid min-h-[calc(100svh-73px)] max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8 lg:py-16">
           <div class="max-w-xl">
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">
-              Create your workspace
-            </p>
-            <h1 class="reseller-display mt-5 text-5xl font-semibold tracking-[-0.04em] text-balance sm:text-6xl">
-              Start the web workflow for faster intake, clearer review, and cleaner listings.
-            </h1>
-            <p class="mt-6 text-base leading-7 text-base-content/72">
-              Create an account to manage product drafts, image processing, and marketplace copy
-              from one LiveView workspace.
-            </p>
+            <.section_intro
+              eyebrow="Create your workspace"
+              title="Start the web workflow for faster intake, clearer review, and cleaner listings."
+              description="Create an account to manage product drafts, image processing, and marketplace copy from one LiveView workspace."
+              title_class="reseller-display mt-5 text-5xl font-semibold tracking-[-0.04em] text-balance sm:text-6xl"
+              class="gap-0"
+            />
 
             <div class="mt-10 grid gap-3 text-sm text-base-content/72">
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 px-5 py-4">
+              <.surface tag="div" variant="ghost" padding="md">
                 Upload sets of product photos without losing the originals.
-              </div>
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 px-5 py-4">
+              </.surface>
+              <.surface tag="div" variant="ghost" padding="md">
                 Review AI-generated details before anything becomes a finished listing.
-              </div>
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 px-5 py-4">
+              </.surface>
+              <.surface tag="div" variant="ghost" padding="md">
                 Prepare copy for eBay, Depop, and Poshmark in one place.
-              </div>
+              </.surface>
             </div>
           </div>
 
           <div class="lg:justify-self-end lg:w-full lg:max-w-xl">
-            <div class="rounded-[2rem] border border-base-300 bg-base-100/95 p-6 shadow-[0_28px_80px_rgba(20,20,20,0.12)] sm:p-8">
+            <.surface tag="div" padding="none" class="rounded-[2rem] bg-base-100/95 p-6 sm:p-8">
               <div class="mb-8">
                 <p class="text-sm uppercase tracking-[0.3em] text-base-content/50">Sign up</p>
                 <h2 class="mt-3 text-3xl font-semibold tracking-[-0.03em]">Create your account</h2>
@@ -91,7 +88,7 @@ defmodule ResellerWeb.Auth.SignUpLive do
                   Sign in
                 </.link>
               </p>
-            </div>
+            </.surface>
           </div>
         </div>
       </section>

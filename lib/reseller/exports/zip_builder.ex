@@ -90,7 +90,7 @@ defmodule Reseller.Exports.ZipBuilder do
     index_json = Jason.encode!(%{"products" => product_payloads}, pretty: true)
     entries = [{~c"index.json", index_json}] ++ image_entries
 
-    case :zip.create(~c"reseller-export.zip", entries, [:memory]) do
+    case :zip.create(~c"resellerio-export.zip", entries, [:memory]) do
       {:ok, {_name, zip_binary}} -> {:ok, zip_binary}
       {:error, reason} -> {:error, {:zip_create_failed, reason}}
     end

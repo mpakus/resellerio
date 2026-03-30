@@ -60,7 +60,7 @@ config :reseller, Reseller.Exports,
   export_ttl_days: 7,
   builder: Reseller.Exports.ZipBuilder,
   notifier: Reseller.Exports.Notifiers.Email,
-  from_email: "exports@reseller.local"
+  from_email: "exports@resellerio.local"
 
 config :reseller, Reseller.Imports, processing_mode: :async
 

@@ -4,7 +4,7 @@ defmodule ResellerWeb.API.V1.RootController do
   def show(conn, _params) do
     json(conn, %{
       data: %{
-        name: "reseller",
+        name: "resellerio",
         version: api_version(),
         docs_path: "/docs/API.md",
         endpoints: [

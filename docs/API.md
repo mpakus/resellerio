@@ -1,4 +1,4 @@
-# API Reference
+# Resellerio API Reference
 
 ## Overview
 
@@ -41,7 +41,7 @@ Example response:
 ```json
 {
   "data": {
-    "name": "reseller",
+    "name": "resellerio",
     "version": "v1",
     "docs_path": "/docs/API.md",
     "endpoints": [
@@ -134,7 +134,7 @@ Example response:
 ```json
 {
   "data": {
-    "name": "reseller",
+    "name": "resellerio",
     "status": "ok",
     "version": "0.1.0"
   }

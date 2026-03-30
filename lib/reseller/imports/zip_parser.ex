@@ -1,6 +1,6 @@
 defmodule Reseller.Imports.ZipParser do
   @moduledoc """
-  Parses reseller export ZIP archives into product payloads and image binaries.
+  Parses Resellerio export ZIP archives into product payloads and image binaries.
   """
 
   def parse_archive(archive_binary) when is_binary(archive_binary) do
@@ -17,7 +17,7 @@ defmodule Reseller.Imports.ZipParser do
 
   defp extract_entries(archive_binary) do
     zip_path =
-      Path.join(System.tmp_dir!(), "reseller-import-#{System.unique_integer([:positive])}.zip")
+      Path.join(System.tmp_dir!(), "resellerio-import-#{System.unique_integer([:positive])}.zip")
 
     try do
       :ok = File.write!(zip_path, archive_binary)

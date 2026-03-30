@@ -24,11 +24,11 @@ defmodule ResellerWeb.Auth.SignInLive do
 
         <div class="relative mx-auto grid min-h-[calc(100svh-73px)] max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:px-8 lg:py-16">
           <div class="order-2 lg:order-1 lg:justify-self-start lg:w-full lg:max-w-xl">
-            <div class="rounded-[2rem] border border-base-300 bg-base-100/95 p-6 shadow-[0_28px_80px_rgba(20,20,20,0.12)] sm:p-8">
+            <.surface tag="div" padding="none" class="rounded-[2rem] bg-base-100/95 p-6 sm:p-8">
               <div class="mb-8">
                 <p class="text-sm uppercase tracking-[0.3em] text-base-content/50">Sign in</p>
                 <h1 class="mt-3 text-3xl font-semibold tracking-[-0.03em]">
-                  Return to your reseller workspace
+                  Return to your Resellerio workspace
                 </h1>
               </div>
 
@@ -68,34 +68,31 @@ defmodule ResellerWeb.Auth.SignInLive do
                   Create one
                 </.link>
               </p>
-            </div>
+            </.surface>
           </div>
 
           <div class="order-1 max-w-xl lg:order-2">
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">
-              Sign in fast
-            </p>
-            <h2 class="reseller-display mt-5 text-5xl font-semibold tracking-[-0.04em] text-balance sm:text-6xl">
-              Pick up where the product queue left off.
-            </h2>
-            <p class="mt-6 text-base leading-7 text-base-content/72">
-              Review items waiting for AI confirmation, continue image cleanup, and keep marketplace
-              drafts moving without re-entering the same product details.
-            </p>
+            <.section_intro
+              eyebrow="Sign in fast"
+              title="Pick up where the product queue left off."
+              description="Review items waiting for AI confirmation, continue image cleanup, and keep marketplace drafts moving without re-entering the same product details."
+              title_class="reseller-display mt-5 text-5xl font-semibold tracking-[-0.04em] text-balance sm:text-6xl"
+              class="gap-0"
+            />
 
             <div class="mt-10 grid gap-4 sm:grid-cols-3">
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 p-5">
+              <.surface tag="div" variant="ghost" padding="md">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Queue</p>
                 <p class="mt-3 text-lg font-semibold">Drafts in progress</p>
-              </div>
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 p-5">
+              </.surface>
+              <.surface tag="div" variant="ghost" padding="md">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Review</p>
                 <p class="mt-3 text-lg font-semibold">AI confidence checks</p>
-              </div>
-              <div class="rounded-[1.5rem] border border-base-300 bg-base-200/60 p-5">
+              </.surface>
+              <.surface tag="div" variant="ghost" padding="md">
                 <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Markets</p>
                 <p class="mt-3 text-lg font-semibold">Listing variants</p>
-              </div>
+              </.surface>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-# Reseller Agent Notes
+# Resellerio Agent Notes
 
 ## Product context
 
@@ -61,6 +61,8 @@ The project is currently a mostly empty Phoenix application with the first API f
 - The repo now includes release-oriented Docker packaging for production-style container deployment.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
 - Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
+- `docs/ARCHITECTURE.md` now documents the live system architecture, persisted schemas, and core process flows.
+- `docs/UIUX.md` now defines the shared web interface design system and component vocabulary.
 
 Plan and implementation work should assume we are building the backend foundation from scratch.
 
@@ -179,6 +181,8 @@ Build in this order unless a task explicitly says otherwise:
 
 - Update `docs/PLANS.md` before or during each feature so progress stays visible in-repo.
 - Update `docs/API.md` in the same commit whenever API routes, params, or response payloads change.
+- Update `docs/ARCHITECTURE.md` whenever schemas, context boundaries, runtime integrations, or end-to-end process flows change.
+- Update `docs/UIUX.md` whenever shared web patterns, reusable components, or major interface direction changes.
 - Update `docs/PLAN-AI.md` when AI/search milestones are completed or the pipeline shape changes.
 - Update `docs/PLAN-WEB.md` when web/admin LiveView milestones are completed.
 - Update `docs/PLANS.md` when Step 3 substeps like upload intents or finalize-upload flow are completed.
@@ -196,6 +200,7 @@ Build in this order unless a task explicitly says otherwise:
 - When introducing auth, keep API and browser auth concerns separate so mobile clients are not forced through browser-centric flows.
 - If passkeys are implemented, document both registration and authentication ceremonies and keep the server challenge flow small and explicit.
 - Treat the reseller web workspace as a first-class surface now. New core product workflows should land in both the API and LiveView unless there is a clear reason to keep them mobile/API-only.
+- Prefer `ResellerWeb.UIComponents` for shared surfaces, badges, tiles, and upload panels instead of repeating large Tailwind class bundles in every LiveView.
 
 This is a web application written using the Phoenix web framework.
 

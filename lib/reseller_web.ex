@@ -86,6 +86,7 @@ defmodule ResellerWeb do
       import Phoenix.HTML
       # Core UI components
       import ResellerWeb.CoreComponents
+      import ResellerWeb.UIComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

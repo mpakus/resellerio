@@ -3,7 +3,7 @@ defmodule ResellerWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Reseller Web", current_scope: nil)}
+    {:ok, assign(socket, page_title: "Resellerio Web", current_scope: nil)}
   end
 
   @impl true
@@ -24,52 +24,49 @@ defmodule ResellerWeb.HomeLive do
 
         <div class="relative mx-auto grid min-h-[calc(100svh-73px)] max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:px-8 lg:py-20">
           <div class="max-w-2xl">
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">
-              LiveView reseller workspace
-            </p>
-            <h1 class="reseller-display mt-5 text-5xl font-semibold leading-[0.92] tracking-[-0.04em] text-balance sm:text-6xl lg:text-7xl">
-              Turn a pile of photos into clean listings ready for every market.
-            </h1>
-            <p class="mt-6 max-w-xl text-base leading-7 text-base-content/72 sm:text-lg">
-              Reseller gives secondhand sellers one calm workspace for capture, AI-assisted product
-              drafting, image cleanup, and marketplace-specific copy review.
-            </p>
-
-            <div class="mt-10 flex flex-col gap-3 sm:flex-row">
-              <%= if @current_user do %>
-                <.link
-                  id="hero-primary-cta"
-                  navigate={~p"/app"}
-                  class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
+            <.section_intro
+              eyebrow="LiveView Resellerio workspace"
+              title="Turn a pile of photos into clean listings ready for every market."
+              description="Resellerio gives secondhand sellers one calm workspace for capture, AI-assisted product drafting, image cleanup, and marketplace-specific copy review."
+              title_class="reseller-display mt-5 text-5xl font-semibold leading-[0.92] tracking-[-0.04em] text-balance sm:text-6xl lg:text-7xl"
+              class="gap-0"
+            >
+              <div class="mt-10 flex flex-col gap-3 sm:flex-row">
+                <%= if @current_user do %>
+                  <.link
+                    id="hero-primary-cta"
+                    navigate={~p"/app"}
+                    class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
+                  >
+                    Open workspace
+                  </.link>
+                <% else %>
+                  <.link
+                    id="hero-primary-cta"
+                    navigate={~p"/sign-up"}
+                    class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
+                  >
+                    Create account
+                  </.link>
+                <% end %>
+                <a
+                  id="hero-secondary-cta"
+                  href="#launch"
+                  class="btn btn-outline btn-lg rounded-full px-7"
                 >
-                  Open workspace
-                </.link>
-              <% else %>
-                <.link
-                  id="hero-primary-cta"
-                  navigate={~p"/sign-up"}
-                  class="btn btn-primary btn-lg rounded-full px-7 transition-transform duration-300 hover:-translate-y-0.5"
-                >
-                  Create account
-                </.link>
-              <% end %>
-              <a
-                id="hero-secondary-cta"
-                href="#launch"
-                class="btn btn-outline btn-lg rounded-full px-7"
-              >
-                See The Web Flow
-              </a>
-            </div>
+                  See The Web Flow
+                </a>
+              </div>
+            </.section_intro>
 
             <div class="mt-12 flex flex-wrap gap-3 text-sm text-base-content/72">
-              <span class="badge badge-lg border-base-300 bg-base-200/80 px-4 py-3">
+              <span class="inline-flex items-center rounded-full border border-base-300 bg-base-200/80 px-4 py-3 font-medium">
                 Tigris uploads
               </span>
-              <span class="badge badge-lg border-base-300 bg-base-200/80 px-4 py-3">
+              <span class="inline-flex items-center rounded-full border border-base-300 bg-base-200/80 px-4 py-3 font-medium">
                 AI recognition
               </span>
-              <span class="badge badge-lg border-base-300 bg-base-200/80 px-4 py-3">
+              <span class="inline-flex items-center rounded-full border border-base-300 bg-base-200/80 px-4 py-3 font-medium">
                 eBay / Depop / Poshmark
               </span>
             </div>
@@ -164,47 +161,36 @@ defmodule ResellerWeb.HomeLive do
       <section id="workflow" class="border-b border-base-300/60 bg-base-200/45">
         <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <div class="max-w-lg">
-              <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Workflow</p>
-              <h2 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em] text-balance">
-                Built for the messy reality of resale, not pristine catalog studios.
-              </h2>
-              <p class="mt-4 text-base leading-7 text-base-content/70">
-                The web version is the wide-screen control room: upload, review, adjust, and push
-                each product toward a ready-to-list state without losing the original image set.
-              </p>
-            </div>
+            <.section_intro
+              eyebrow="Workflow"
+              title="Built for the messy reality of resale, not pristine catalog studios."
+              description="The web version is the wide-screen control room: upload, review, adjust, and push each product toward a ready-to-list state without losing the original image set."
+              title_class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em] text-balance"
+              class="gap-0"
+            />
 
             <div class="grid gap-4 md:grid-cols-3">
-              <article class="group rounded-[1.75rem] border border-base-300 bg-base-100 p-6 transition duration-300 hover:-translate-y-1 hover:border-primary/40">
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Capture</p>
-                <p class="mt-4 text-xl font-semibold">Upload multiple photos fast</p>
-                <p class="mt-3 text-sm leading-6 text-base-content/68">
-                  Drag in a full set, keep the originals, and let the product draft begin while you
-                  move to the next item.
-                </p>
-              </article>
+              <.feature_tile
+                eyebrow="Capture"
+                title="Upload multiple photos fast"
+                description="Drag in a full set, keep the originals, and let the product draft begin while you move to the next item."
+                accent="primary"
+              />
 
-              <article class="group rounded-[1.75rem] border border-base-300 bg-base-100 p-6 transition duration-300 hover:-translate-y-1 hover:border-secondary/40">
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Refine</p>
-                <p class="mt-4 text-xl font-semibold">Review AI before it goes live</p>
-                <p class="mt-3 text-sm leading-6 text-base-content/68">
-                  Inspect extracted fields, confidence signals, and generated copy before accepting
-                  the final version.
-                </p>
-              </article>
+              <.feature_tile
+                eyebrow="Refine"
+                title="Review AI before it goes live"
+                description="Inspect extracted fields, confidence signals, and generated copy before accepting the final version."
+                accent="secondary"
+              />
 
-              <article
+              <.feature_tile
                 id="markets"
-                class="group rounded-[1.75rem] border border-base-300 bg-base-100 p-6 transition duration-300 hover:-translate-y-1 hover:border-accent/40"
-              >
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Publish</p>
-                <p class="mt-4 text-xl font-semibold">Shape listings for each market</p>
-                <p class="mt-3 text-sm leading-6 text-base-content/68">
-                  Keep one product record, then tune descriptions for the rules and tone of each
-                  resale channel.
-                </p>
-              </article>
+                eyebrow="Publish"
+                title="Shape listings for each market"
+                description="Keep one product record, then tune descriptions for the rules and tone of each resale channel."
+                accent="accent"
+              />
             </div>
           </div>
         </div>
@@ -212,14 +198,19 @@ defmodule ResellerWeb.HomeLive do
 
       <section id="launch" class="bg-base-100">
         <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div class="grid gap-8 rounded-[2.25rem] border border-base-300 bg-base-200/70 px-6 py-8 sm:px-8 lg:grid-cols-[1fr_auto] lg:items-center lg:px-12 lg:py-12">
+          <.surface
+            tag="div"
+            variant="ghost"
+            padding="xl"
+            class="grid gap-8 rounded-[2.25rem] lg:grid-cols-[1fr_auto] lg:items-center"
+          >
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">Next up</p>
               <h2
                 id="home-final-cta"
                 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em] text-balance"
               >
-                The landing page is ready. Browser auth and the reseller dashboard are next.
+                The landing page is ready. Browser auth and the Resellerio dashboard are next.
               </h2>
               <p class="mt-4 max-w-2xl text-base leading-7 text-base-content/70">
                 This first web checkpoint establishes the visual direction and LiveView shell. The
@@ -240,7 +231,7 @@ defmodule ResellerWeb.HomeLive do
               <% end %>
               <a href="#home-hero" class="btn btn-ghost rounded-full px-7">Back to top</a>
             </div>
-          </div>
+          </.surface>
         </div>
       </section>
     </Layouts.app>

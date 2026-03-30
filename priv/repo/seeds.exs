@@ -12,14 +12,14 @@ defmodule Reseller.Seeds do
 
     _admin =
       ensure_user!(%{
-        email: "admin@reseller.local",
+        email: "admin@resellerio.local",
         password: password,
         admin?: true
       })
 
     seller =
       ensure_user!(%{
-        email: "seller@reseller.local",
+        email: "seller@resellerio.local",
         password: password,
         admin?: false
       })
@@ -198,8 +198,8 @@ defmodule Reseller.Seeds do
     Seed data is ready.
 
     Local credentials:
-      Admin:  admin@reseller.local / #{password}
-      Seller: seller@reseller.local / #{password}
+      Admin:  admin@resellerio.local / #{password}
+      Seller: seller@resellerio.local / #{password}
 
     Starter products created for seller:
       - #{ready_product.title} (ready)

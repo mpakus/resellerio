@@ -42,6 +42,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert_patch(view, "/app/products")
     assert has_element?(view, "#workspace-products")
     assert has_element?(view, "#new-product-form")
+    assert has_element?(view, "#product-images-upload-panel")
 
     view
     |> element(~s(aside a[href="/app/listings"]))
@@ -57,6 +58,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert_patch(view, "/app/exports")
     assert has_element?(view, "#workspace-exports")
     assert has_element?(view, "#request-export-button")
+    assert has_element?(view, "#import-archive-upload-panel")
 
     view
     |> element(~s(aside a[href="/app/settings"]))
@@ -108,6 +110,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert product.title == "Web Jacket"
     assert length(product.images) == 1
     assert has_element?(view, "#selected-product-card")
+    assert has_element?(view, "#product-images-upload-panel")
     assert render(view) =~ "Web Jacket"
     assert hd(product.images).original_filename == "jacket.jpg"
   end
@@ -209,6 +212,8 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, _html} = live(conn, "/app/exports")
+
+    assert has_element?(view, "#import-archive-upload-panel")
 
     view
     |> element("#request-export-button")

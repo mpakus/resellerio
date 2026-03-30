@@ -3,7 +3,7 @@ defmodule ResellerWeb.HomeLiveTest do
 
   import Phoenix.LiveViewTest
 
-  test "renders the reseller landing page", %{conn: conn} do
+  test "renders the Resellerio landing page", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/")
 
     assert has_element?(view, "#home-hero")

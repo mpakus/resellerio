@@ -1,6 +1,6 @@
-# Reseller
+# Resellerio
 
-Reseller is a Phoenix backend for a mobile app used by resellers to create and manage product inventory from photos.
+Resellerio is a Phoenix backend for a mobile app used by resellers to create and manage product inventory from photos.
 
 The long-term product flow is:
 
@@ -28,7 +28,7 @@ Implemented already:
 - Protected web workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`
 - Web product intake with browser photo uploads and product creation
 - Web product detail editing plus sold/archive/restore/delete lifecycle actions
-- Web export requests and ZIP imports from the reseller workspace
+- Web export requests and ZIP imports from the Resellerio workspace
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
 - Req-backed Gemini and SerpApi client modules with tests
@@ -60,8 +60,8 @@ Not implemented yet:
 
 `mix setup` already runs [priv/repo/seeds.exs](/Users/mpak/www/elixir/reseller/priv/repo/seeds.exs), which now creates local starter data:
 
-- `admin@reseller.local` / `very-secure-password`
-- `seller@reseller.local` / `very-secure-password`
+- `admin@resellerio.local` / `very-secure-password`
+- `seller@resellerio.local` / `very-secure-password`
 
 It also creates a few starter products in `draft`, `ready`, `sold`, and `archived` states so the UI and API are useful on first boot.
 
@@ -245,7 +245,7 @@ The compose setup will:
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
 - recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
 - authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
-- authenticated users can now import reseller ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
+- authenticated users can now import Resellerio ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
 - authenticated users can now update product details, delete products, mark products as sold, archive them, and restore archived products through explicit lifecycle endpoints
 
 ## Admin Access
