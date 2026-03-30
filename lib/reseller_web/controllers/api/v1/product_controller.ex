@@ -67,7 +67,7 @@ defmodule ResellerWeb.API.V1.ProductController do
           conn,
           :bad_gateway,
           "storage_unavailable",
-          "Storage upload signing is not configured: #{config_key}"
+          "Storage upload signing is not configured: #{humanize_config_key(config_key)}"
         )
 
       {:error, reason} ->
@@ -301,4 +301,9 @@ defmodule ResellerWeb.API.V1.ProductController do
       updated_at: datetime_to_iso8601(listing.updated_at)
     }
   end
+
+  defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
+  defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
+  defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
+  defp humanize_config_key(config_key), do: to_string(config_key)
 end

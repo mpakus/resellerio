@@ -1290,6 +1290,15 @@ defmodule ResellerWeb.WorkspaceLive do
   defp tag_input_value(values) when is_list(values), do: Enum.join(values, ", ")
   defp tag_input_value(_value), do: nil
 
+  defp format_reason({:missing_config, config_key}) do
+    "missing configuration: #{humanize_config_key(config_key)}. Add it to your .env or shell and restart Phoenix."
+  end
+
   defp format_reason(%Changeset{} = changeset), do: inspect(changeset.errors)
   defp format_reason(reason), do: inspect(reason)
+
+  defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
+  defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
+  defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
+  defp humanize_config_key(config_key), do: inspect(config_key)
 end

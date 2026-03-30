@@ -54,7 +54,7 @@ Not implemented yet:
 ## Local Development
 
 1. Run `mix setup`
-2. Set the environment variables from the `Credentials` section below
+2. Create a local `.env` from `.env.example` and fill in the credentials you need
 3. Start the server with `mix phx.server`
 4. Open [http://localhost:4000](http://localhost:4000)
 5. Check the API with `GET /api/v1`
@@ -76,9 +76,29 @@ It also creates a few starter products in `draft`, `ready`, `sold`, and `archive
 
 ## Credentials
 
-This project reads runtime credentials from environment variables in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs).
+This project reads runtime credentials from environment variables in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs) and uses `Nvir` to load local dotenv files during development and test.
 
-For local development, add them in the shell before running Phoenix. Example:
+For local development, the simplest path is:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in the values you need and start Phoenix. In development, the app loads these files automatically if they exist:
+
+- `.env`
+- `.env.dev`
+- `.env.local`
+- `.env.dev.local`
+
+In test, the app loads:
+
+- `.env.test`
+- `.env.test.local`
+
+After changing credentials or `config/*.exs`, restart the Phoenix server.
+
+You can still export variables in the shell if you prefer. Example:
 
 ```bash
 export GEMINI_API_KEY="..."
@@ -90,7 +110,7 @@ export PHOTOROOM_API_KEY="..."
 mix phx.server
 ```
 
-If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy system, put the same variable names there. The app does not currently load a checked-in `.env` file by itself.
+If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy system, put the same variable names there. `.env` files are for local development and test convenience and should not be committed.
 
 ### Required in Production
 

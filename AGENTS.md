@@ -45,6 +45,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.AI` context plus `Reseller.AI.Provider` behaviour.
 - `Reseller.Search` context plus `Reseller.Search.Provider` behaviour.
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
+- Local `.env` loading is handled in `config/runtime.exs` via `Nvir`; prefer `.env`, `.env.dev`, `.env.local`, and `.env.dev.local` for developer credentials instead of committing secrets.
 - `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline` for confidence-based recognition orchestration.
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.
 - Browser-session admin gating plus LiveView admin gating.
