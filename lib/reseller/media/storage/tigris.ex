@@ -79,6 +79,44 @@ defmodule Reseller.Media.Storage.Tigris do
     end
   end
 
+  @impl true
+  def sign_download(storage_key, opts \\ []) when is_binary(storage_key) do
+    config = config(opts)
+
+    with {:ok, target} <- storage_target(config) do
+      expires_in = Keyword.get(opts, :expires_in, config[:expires_in])
+
+      request_time =
+        Keyword.get(opts, :request_time, DateTime.utc_now())
+        |> DateTime.truncate(:second)
+
+      presign_opts =
+        [
+          expires_in: expires_in,
+          start_datetime: request_time
+        ] ++ target.presign_opts
+
+      case S3.presigned_url(
+             ex_aws_config(target),
+             :get,
+             target.bucket,
+             storage_key,
+             presign_opts
+           ) do
+        {:ok, download_url} ->
+          {:ok,
+           %{
+             method: "GET",
+             download_url: download_url,
+             expires_at: DateTime.add(request_time, expires_in, :second) |> DateTime.to_iso8601()
+           }}
+
+        {:error, reason} ->
+          {:error, {:presign_failed, reason}}
+      end
+    end
+  end
+
   def public_base_url(config) when is_list(config) do
     with {:ok, base_url} <- fetch_required(config, :base_url),
          {:ok, %URI{} = uri} <- parse_base_uri(base_url) do

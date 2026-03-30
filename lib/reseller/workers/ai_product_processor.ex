@@ -372,6 +372,31 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
+  defp format_error({:http_error, 400, %{"error" => error} = body}) when is_map(error) do
+    detail = Map.get(error, "message") || "The AI provider rejected the request."
+
+    if String.contains?(detail, "Cannot fetch content from the provided URL") do
+      %{
+        code: "ai_media_fetch_failed",
+        message:
+          "Gemini could not fetch the product image URL. Check storage download signing or public object access and retry processing.",
+        payload: %{
+          "provider" => "gemini",
+          "status" => Map.get(error, "status"),
+          "detail" => detail,
+          "retryable" => true,
+          "reason" => inspect({:http_error, 400, body})
+        }
+      }
+    else
+      %{
+        code: "processor_error",
+        message: "AI product processing failed: #{inspect({:http_error, 400, body})}",
+        payload: %{"reason" => inspect({:http_error, 400, body})}
+      }
+    end
+  end
+
   defp format_error(reason) do
     %{
       code: "processor_error",

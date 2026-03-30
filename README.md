@@ -168,6 +168,7 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
   Example: `summer-grass-2004`
   This is the bucket name Tigris or Fly.io gives you separately from the endpoint URL
   Newer Tigris buckets use virtual-hosted bucket URLs, so this value is required for correct upload and public URL generation
+  The AI pipeline now prefers signed download URLs for Gemini and Photoroom, so the bucket no longer has to be fully public for background processing to work
 
 - `PHOTOROOM_API_KEY`
   Photoroom API key used for background removal and white-background image variants

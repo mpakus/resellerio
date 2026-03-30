@@ -89,9 +89,13 @@ defmodule Reseller.Media do
     if images == [] do
       {:error, :no_recognition_images}
     else
-      with {:ok, base_url} <- public_base_url(opts) do
-        {:ok, Enum.map(images, &recognition_input(&1, base_url))}
-      end
+      images
+      |> Enum.reduce_while({:ok, []}, fn image, {:ok, inputs} ->
+        case recognition_input(image, opts) do
+          {:ok, input} -> {:cont, {:ok, inputs ++ [input]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
     end
   end
 
@@ -381,27 +385,27 @@ defmodule Reseller.Media do
     end
   end
 
-  defp recognition_input(%ProductImage{} = image, base_url) do
-    public_url = build_public_url(base_url, image.storage_key)
-
-    %{
-      kind: image.kind,
-      position: image.position,
-      mime_type: image.content_type,
-      uri: public_url,
-      external_url: public_url,
-      storage_key: image.storage_key
-    }
+  defp recognition_input(%ProductImage{} = image, opts) do
+    with {:ok, fetch_url} <- external_fetch_url(image, opts) do
+      {:ok,
+       %{
+         kind: image.kind,
+         position: image.position,
+         mime_type: image.content_type,
+         uri: fetch_url,
+         external_url: fetch_url,
+         storage_key: image.storage_key
+       }}
+    end
   end
 
-  defp generate_variants_for_image(product, source_image, base_url, opts) do
-    image_url = build_public_url(base_url, source_image.storage_key)
-
+  defp generate_variants_for_image(product, source_image, _base_url, opts) do
     @variant_profiles
     |> Enum.reduce_while({:ok, []}, fn profile, {:ok, variants} ->
       storage_key = build_variant_storage_key(product, source_image, profile)
 
-      with {:ok, processed_image} <- process_variant(image_url, profile, opts),
+      with {:ok, image_url} <- external_fetch_url(source_image, opts),
+           {:ok, processed_image} <- process_variant(image_url, profile, opts),
            {:ok, _upload} <-
              Storage.upload_object(
                storage_key,
@@ -464,6 +468,22 @@ defmodule Reseller.Media do
 
   defp variant_source_image?(%ProductImage{} = image) do
     image.kind == "original" and image.processing_status in @processable_image_statuses
+  end
+
+  defp external_fetch_url(%ProductImage{} = image, opts) do
+    case Storage.sign_download(
+           image.storage_key,
+           Keyword.put_new(opts, :provider, Keyword.get(opts, :storage, Storage.provider()))
+         ) do
+      {:ok, %{download_url: download_url}} when is_binary(download_url) ->
+        {:ok, download_url}
+
+      {:ok, %{"download_url" => download_url}} when is_binary(download_url) ->
+        {:ok, download_url}
+
+      {:error, _reason} ->
+        public_url_for_image(image, opts)
+    end
   end
 
   defp public_base_url(opts) do

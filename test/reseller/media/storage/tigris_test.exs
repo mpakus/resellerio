@@ -69,6 +69,34 @@ defmodule Reseller.Media.Storage.TigrisTest do
              )
   end
 
+  test "sign_download/2 returns a presigned get url" do
+    request_time = ~U[2026-03-29 18:30:00Z]
+
+    assert {:ok, result} =
+             Tigris.sign_download(
+               "users/1/products/2/originals/example.jpg",
+               expires_in: 600,
+               request_time: request_time,
+               config: [
+                 access_key_id: "tigris-access",
+                 secret_access_key: "tigris-secret",
+                 base_url: "https://t3.storage.dev",
+                 bucket_name: "reseller-images",
+                 region: "auto",
+                 expires_in: 900
+               ]
+             )
+
+    assert result.method == "GET"
+    assert result.expires_at == "2026-03-29T18:40:00Z"
+
+    assert result.download_url =~
+             "https://reseller-images.t3.storage.dev/users/1/products/2/originals/example.jpg?"
+
+    assert result.download_url =~ "X-Amz-Algorithm=AWS4-HMAC-SHA256"
+    assert result.download_url =~ "X-Amz-SignedHeaders=host"
+  end
+
   test "upload_object/3 sends the object through ExAws" do
     send_to_self = fn operation, overrides ->
       send(self(), {:ex_aws_request, operation, overrides})

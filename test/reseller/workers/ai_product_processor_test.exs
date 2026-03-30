@@ -496,6 +496,8 @@ defmodule Reseller.Workers.AIProductProcessorTest do
              Workers.start_product_processing(
                product,
                processor: AIProductProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
+               sign_download_result: {:error, :download_signing_failed},
                public_base_url: "not-a-valid-url"
              )
 
@@ -508,6 +510,37 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "failed"))
 
     refute_received {:ai_provider_called, :recognize_images, _, _, _}
+  end
+
+  test "classifies Gemini media fetch failures as retryable storage-url issues" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    assert {:ok, _run} =
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               storage: Reseller.Support.Fakes.MediaStorage,
+               recognize_result:
+                 {:error,
+                  {:http_error, 400,
+                   %{
+                     "error" => %{
+                       "status" => "INVALID_ARGUMENT",
+                       "message" => "Cannot fetch content from the provided URL."
+                     }
+                   }}}
+             )
+
+    failed_run = Workers.latest_product_processing_run(product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert failed_run.error_code == "ai_media_fetch_failed"
+    assert failed_run.error_message =~ "Gemini could not fetch the product image URL"
+    assert failed_run.payload["retryable"] == true
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
   end
 
   test "classifies Gemini quota exhaustion as a retryable AI failure" do
