@@ -263,6 +263,61 @@ defmodule Reseller.AI.Providers.GeminiTest do
     assert_received {:gemini_attempt, 2}
   end
 
+  test "retries request timeouts before succeeding" do
+    parent = self()
+
+    request_fun = fn _request ->
+      attempt = Process.get(:gemini_timeout_attempt, 0) + 1
+      Process.put(:gemini_timeout_attempt, attempt)
+      send(parent, {:gemini_timeout_attempt, attempt})
+
+      case attempt do
+        1 ->
+          {:error, %Req.TransportError{reason: :timeout}}
+
+        2 ->
+          {:ok,
+           %{
+             status: 200,
+             body: %{
+               "candidates" => [
+                 %{
+                   "content" => %{
+                     "parts" => [
+                       %{
+                         "text" =>
+                           Jason.encode!(%{
+                             "suggested_title" => "Recovered after timeout",
+                             "short_description" => "Recovered request"
+                           })
+                       }
+                     ]
+                   }
+                 }
+               ]
+             }
+           }}
+      end
+    end
+
+    sleep_fun = fn milliseconds -> send(parent, {:gemini_timeout_sleep, milliseconds}) end
+
+    assert {:ok, result} =
+             Gemini.generate_description(
+               %{"brand" => "Nike", "category" => "Sneakers"},
+               config: @config,
+               request_fun: request_fun,
+               sleep_fun: sleep_fun,
+               max_retries: 1,
+               retry_backoff_ms: 25
+             )
+
+    assert result.output["suggested_title"] == "Recovered after timeout"
+    assert_received {:gemini_timeout_attempt, 1}
+    assert_received {:gemini_timeout_sleep, 25}
+    assert_received {:gemini_timeout_attempt, 2}
+  end
+
   test "returns an error for unsupported image input" do
     assert {:error, {:unsupported_image_input, %{id: 1}}} =
              Gemini.recognize_images([%{id: 1}], %{},

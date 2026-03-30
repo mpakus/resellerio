@@ -397,6 +397,21 @@ defmodule Reseller.Workers.AIProductProcessor do
     end
   end
 
+  defp format_error({:request_failed, %Req.TransportError{reason: reason}})
+       when reason in [:timeout, :connect_timeout, :closed] do
+    %{
+      code: "ai_provider_timeout",
+      message:
+        "Gemini timed out while processing this product. The run can be retried without uploading images again.",
+      payload: %{
+        "provider" => "gemini",
+        "transport_reason" => to_string(reason),
+        "retryable" => true,
+        "reason" => inspect({:request_failed, %Req.TransportError{reason: reason}})
+      }
+    }
+  end
+
   defp format_error(reason) do
     %{
       code: "processor_error",

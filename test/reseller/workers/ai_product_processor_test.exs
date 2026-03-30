@@ -577,6 +577,31 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
   end
 
+  test "classifies Gemini request timeouts as retryable AI failures" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    assert {:ok, _run} =
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               recognize_result:
+                 {:error, {:request_failed, %Req.TransportError{reason: :timeout}}}
+             )
+
+    failed_run = Workers.latest_product_processing_run(product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert failed_run.status == "failed"
+    assert failed_run.error_code == "ai_provider_timeout"
+    assert failed_run.error_message =~ "Gemini timed out while processing this product"
+    assert failed_run.payload["retryable"] == true
+    assert failed_run.payload["transport_reason"] == "timeout"
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
+  end
+
   test "upsert_product_description_draft/2 stores generated copy separately from product fields" do
     user = user_fixture()
     product = product_fixture(user, %{"title" => "User-entered title"})

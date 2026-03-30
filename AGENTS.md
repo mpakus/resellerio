@@ -152,6 +152,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Price guidance should go through `Reseller.AI.upsert_product_price_research/2` so grounded pricing stays separate from the core product record.
 - Keep API keys in runtime env vars such as `GEMINI_API_KEY` and `SERPAPI_API_KEY`, not compile-time literals.
 - Gemini runtime config now also supports `GEMINI_MAX_RETRIES` and `GEMINI_RETRY_BACKOFF_MS` for retryable `429` handling.
+- Gemini runtime config also supports `GEMINI_TIMEOUT_MS`; prefer increasing timeout and using bounded retries before adding custom worker-side retry loops.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 - External AI/media fetches should go through `Reseller.Media.Storage.sign_download/2` so Gemini and Photoroom receive signed object URLs instead of assuming the bucket is public.
 - The current AI worker builds public object URLs from `TIGRIS_PUBLIC_URL` (or the backward-compatible `TIGRIS_BUCKET_URL`). Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.

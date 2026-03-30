@@ -202,6 +202,10 @@ Current defaults in runtime config are all `gemini-2.5-flash`.
 
 ### Optional Gemini Retry Controls
 
+- `GEMINI_TIMEOUT_MS`
+  HTTP receive timeout for Gemini requests in milliseconds
+  Defaults to `45000`
+
 - `GEMINI_MAX_RETRIES`
   Number of retry attempts for retryable Gemini `429` / temporary capacity responses
   Defaults to `1`

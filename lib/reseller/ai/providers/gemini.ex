@@ -140,7 +140,20 @@ defmodule Reseller.AI.Providers.Gemini do
         end
 
       {:error, reason} ->
-        {:error, {:request_failed, reason}}
+        if attempt < max_retries and retryable_transport_reason?(reason) do
+          sleep_fun.(backoff_ms(retry_backoff_ms, attempt))
+
+          execute_request(
+            request,
+            request_fun,
+            sleep_fun,
+            max_retries,
+            retry_backoff_ms,
+            attempt + 1
+          )
+        else
+          {:error, {:request_failed, reason}}
+        end
     end
   end
 
@@ -202,6 +215,12 @@ defmodule Reseller.AI.Providers.Gemini do
   end
 
   defp retryable_api_error?(_body), do: false
+
+  defp retryable_transport_reason?(%Req.TransportError{reason: reason})
+       when reason in [:timeout, :connect_timeout, :closed],
+       do: true
+
+  defp retryable_transport_reason?(_reason), do: false
 
   defp backoff_ms(base_backoff_ms, attempt) do
     round(base_backoff_ms * :math.pow(2, attempt))

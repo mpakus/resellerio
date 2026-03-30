@@ -39,6 +39,7 @@ public_base_url =
 
 config :reseller, Reseller.AI.Providers.Gemini,
   api_key: System.get_env("GEMINI_API_KEY"),
+  timeout: String.to_integer(System.get_env("GEMINI_TIMEOUT_MS") || "45000"),
   max_retries: String.to_integer(System.get_env("GEMINI_MAX_RETRIES") || "1"),
   retry_backoff_ms: String.to_integer(System.get_env("GEMINI_RETRY_BACKOFF_MS") || "750"),
   models: %{

@@ -642,6 +642,7 @@ For retryable AI failures, `error_code` may now be:
 - `ai_quota_exhausted`
 - `ai_rate_limited`
 - `ai_media_fetch_failed`
+- `ai_provider_timeout`
 
 ### Description Drafts
 
