@@ -319,7 +319,7 @@ defmodule Reseller.Seeds do
 
       image ->
         image
-        |> ProductImage.update_changeset(changeset_attrs)
+        |> ProductImage.create_changeset(changeset_attrs)
         |> Repo.update!()
     end
   end
