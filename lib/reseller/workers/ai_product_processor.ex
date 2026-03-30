@@ -16,7 +16,8 @@ defmodule Reseller.Workers.AIProductProcessor do
   @impl true
   def process(%Product{} = product, opts) do
     with {:ok, images} <- Media.recognition_inputs_for_product(product, opts),
-         {:ok, result} <- AI.run_recognition_pipeline(images, recognition_metadata(product), opts),
+         {:ok, result} <-
+           AI.run_recognition_pipeline(images, recognition_metadata(product), opts),
          {:ok, updated_product} <- Catalog.apply_recognition_result(product, result.final),
          {:ok, description_result} <-
            AI.generate_description(description_input(updated_product, result.final), opts),

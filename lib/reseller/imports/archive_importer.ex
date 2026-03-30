@@ -46,7 +46,8 @@ defmodule Reseller.Imports.ArchiveImporter do
     Repo.transaction(fn ->
       with {:ok, product} <- insert_product(user, product_payload),
            :ok <- insert_images(product, Map.get(product_payload, "images", []), images, opts),
-           :ok <- insert_description_draft(product, Map.get(product_payload, "description_draft")),
+           :ok <-
+             insert_description_draft(product, Map.get(product_payload, "description_draft")),
            :ok <- insert_price_research(product, Map.get(product_payload, "price_research")),
            :ok <-
              insert_marketplace_listings(
