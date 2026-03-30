@@ -55,6 +55,13 @@ Not implemented yet:
 4. Open [http://localhost:4000](http://localhost:4000)
 5. Check the API with `GET /api/v1`
 
+`mix setup` already runs [priv/repo/seeds.exs](/Users/mpak/www/elixir/reseller/priv/repo/seeds.exs), which now creates local starter data:
+
+- `admin@reseller.local` / `very-secure-password`
+- `seller@reseller.local` / `very-secure-password`
+
+It also creates a few starter products in `draft`, `ready`, `sold`, and `archived` states so the UI and API are useful on first boot.
+
 ## Project Docs
 
 - Implementation plan and progress tracker: `docs/PLANS.md`
