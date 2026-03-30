@@ -59,11 +59,11 @@ defmodule Reseller.Media.Storage.TigrisTest do
              )
 
     assert result.upload_url =~
-             "https://t3.storage.dev/reseller-images/users/1/products/2/originals/example.jpg?"
+             "https://reseller-images.t3.storage.dev/users/1/products/2/originals/example.jpg?"
   end
 
   test "public_base_url/1 includes the bucket_name for endpoint-style config" do
-    assert {:ok, "https://t3.storage.dev/reseller-images"} =
+    assert {:ok, "https://reseller-images.t3.storage.dev/"} =
              Tigris.public_base_url(
                base_url: "https://t3.storage.dev",
                bucket_name: "reseller-images"
@@ -99,7 +99,7 @@ defmodule Reseller.Media.Storage.TigrisTest do
     assert operation.path == "users/1/products/2/originals/example.jpg"
     assert operation.headers["content-type"] == "image/jpeg"
     assert overrides[:host] == "fly.storage.tigris.dev"
-    assert overrides[:bucket_as_host] != true
+    assert overrides[:virtual_host] == true
   end
 
   test "sign_upload/2 returns a configuration error when required values are missing" do

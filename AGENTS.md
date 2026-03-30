@@ -47,6 +47,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - Req-backed Gemini and SerpApi production clients with test-only fake providers.
 - Local `.env` loading is handled in `config/runtime.exs` via `Nvir`; prefer `.env`, `.env.dev`, `.env.local`, and `.env.dev.local` for developer credentials instead of committing secrets.
 - Tigris config now supports both bucket-style URLs and endpoint-style URLs. When using a generic endpoint like `https://t3.storage.dev` or `https://fly.storage.tigris.dev`, also set `TIGRIS_BUCKET_NAME` (or `BUCKET_NAME` / `AWS_BUCKET_NAME`).
+- Newer Tigris buckets require virtual-hosted bucket URLs when using generic endpoints, so endpoint-style configs should resolve to `https://<bucket>.<endpoint-host>/...` for uploads and public URLs.
 - Prefer separate Tigris env vars: `AWS_ENDPOINT_URL_S3` or `TIGRIS_ENDPOINT_URL` for signed uploads, and `TIGRIS_PUBLIC_URL` for public object URLs. `TIGRIS_BUCKET_URL` is now only a backward-compatible fallback.
 - `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline` for confidence-based recognition orchestration.
 - Backpex-based admin interface under `/admin` for admin users, including `Users` and `API Tokens`.

@@ -157,6 +157,7 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
   Examples:
   `https://t3.storage.dev`
   `https://bucket-name.region.tigris.dev`
+  When this is a generic endpoint such as `https://t3.storage.dev`, the app now builds public URLs as `https://<bucket>.t3.storage.dev/...`
 
 - `TIGRIS_BUCKET_URL`
   Backward-compatible fallback for the public base URL
@@ -166,6 +167,7 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
   Required when the upload endpoint points at a generic Tigris endpoint instead of a bucket-specific domain
   Example: `summer-grass-2004`
   This is the bucket name Tigris or Fly.io gives you separately from the endpoint URL
+  Newer Tigris buckets use virtual-hosted bucket URLs, so this value is required for correct upload and public URL generation
 
 - `PHOTOROOM_API_KEY`
   Photoroom API key used for background removal and white-background image variants

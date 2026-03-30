@@ -85,10 +85,15 @@ defmodule Reseller.Media.Storage.Tigris do
          {:ok, %URI{} = uri} <- parse_base_uri(base_url) do
       bucket_name = normalized_bucket_name(config[:bucket_name])
 
-      if bucket_name != nil do
-        {:ok, normalize_public_url(uri, bucket_name)}
-      else
-        {:ok, normalize_public_url(uri, nil)}
+      cond do
+        bucket_name != nil and generic_endpoint_host?(uri.host) ->
+          {:ok, normalize_virtual_host_public_url(uri, bucket_name)}
+
+        bucket_name != nil ->
+          {:ok, normalize_public_url(uri, bucket_name)}
+
+        true ->
+          {:ok, normalize_public_url(uri, nil)}
       end
     end
   end
@@ -123,6 +128,15 @@ defmodule Reseller.Media.Storage.Tigris do
     ]
 
     cond do
+      bucket_name != nil and generic_endpoint_host?(uri.host) ->
+        {:ok,
+         %{
+           bucket: bucket_name,
+           ex_aws_overrides: base_overrides ++ [virtual_host: true],
+           presign_opts: [virtual_host: true],
+           public_base_url: normalize_virtual_host_public_url(uri, bucket_name)
+         }}
+
       bucket_name != nil ->
         {:ok,
          %{
@@ -179,6 +193,16 @@ defmodule Reseller.Media.Storage.Tigris do
       |> normalize_path()
 
     %URI{uri | path: path, query: nil}
+    |> URI.to_string()
+  end
+
+  defp normalize_virtual_host_public_url(%URI{} = uri, bucket_name) do
+    %URI{
+      uri
+      | host: "#{bucket_name}.#{uri.host}",
+        path: normalize_path(uri.path || "/"),
+        query: nil
+    }
     |> URI.to_string()
   end
 
