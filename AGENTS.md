@@ -155,6 +155,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 - Gemini runtime config also supports `GEMINI_TIMEOUT_MS`; prefer increasing timeout and using bounded retries before adding custom worker-side retry loops.
 - Tigris upload signing should go through `Reseller.Media.Storage`. Do not construct upload URLs ad hoc in controllers.
 - External AI/media fetches should go through `Reseller.Media.Storage.sign_download/2` so Gemini and Photoroom receive signed object URLs instead of assuming the bucket is public.
+- For Gemini grounded price research, do not combine `google_search` tool use with JSON `responseMimeType` / `responseSchema` in the same request. Keep that flow split into a grounded text step followed by a structured normalization step.
 - The current AI worker builds public object URLs from `TIGRIS_PUBLIC_URL` (or the backward-compatible `TIGRIS_BUCKET_URL`). Keep that path centralized through `Reseller.Media` rather than duplicating URL assembly in workers or controllers.
 - Upload finalization should go through `Reseller.Media.finalize_product_uploads/3` or `Reseller.Catalog.finalize_product_uploads_for_user/3`, not custom controller logic.
 - Product processing should be queued through `Reseller.Workers.start_product_processing/2`, not by spawning ad hoc tasks from controllers.

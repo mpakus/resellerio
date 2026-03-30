@@ -543,6 +543,37 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
   end
 
+  test "classifies grounded JSON/tool incompatibility errors explicitly" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    assert {:ok, _run} =
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               recognize_result:
+                 {:error,
+                  {:http_error, 400,
+                   %{
+                     "error" => %{
+                       "status" => "INVALID_ARGUMENT",
+                       "message" =>
+                         "Tool use with a response mime type: 'application/json' is unsupported"
+                     }
+                   }}}
+             )
+
+    failed_run = Workers.latest_product_processing_run(product.id)
+
+    assert failed_run.error_code == "ai_grounding_request_invalid"
+
+    assert failed_run.error_message =~
+             "Gemini rejected the grounded price request format"
+
+    assert failed_run.payload["retryable"] == false
+  end
+
   test "classifies Gemini quota exhaustion as a retryable AI failure" do
     user = user_fixture()
     product = finalized_product_fixture(user)

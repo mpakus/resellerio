@@ -643,6 +643,7 @@ For retryable AI failures, `error_code` may now be:
 - `ai_rate_limited`
 - `ai_media_fetch_failed`
 - `ai_provider_timeout`
+- `ai_grounding_request_invalid`
 
 ### Description Drafts
 

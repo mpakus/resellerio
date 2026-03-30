@@ -375,25 +375,41 @@ defmodule Reseller.Workers.AIProductProcessor do
   defp format_error({:http_error, 400, %{"error" => error} = body}) when is_map(error) do
     detail = Map.get(error, "message") || "The AI provider rejected the request."
 
-    if String.contains?(detail, "Cannot fetch content from the provided URL") do
-      %{
-        code: "ai_media_fetch_failed",
-        message:
-          "Gemini could not fetch the product image URL. Check storage download signing or public object access and retry processing.",
-        payload: %{
-          "provider" => "gemini",
-          "status" => Map.get(error, "status"),
-          "detail" => detail,
-          "retryable" => true,
-          "reason" => inspect({:http_error, 400, body})
+    cond do
+      String.contains?(detail, "Cannot fetch content from the provided URL") ->
+        %{
+          code: "ai_media_fetch_failed",
+          message:
+            "Gemini could not fetch the product image URL. Check storage download signing or public object access and retry processing.",
+          payload: %{
+            "provider" => "gemini",
+            "status" => Map.get(error, "status"),
+            "detail" => detail,
+            "retryable" => true,
+            "reason" => inspect({:http_error, 400, body})
+          }
         }
-      }
-    else
-      %{
-        code: "processor_error",
-        message: "AI product processing failed: #{inspect({:http_error, 400, body})}",
-        payload: %{"reason" => inspect({:http_error, 400, body})}
-      }
+
+      String.contains?(detail, "Tool use with a response mime type") ->
+        %{
+          code: "ai_grounding_request_invalid",
+          message:
+            "Gemini rejected the grounded price request format. The provider request shape needs to be adjusted before retrying.",
+          payload: %{
+            "provider" => "gemini",
+            "status" => Map.get(error, "status"),
+            "detail" => detail,
+            "retryable" => false,
+            "reason" => inspect({:http_error, 400, body})
+          }
+        }
+
+      true ->
+        %{
+          code: "processor_error",
+          message: "AI product processing failed: #{inspect({:http_error, 400, body})}",
+          payload: %{"reason" => inspect({:http_error, 400, body})}
+        }
     end
   end
 

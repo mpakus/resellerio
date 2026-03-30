@@ -31,18 +31,24 @@ defmodule Reseller.AI.Providers.Gemini do
 
   @impl true
   def research_price(product_attrs, search_results, opts \\ []) do
-    with {:ok, request} <-
+    with {:ok, grounded_request} <-
+           build_grounded_price_request(product_attrs, search_results, opts),
+         {:ok, grounded_response} <- execute_request(grounded_request, opts),
+         {:ok, grounded_text} <- parse_text_response(grounded_response),
+         {:ok, request} <-
            build_generate_content_request(
              :price_research,
              [],
              %{
                product: product_attrs,
-               search_results: search_results
+               search_results: search_results,
+               grounded_findings: grounded_text
              },
              opts
            ),
-         {:ok, response} <- execute_request(request, opts) do
-      parse_structured_response(:price_research, response, request.model)
+         {:ok, response} <- execute_request(request, opts),
+         {:ok, result} <- parse_structured_response(:price_research, response, request.model) do
+      {:ok, Map.put(result, :grounded_findings, grounded_text)}
     end
   end
 
@@ -190,6 +196,17 @@ defmodule Reseller.AI.Providers.Gemini do
         {:error, _reason} ->
           {:error, {:invalid_json, text}}
       end
+    else
+      {:error, {:http_error, status, body}}
+    end
+  end
+
+  defp parse_text_response(response) do
+    status = response_field(response, :status) || 200
+    body = response_field(response, :body) || %{}
+
+    if status in 200..299 do
+      {:ok, extract_candidate_text(body)}
     else
       {:error, {:http_error, status, body}}
     end
@@ -348,10 +365,38 @@ defmodule Reseller.AI.Providers.Gemini do
   defp image_part(image), do: {:error, {:unsupported_image_input, image}}
 
   defp maybe_put_tools(body, :price_research) do
-    Map.put(body, "tools", [%{"google_search" => %{}}])
+    body
   end
 
   defp maybe_put_tools(body, _operation), do: body
+
+  defp build_grounded_price_request(product_attrs, search_results, opts) do
+    with {:ok, api_key} <- fetch_api_key(opts),
+         {:ok, model} <- fetch_model(:price_research, opts) do
+      config = config(opts)
+
+      prompt = grounded_price_prompt(%{product: product_attrs, search_results: search_results})
+
+      {:ok,
+       %{
+         method: :post,
+         operation: :price_research_grounded,
+         model: model,
+         url: "#{String.trim_trailing(config[:base_url], "/")}/models/#{model}:generateContent",
+         headers: [{"x-goog-api-key", api_key}],
+         body: %{
+           "contents" => [
+             %{
+               "role" => "user",
+               "parts" => [%{"text" => prompt}]
+             }
+           ],
+           "tools" => [%{"google_search" => %{}}]
+         },
+         receive_timeout: config[:timeout]
+       }}
+    end
+  end
 
   defp prompt_for(:recognition, attrs) do
     """
@@ -374,9 +419,9 @@ defmodule Reseller.AI.Providers.Gemini do
 
   defp prompt_for(:price_research, attrs) do
     """
-    Use grounded web search results and the provided comparable data to estimate
+    Use the grounded findings and the provided comparable data to estimate
     secondhand resale pricing. Return JSON only with min, target, max, median,
-    confidence, rationale, and comparable_results.
+    confidence, rationale, and comparable_results. Do not call tools.
     Product and external evidence: #{Jason.encode!(attrs)}
     """
   end
@@ -397,6 +442,15 @@ defmodule Reseller.AI.Providers.Gemini do
     Return JSON only describing the most likely model, whether the matches refer
     to the same product family, a short card description, and review guidance.
     Evidence: #{Jason.encode!(attrs)}
+    """
+  end
+
+  defp grounded_price_prompt(attrs) do
+    """
+    Use Google Search grounding to find current resale pricing signals for this product.
+    Summarize the strongest comparable matches, likely price range, and market signals
+    in plain text. Do not return JSON.
+    Product and external evidence: #{Jason.encode!(attrs)}
     """
   end
 

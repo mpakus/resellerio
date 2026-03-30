@@ -78,35 +78,67 @@ defmodule Reseller.AI.Providers.GeminiTest do
     assert result.request_id == "gemini-request-1"
   end
 
-  test "research_price/3 enables Google Search grounding" do
+  test "research_price/3 separates grounded search from structured output" do
     request_fun = fn request ->
+      attempt = Process.get(:price_research_request_attempt, 0) + 1
+      Process.put(:price_research_request_attempt, attempt)
+
       assert request.url ==
                "https://gemini.example.test/v1beta/models/gemini-pricing:generateContent"
 
-      assert request.body["tools"] == [%{"google_search" => %{}}]
+      case attempt do
+        1 ->
+          assert request.body["tools"] == [%{"google_search" => %{}}]
+          refute get_in(request.body, ["generationConfig", "responseMimeType"])
 
-      {:ok,
-       %{
-         status: 200,
-         body: %{
-           "candidates" => [
-             %{
-               "content" => %{
-                 "parts" => [
-                   %{
-                     "text" =>
-                       Jason.encode!(%{
-                         "currency" => "USD",
-                         "suggested_target_price" => 120,
-                         "pricing_confidence" => 0.81
-                       })
+          {:ok,
+           %{
+             status: 200,
+             body: %{
+               "candidates" => [
+                 %{
+                   "content" => %{
+                     "parts" => [
+                       %{
+                         "text" =>
+                           "GOAT and StockX comparables cluster around 120 USD with steady demand."
+                       }
+                     ]
                    }
-                 ]
-               }
+                 }
+               ]
              }
-           ]
-         }
-       }}
+           }}
+
+        2 ->
+          refute Map.has_key?(request.body, "tools")
+
+          assert get_in(request.body, ["generationConfig", "responseMimeType"]) ==
+                   "application/json"
+
+          {:ok,
+           %{
+             status: 200,
+             body: %{
+               "candidates" => [
+                 %{
+                   "content" => %{
+                     "parts" => [
+                       %{
+                         "text" =>
+                           Jason.encode!(%{
+                             "currency" => "USD",
+                             "suggested_target_price" => 120,
+                             "pricing_confidence" => 0.81
+                           })
+                       }
+                     ]
+                   }
+                 }
+               ]
+             }
+           }}
+      end
     end
 
     assert {:ok, result} =
@@ -119,6 +151,7 @@ defmodule Reseller.AI.Providers.GeminiTest do
 
     assert result.model == "gemini-pricing"
     assert result.output["currency"] == "USD"
+    assert result.grounded_findings =~ "120 USD"
   end
 
   test "generate_marketplace_listing/2 builds a marketplace-specific JSON request" do
