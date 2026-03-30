@@ -28,6 +28,9 @@ The project is currently a mostly empty Phoenix application with the first API f
 - LiveView landing page at `/`.
 - Browser sign-up and sign-in flows at `/sign-up` and `/sign-in`.
 - Authenticated LiveView workspace shell with routed reseller sections at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`.
+- Web workspace product intake now supports browser-side product creation with image uploads.
+- Web workspace product management now supports detail editing plus sold/archive/restore/delete lifecycle actions.
+- Web workspace exports screen now supports requesting ZIP exports and uploading ZIP imports directly from LiveView.
 - Versioned `/api/v1` namespace.
 - `GET /api/v1` and `GET /api/v1/health` endpoints.
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.
@@ -192,6 +195,7 @@ Build in this order unless a task explicitly says otherwise:
 - When product payloads change, update `docs/API.md` and the authenticated product controller tests so the API shape stays intentional.
 - When introducing auth, keep API and browser auth concerns separate so mobile clients are not forced through browser-centric flows.
 - If passkeys are implemented, document both registration and authentication ceremonies and keep the server challenge flow small and explicit.
+- Treat the reseller web workspace as a first-class surface now. New core product workflows should land in both the API and LiveView unless there is a clear reason to keep them mobile/API-only.
 
 This is a web application written using the Phoenix web framework.
 

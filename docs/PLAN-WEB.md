@@ -7,17 +7,18 @@
 - [x] Step W1.3: Create the authenticated web shell for future product screens.
 - [x] Step W1.4: Add a Backpex-based admin interface for users with admin permission.
 - [x] Step W2.1: Build the dashboard LiveView.
-- [ ] Step W2.2: Build the products index with filters and statuses.
-- [ ] Step W3.1: Build the new product upload flow.
-- [ ] Step W4.1: Build the product detail and editing flow.
-- [ ] Step W5.1: Build export and import screens.
+- [x] Step W2.2: Build the products index with filters and statuses.
+- [x] Step W3.1: Build the new product upload flow.
+- [x] Step W4.1: Build the product detail and editing flow.
+- [x] Step W5.1: Build export and import screens.
 
 ## Latest Web Progress
 
-- Completed: Step W2.1 dashboard LiveView.
+- Completed: Step W5.1 export and import screens.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
 - Current auth routes: `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/listings"`, `live "/app/exports"`, `live "/app/settings"`, and protected admin routes under `/admin`
-- Next target: Step W2.2 products index refinement with filters and richer actions.
+- Current workspace features: dashboard summaries, product creation with photo uploads, product detail editing, lifecycle actions, marketplace listing review, and export/import actions in LiveView.
+- Next target: passkey-focused account settings plus richer AI review controls and regeneration actions.
 
 ## 1. Current Web Stack Analysis
 
