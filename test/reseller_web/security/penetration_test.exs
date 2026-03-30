@@ -69,4 +69,38 @@ defmodule ResellerWeb.Security.PenetrationTest do
              }
     end
   end
+
+  describe "product lifecycle ownership checks" do
+    test "authenticated users cannot mutate another user's products", %{conn: conn} do
+      attacker = user_fixture(%{"email" => "attacker@example.com"})
+      owner = user_fixture(%{"email" => "owner@example.com"})
+      {raw_token, _api_token} = api_token_fixture(attacker, %{"device_name" => "Attacker phone"})
+      product = product_fixture(owner, %{"title" => "Protected product", "status" => "ready"})
+
+      authed_conn = put_req_header(conn, "authorization", "Bearer #{raw_token}")
+
+      Enum.each(
+        [
+          {:patch, "/api/v1/products/#{product.id}", %{"product" => %{"title" => "Pwned"}}},
+          {:delete, "/api/v1/products/#{product.id}", %{}},
+          {:post, "/api/v1/products/#{product.id}/mark_sold", %{}},
+          {:post, "/api/v1/products/#{product.id}/archive", %{}},
+          {:post, "/api/v1/products/#{product.id}/unarchive", %{}}
+        ],
+        fn
+          {:patch, path, params} ->
+            response = patch(authed_conn, path, params)
+            assert json_response(response, 404)["error"]["code"] == "not_found"
+
+          {:delete, path, _params} ->
+            response = delete(authed_conn, path)
+            assert json_response(response, 404)["error"]["code"] == "not_found"
+
+          {:post, path, params} ->
+            response = post(authed_conn, path, params)
+            assert json_response(response, 404)["error"]["code"] == "not_found"
+        end
+      )
+    end
+  end
 end

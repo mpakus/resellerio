@@ -171,6 +171,59 @@ defmodule Reseller.ImportsTest do
     assert Enum.map(Catalog.list_products_for_user(user), & &1.sku) == ["GOOD-1"]
   end
 
+  test "request_import_for_user/3 marks the import as failed for an invalid zip archive" do
+    user = user_fixture(%{"email" => "invalid-import@example.com"})
+
+    assert {:ok, import_record} =
+             Imports.request_import_for_user(user, %{
+               "filename" => "invalid.zip",
+               "archive_base64" => Base.encode64("not-a-real-zip")
+             })
+
+    assert import_record.status == "failed"
+    assert import_record.error_message =~ "invalid_zip_archive"
+    assert Catalog.list_products_for_user(user) == []
+  end
+
+  test "fetch_archive/2 downloads the stored archive when no inline archive binary is given" do
+    user = user_fixture(%{"email" => "fetch-import@example.com"})
+    zip_binary = build_import_zip([], %{})
+
+    assert {:ok, import_record} =
+             Imports.request_import_for_user(user, %{
+               "filename" => "catalog.zip",
+               "archive_base64" => Base.encode64(zip_binary)
+             })
+
+    assert {:ok, "downloaded-archive"} =
+             Imports.fetch_archive(import_record,
+               public_base_url: "https://cdn.example.test",
+               download_request_fun: fn archive_url ->
+                 assert archive_url =~ import_record.source_storage_key
+                 {:ok, %{status: 200, body: "downloaded-archive"}}
+               end
+             )
+  end
+
+  test "fetch_archive/2 returns an error for non-success download responses" do
+    user = user_fixture(%{"email" => "fetch-import-error@example.com"})
+    zip_binary = build_import_zip([], %{})
+
+    assert {:ok, import_record} =
+             Imports.request_import_for_user(user, %{
+               "filename" => "catalog.zip",
+               "archive_base64" => Base.encode64(zip_binary)
+             })
+
+    assert {:error, :archive_download_failed} =
+             Imports.fetch_archive(import_record,
+               public_base_url: "https://cdn.example.test",
+               download_request_fun: fn _archive_url ->
+                 {:ok, %{status: 500, body: "boom"}}
+               end
+             )
+  end
+
   defp build_import_zip(products, image_entries) do
     entries =
       [{~c"index.json", Jason.encode!(%{"products" => products}, pretty: true)}] ++

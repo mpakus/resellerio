@@ -75,4 +75,35 @@ defmodule Reseller.ExportsTest do
              }
            ]
   end
+
+  test "request_export_for_user/2 marks the export as failed when image downloads fail" do
+    user = user_fixture(%{"email" => "export-failure@example.com"})
+
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Broken export", "brand" => "Nike", "category" => "Sneakers"},
+        [%{"filename" => "shoe-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: _finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    assert {:ok, export} =
+             Exports.request_export_for_user(user,
+               download_request_fun: fn _image_url -> {:error, :upstream_unavailable} end,
+               public_base_url: "https://cdn.example.test"
+             )
+
+    assert export.status == "failed"
+    assert export.error_message =~ "image_download_failed"
+    assert export.storage_key == nil
+
+    refute_received {:export_notifier_called, _, _, _}
+  end
 end
