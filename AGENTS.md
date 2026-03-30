@@ -27,7 +27,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 
 - LiveView landing page at `/`.
 - Browser sign-up and sign-in flows at `/sign-up` and `/sign-in`.
-- Authenticated LiveView workspace shell at `/app`.
+- Authenticated LiveView workspace shell with routed reseller sections at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`.
 - Versioned `/api/v1` namespace.
 - `GET /api/v1` and `GET /api/v1/health` endpoints.
 - Password-based API auth with register/login endpoints and bearer-token user lookup via `GET /api/v1/me`.

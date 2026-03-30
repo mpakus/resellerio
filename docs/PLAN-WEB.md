@@ -6,7 +6,7 @@
 - [x] Step W1.2: Add browser sign-in and sign-up LiveViews.
 - [x] Step W1.3: Create the authenticated web shell for future product screens.
 - [x] Step W1.4: Add a Backpex-based admin interface for users with admin permission.
-- [ ] Step W2.1: Build the dashboard LiveView.
+- [x] Step W2.1: Build the dashboard LiveView.
 - [ ] Step W2.2: Build the products index with filters and statuses.
 - [ ] Step W3.1: Build the new product upload flow.
 - [ ] Step W4.1: Build the product detail and editing flow.
@@ -14,10 +14,10 @@
 
 ## Latest Web Progress
 
-- Completed: Step W1.4 Backpex admin interface.
+- Completed: Step W2.1 dashboard LiveView.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
-- Current auth routes: `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, and protected admin routes under `/admin`
-- Next target: Step W2.1 dashboard LiveView.
+- Current auth routes: `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/listings"`, `live "/app/exports"`, `live "/app/settings"`, and protected admin routes under `/admin`
+- Next target: Step W2.2 products index refinement with filters and richer actions.
 
 ## 1. Current Web Stack Analysis
 

@@ -25,7 +25,7 @@ Implemented already:
 - Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, and `DELETE /api/v1/products/:id`
 - Product lifecycle endpoints at `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, and `POST /api/v1/products/:id/unarchive`
 - Browser sign-in and sign-up LiveViews
-- Protected web workspace at `/app`
+- Protected web workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
 - Req-backed Gemini and SerpApi client modules with tests

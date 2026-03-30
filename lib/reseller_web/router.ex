@@ -38,7 +38,11 @@ defmodule ResellerWeb.Router do
     end
 
     live_session :authenticated, on_mount: [{ResellerWeb.LiveUserAuth, :ensure_authenticated}] do
-      live "/app", WorkspaceLive
+      live "/app", WorkspaceLive, :dashboard
+      live "/app/products", WorkspaceLive, :products
+      live "/app/listings", WorkspaceLive, :listings
+      live "/app/exports", WorkspaceLive, :exports
+      live "/app/settings", WorkspaceLive, :settings
     end
 
     post "/sign-up", RegistrationController, :create
