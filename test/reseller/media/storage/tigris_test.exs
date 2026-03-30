@@ -70,6 +70,38 @@ defmodule Reseller.Media.Storage.TigrisTest do
              )
   end
 
+  test "upload_object/3 sends the object through ExAws" do
+    send_to_self = fn operation, overrides ->
+      send(self(), {:ex_aws_request, operation, overrides})
+      {:ok, %{status_code: 200}}
+    end
+
+    assert {:ok, %{storage_key: "users/1/products/2/originals/example.jpg", byte_size: 12}} =
+             Tigris.upload_object(
+               "users/1/products/2/originals/example.jpg",
+               "hello tigris",
+               content_type: "image/jpeg",
+               ex_aws_request_fun: send_to_self,
+               config: [
+                 access_key_id: "tigris-access",
+                 secret_access_key: "tigris-secret",
+                 base_url: "https://fly.storage.tigris.dev",
+                 bucket_name: "reseller-images",
+                 region: "auto"
+               ]
+             )
+
+    assert_received {:ex_aws_request,
+                     %{__struct__: ExAws.Operation.S3, bucket: "reseller-images"} = operation,
+                     overrides}
+
+    assert operation.http_method == :put
+    assert operation.path == "users/1/products/2/originals/example.jpg"
+    assert operation.headers["content-type"] == "image/jpeg"
+    assert overrides[:host] == "fly.storage.tigris.dev"
+    assert overrides[:bucket_as_host] != true
+  end
+
   test "sign_upload/2 returns a configuration error when required values are missing" do
     assert {:error, {:missing_config, :access_key_id}} =
              Tigris.sign_upload(

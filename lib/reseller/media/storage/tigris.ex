@@ -1,96 +1,94 @@
 defmodule Reseller.Media.Storage.Tigris do
   @moduledoc """
-  Minimal S3-compatible presigned PUT URL generator for Tigris-style storage.
+  ExAws-backed S3 storage integration for Tigris-compatible object storage.
   """
 
   @behaviour Reseller.Media.Storage
 
-  @service "s3"
-  @algorithm "AWS4-HMAC-SHA256"
+  alias ExAws.Config, as: ExAwsConfig
+  alias ExAws.S3
+
+  @generic_endpoint_hosts ["t3.storage.dev", "fly.storage.tigris.dev"]
 
   @impl true
   def sign_upload(storage_key, opts \\ []) when is_binary(storage_key) do
     config = config(opts)
 
-    with {:ok, access_key_id} <- fetch_required(config, :access_key_id),
-         {:ok, secret_access_key} <- fetch_required(config, :secret_access_key),
-         {:ok, base_url} <- fetch_required(config, :base_url),
-         {:ok, uri} <- parse_base_uri(base_url),
-         {:ok, bucket_prefix} <- bucket_prefix(config, uri) do
+    with {:ok, target} <- storage_target(config) do
       expires_in = Keyword.get(opts, :expires_in, config[:expires_in])
       content_type = Keyword.get(opts, :content_type, "application/octet-stream")
 
       request_time =
-        Keyword.get(opts, :request_time, DateTime.utc_now()) |> DateTime.truncate(:second)
+        Keyword.get(opts, :request_time, DateTime.utc_now())
+        |> DateTime.truncate(:second)
 
-      amz_date = format_amz_date(request_time)
-      date_stamp = Calendar.strftime(request_time, "%Y%m%d")
-      credential_scope = "#{date_stamp}/#{config[:region]}/#{@service}/aws4_request"
-      canonical_uri = join_uri_path(uri.path || "/", bucket_prefix, storage_key)
-
-      query_params = %{
-        "Content-Type" => content_type,
-        "X-Amz-Algorithm" => @algorithm,
-        "X-Amz-Credential" => "#{access_key_id}/#{credential_scope}",
-        "X-Amz-Date" => amz_date,
-        "X-Amz-Expires" => Integer.to_string(expires_in),
-        "X-Amz-SignedHeaders" => "host"
-      }
-
-      canonical_request =
+      presign_opts =
         [
-          "PUT",
-          canonical_uri,
-          canonical_query_string(query_params),
-          "host:#{uri.host}\n",
-          "host",
-          "UNSIGNED-PAYLOAD"
-        ]
-        |> Enum.join("\n")
+          expires_in: expires_in,
+          start_datetime: request_time,
+          query_params: [{"Content-Type", content_type}]
+        ] ++ target.presign_opts
 
-      string_to_sign =
-        [
-          @algorithm,
-          amz_date,
-          credential_scope,
-          hex_encode(:crypto.hash(:sha256, canonical_request))
-        ]
-        |> Enum.join("\n")
+      case S3.presigned_url(
+             ex_aws_config(target),
+             :put,
+             target.bucket,
+             storage_key,
+             presign_opts
+           ) do
+        {:ok, upload_url} ->
+          {:ok,
+           %{
+             method: "PUT",
+             upload_url: upload_url,
+             headers: %{"content-type" => content_type},
+             expires_at: DateTime.add(request_time, expires_in, :second) |> DateTime.to_iso8601()
+           }}
 
-      signing_key =
-        secret_access_key
-        |> signing_key(date_stamp, config[:region])
-
-      signature = :crypto.mac(:hmac, :sha256, signing_key, string_to_sign) |> hex_encode()
-      signed_query = Map.put(query_params, "X-Amz-Signature", signature)
-      upload_url = build_signed_url(uri, canonical_uri, signed_query)
-
-      {:ok,
-       %{
-         method: "PUT",
-         upload_url: upload_url,
-         headers: %{"content-type" => content_type},
-         expires_at: DateTime.add(request_time, expires_in, :second) |> DateTime.to_iso8601()
-       }}
+        {:error, reason} ->
+          {:error, {:presign_failed, reason}}
+      end
     end
   end
 
   @impl true
   def upload_object(storage_key, body, opts \\ [])
       when is_binary(storage_key) and is_binary(body) do
-    with {:ok, upload} <- sign_upload(storage_key, opts),
-         {:ok, response} <- execute_upload(upload, body, opts) do
-      status = Map.get(response, :status, 200)
+    config = config(opts)
 
-      if status in 200..299 do
-        {:ok,
-         %{
-           storage_key: storage_key,
-           content_type: upload.headers["content-type"],
-           byte_size: byte_size(body)
-         }}
+    with {:ok, target} <- storage_target(config) do
+      content_type = Keyword.get(opts, :content_type, "application/octet-stream")
+      request_fun = Keyword.get(opts, :ex_aws_request_fun, &ExAws.request/2)
+
+      operation = S3.put_object(target.bucket, storage_key, body, content_type: content_type)
+
+      case request_fun.(operation, target.ex_aws_overrides) do
+        {:ok, _result} ->
+          {:ok,
+           %{
+             storage_key: storage_key,
+             content_type: content_type,
+             byte_size: byte_size(body)
+           }}
+
+        {:error, %{reason: reason}} ->
+          {:error, {:request_failed, reason}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def public_base_url(config) when is_list(config) do
+    with {:ok, base_url} <- fetch_required(config, :base_url),
+         {:ok, %URI{} = uri} <- parse_base_uri(base_url) do
+      bucket_name = normalized_bucket_name(config[:bucket_name])
+
+      if bucket_name != nil do
+        {:ok, normalize_public_url(uri, bucket_name)}
       else
-        {:error, {:http_error, status, Map.get(response, :body)}}
+        {:ok, normalize_public_url(uri, nil)}
       end
     end
   end
@@ -100,17 +98,56 @@ defmodule Reseller.Media.Storage.Tigris do
     Keyword.merge(app_config, Keyword.get(opts, :config, []))
   end
 
-  defp execute_upload(upload, body, opts) do
-    request_fun = Keyword.get(opts, :upload_request_fun, &default_upload_request/2)
-
-    case request_fun.(upload, body) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, {:request_failed, reason}}
+  defp storage_target(config) do
+    with {:ok, access_key_id} <- fetch_required(config, :access_key_id),
+         {:ok, secret_access_key} <- fetch_required(config, :secret_access_key),
+         {:ok, base_url} <- fetch_required(config, :base_url),
+         {:ok, %URI{} = uri} <- parse_base_uri(base_url) do
+      build_target(uri, access_key_id, secret_access_key, config)
     end
   end
 
-  defp default_upload_request(upload, body) do
-    Req.put(url: upload.upload_url, headers: upload.headers, body: body)
+  defp build_target(uri, access_key_id, secret_access_key, config) do
+    scheme = uri.scheme <> "://"
+    port = uri.port || default_port(uri.scheme)
+    region = config[:region]
+    bucket_name = normalized_bucket_name(config[:bucket_name])
+
+    base_overrides = [
+      access_key_id: access_key_id,
+      secret_access_key: secret_access_key,
+      region: region,
+      scheme: scheme,
+      host: uri.host,
+      port: port
+    ]
+
+    cond do
+      bucket_name != nil ->
+        {:ok,
+         %{
+           bucket: bucket_name,
+           ex_aws_overrides: base_overrides,
+           presign_opts: [],
+           public_base_url: normalize_public_url(uri, bucket_name)
+         }}
+
+      generic_endpoint_host?(uri.host) ->
+        {:error, {:missing_config, :bucket_name}}
+
+      true ->
+        {:ok,
+         %{
+           bucket: uri.host,
+           ex_aws_overrides: base_overrides ++ [virtual_host: true, bucket_as_host: true],
+           presign_opts: [virtual_host: true, bucket_as_host: true],
+           public_base_url: normalize_public_url(uri, nil)
+         }}
+    end
+  end
+
+  defp ex_aws_config(target) do
+    ExAwsConfig.new(:s3, target.ex_aws_overrides)
   end
 
   defp fetch_required(config, key) do
@@ -130,30 +167,28 @@ defmodule Reseller.Media.Storage.Tigris do
     end
   end
 
-  def public_base_url(config) when is_list(config) do
-    with {:ok, base_url} <- fetch_required(config, :base_url),
-         {:ok, %URI{} = uri} <- parse_base_uri(base_url),
-         {:ok, bucket_prefix} <- bucket_prefix(config, uri) do
-      path = join_uri_path(uri.path || "/", bucket_prefix)
-
-      {:ok,
-       %URI{uri | path: path, query: nil}
-       |> URI.to_string()}
-    end
+  defp normalize_public_url(%URI{} = uri, nil) do
+    %URI{uri | path: normalize_path(uri.path || "/"), query: nil}
+    |> URI.to_string()
   end
 
-  defp bucket_prefix(config, %URI{host: host}) do
-    bucket_name = normalized_bucket_name(config[:bucket_name])
+  defp normalize_public_url(%URI{} = uri, bucket_name) do
+    path =
+      [uri.path || "/", bucket_name]
+      |> Enum.join("/")
+      |> normalize_path()
+
+    %URI{uri | path: path, query: nil}
+    |> URI.to_string()
+  end
+
+  defp normalize_path(path) do
+    normalized = String.replace(path, ~r{/+}, "/")
 
     cond do
-      bucket_name != nil ->
-        {:ok, bucket_name}
-
-      endpoint_host_requires_bucket_name?(host) ->
-        {:error, {:missing_config, :bucket_name}}
-
-      true ->
-        {:ok, nil}
+      normalized == "" -> "/"
+      String.starts_with?(normalized, "/") -> normalized
+      true -> "/" <> normalized
     end
   end
 
@@ -168,67 +203,10 @@ defmodule Reseller.Media.Storage.Tigris do
 
   defp normalized_bucket_name(_bucket_name), do: nil
 
-  defp endpoint_host_requires_bucket_name?(host) when is_binary(host) do
-    host in ["t3.storage.dev", "fly.storage.tigris.dev"]
-  end
+  defp generic_endpoint_host?(host) when is_binary(host), do: host in @generic_endpoint_hosts
+  defp generic_endpoint_host?(_host), do: false
 
-  defp endpoint_host_requires_bucket_name?(_host), do: false
-
-  defp join_uri_path(base_path, nil, storage_key), do: join_uri_path(base_path, storage_key)
-
-  defp join_uri_path(base_path, bucket_prefix, storage_key) do
-    [base_path, bucket_prefix, storage_key]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join("/")
-    |> String.replace(~r{/+}, "/")
-    |> uri_encode_path()
-  end
-
-  defp join_uri_path(base_path, bucket_prefix), do: join_uri_path(base_path, bucket_prefix, nil)
-
-  defp uri_encode_path(path) do
-    path
-    |> String.split("/", trim: false)
-    |> Enum.map_join("/", fn segment ->
-      URI.encode(segment, fn char -> URI.char_unreserved?(char) end)
-    end)
-    |> normalize_encoded_path()
-  end
-
-  defp normalize_encoded_path(""), do: "/"
-
-  defp normalize_encoded_path(encoded) do
-    if String.starts_with?(encoded, "/") do
-      encoded
-    else
-      "/" <> encoded
-    end
-  end
-
-  defp canonical_query_string(params) do
-    params
-    |> Enum.sort_by(fn {key, _value} -> key end)
-    |> Enum.map_join("&", fn {key, value} ->
-      "#{URI.encode_www_form(key)}=#{URI.encode_www_form(value)}"
-    end)
-  end
-
-  defp build_signed_url(%URI{} = uri, canonical_uri, params) do
-    %URI{uri | path: canonical_uri, query: canonical_query_string(params)}
-    |> URI.to_string()
-  end
-
-  defp format_amz_date(datetime), do: Calendar.strftime(datetime, "%Y%m%dT%H%M%SZ")
-
-  defp signing_key(secret_access_key, date_stamp, region) do
-    ("AWS4" <> secret_access_key)
-    |> hmac(date_stamp)
-    |> hmac(region)
-    |> hmac(@service)
-    |> hmac("aws4_request")
-  end
-
-  defp hmac(key, data), do: :crypto.mac(:hmac, :sha256, key, data)
-
-  defp hex_encode(binary), do: Base.encode16(binary, case: :lower)
+  defp default_port("http"), do: 80
+  defp default_port("https"), do: 443
+  defp default_port(_scheme), do: nil
 end

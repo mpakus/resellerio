@@ -801,7 +801,7 @@ Used for:
 
 Adapter:
 
-- `Reseller.Media.Storage.Tigris`
+- `Reseller.Media.Storage.Tigris` using ExAws S3 against Tigris-compatible storage
 
 ### Photoroom
 

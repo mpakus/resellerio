@@ -49,6 +49,12 @@ config :reseller, Reseller.Media.Storage.Tigris,
   region: "auto",
   expires_in: 900
 
+config :ex_aws,
+  http_client: ExAws.Request.Req,
+  json_codec: Jason
+
+config :ex_aws, :req_opts, receive_timeout: 30_000
+
 config :reseller, Reseller.Workers,
   processing_mode: :async,
   product_processor: Reseller.Workers.AIProductProcessor

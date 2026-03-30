@@ -34,6 +34,7 @@ Implemented already:
 - Req-backed Gemini and SerpApi client modules with tests
 - Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
 - Product and product-image schemas plus signed upload intent generation
+- ExAws-backed Tigris S3 storage for presigned uploads and object PUTs
 - Uploaded-image finalization and product state transitions into `processing`
 - Product processing run records and lightweight background worker execution
 - Real AI-backed product processing that persists recognition fields and closes image states

@@ -64,7 +64,7 @@ The project is currently a mostly empty Phoenix application with the first API f
 - `Reseller.Catalog` now owns explicit product lifecycle mutations for edit, delete, sold, archive, and restore flows.
 - The repo now includes release-oriented Docker packaging for production-style container deployment.
 - Lightweight async worker orchestration exists today via `Reseller.Workers`, with room to grow into a more durable queue later.
-- Tigris-compatible presigned PUT upload signing exists via `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
+- ExAws-backed Tigris S3 upload signing and object PUT support now live in `Reseller.Media.Storage.Tigris`, but broader storage lifecycle handling is still pending.
 - `docs/ARCHITECTURE.md` now documents the live system architecture, persisted schemas, and core process flows.
 - `docs/UIUX.md` now defines the shared web interface design system and component vocabulary.
 
@@ -142,7 +142,7 @@ Avoid introducing both `asset` and `product` as first-class inventory concepts u
 ## Integration guidance
 
 - Use `Req` for external HTTP APIs such as AI services, Photoroom, and email-provider REST APIs.
-- For Tigris object storage, prefer an S3-compatible integration that supports signed upload/download URLs and metadata storage cleanly.
+- For Tigris object storage, prefer the shared ExAws-backed S3 integration in `Reseller.Media.Storage.Tigris` instead of rolling custom signing or ad hoc HTTP uploads.
 - Wrap external integrations behind behaviour-based modules so they can be mocked in tests and swapped later.
 - Capture external request IDs and normalized error payloads for observability.
 - Gemini and SerpApi foundations now exist. Reuse `Reseller.AI` and `Reseller.Search` instead of adding ad hoc API calls from controllers or workers.
