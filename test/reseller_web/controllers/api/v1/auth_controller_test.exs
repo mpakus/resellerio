@@ -2,6 +2,8 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
   use ResellerWeb.ConnCase, async: true
 
   alias Reseller.Accounts
+  alias Reseller.Accounts.ApiToken
+  alias Reseller.Repo
 
   describe "POST /api/v1/auth/register" do
     test "creates a user and returns a bearer token", %{conn: conn} do
@@ -31,6 +33,10 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
       assert is_binary(expires_at)
       assert is_integer(user_id)
       assert Enum.any?(supported_marketplaces, &(&1["id"] == "mercari"))
+
+      api_token = Repo.get_by!(ApiToken, user_id: user_id)
+      assert api_token.context == "mobile"
+      assert api_token.device_name == "iPhone"
     end
 
     test "ignores admin privilege escalation fields", %{conn: conn} do

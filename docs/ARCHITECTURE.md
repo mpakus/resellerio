@@ -309,14 +309,231 @@ The admin surface is intentionally separated from reseller-facing operations.
 
 ## 6. Database Architecture
 
-## 6.1 Entity relationship summary
+## 6.1 Mermaid ER diagrams
+
+The diagrams below reflect the current migrated PostgreSQL schema. Embedded Ecto request validators such as `upload_batches`, `finalize_upload_batches`, and `import_requests` are not database tables and are intentionally excluded.
+
+### Auth, inventory, and transfer tables
 
 ```mermaid
+%% title: Resellerio auth, inventory, and transfer schema
 erDiagram
-    users ||--o{ api_tokens : has
+    users {
+        bigint id PK
+        string email UK
+        string hashed_password
+        datetime confirmed_at
+        boolean is_admin
+        string_array selected_marketplaces
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    api_tokens {
+        bigint id PK
+        bigint user_id FK
+        binary token_hash UK
+        string context
+        string device_name
+        datetime expires_at
+        datetime last_used_at
+        datetime inserted_at
+    }
+
+    products {
+        bigint id PK
+        bigint user_id FK
+        string status
+        string source
+        string title
+        string brand
+        string category
+        string condition
+        string color
+        string size
+        string material
+        decimal price
+        decimal cost
+        string sku
+        string_array tags
+        text notes
+        text ai_summary
+        float ai_confidence
+        datetime sold_at
+        datetime archived_at
+        tsvector search_document
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    exports {
+        bigint id PK
+        bigint user_id FK
+        string name
+        string file_name
+        jsonb filter_params
+        integer product_count
+        string status
+        string storage_key
+        datetime expires_at
+        datetime requested_at
+        datetime completed_at
+        text error_message
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    imports {
+        bigint id PK
+        bigint user_id FK
+        string status
+        string source_filename
+        string source_storage_key
+        datetime requested_at
+        datetime started_at
+        datetime finished_at
+        integer total_products
+        integer imported_products
+        integer failed_products
+        text error_message
+        jsonb failure_details
+        jsonb payload
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    users ||--o{ api_tokens : issues
     users ||--o{ products : owns
     users ||--o{ exports : requests
     users ||--o{ imports : requests
+```
+
+### Media, AI, and marketplace tables
+
+```mermaid
+%% title: Resellerio product, media, and AI schema
+erDiagram
+    products {
+        bigint id PK
+        bigint user_id FK
+        string status
+        string source
+        string title
+        string brand
+        string category
+        string sku
+    }
+
+    product_images {
+        bigint id PK
+        bigint product_id FK
+        bigint lifestyle_generation_run_id FK
+        string kind
+        integer position
+        string storage_key UK
+        string content_type
+        integer width
+        integer height
+        integer byte_size
+        string checksum
+        string background_style
+        string processing_status
+        string original_filename
+        string scene_key
+        integer variant_index
+        int_array source_image_ids
+        boolean seller_approved
+        datetime approved_at
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    product_processing_runs {
+        bigint id PK
+        bigint product_id FK
+        string status
+        string step
+        datetime started_at
+        datetime finished_at
+        string error_code
+        text error_message
+        jsonb payload
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    product_lifestyle_generation_runs {
+        bigint id PK
+        bigint product_id FK
+        string status
+        string step
+        string scene_family
+        string model
+        string prompt_version
+        integer requested_count
+        integer completed_count
+        string error_code
+        text error_message
+        jsonb payload
+        datetime started_at
+        datetime finished_at
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    product_description_drafts {
+        bigint id PK
+        bigint product_id FK
+        string status
+        string provider
+        string model
+        string suggested_title
+        string short_description
+        text long_description
+        string_array key_features
+        string_array seo_keywords
+        string missing_details_warning
+        jsonb raw_payload
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    product_price_researches {
+        bigint id PK
+        bigint product_id FK
+        string status
+        string provider
+        string model
+        string currency
+        decimal suggested_min_price
+        decimal suggested_target_price
+        decimal suggested_max_price
+        decimal suggested_median_price
+        float pricing_confidence
+        text rationale_summary
+        string_array market_signals
+        jsonb comparable_results
+        jsonb raw_payload
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    marketplace_listings {
+        bigint id PK
+        bigint product_id FK
+        string marketplace
+        string status
+        string generated_title
+        text generated_description
+        string_array generated_tags
+        decimal generated_price_suggestion
+        string generation_version
+        string_array compliance_warnings
+        jsonb raw_payload
+        datetime last_generated_at
+        datetime inserted_at
+        datetime updated_at
+    }
 
     products ||--o{ product_images : has
     products ||--o{ product_processing_runs : has
@@ -327,344 +544,34 @@ erDiagram
     product_lifestyle_generation_runs ||--o{ product_images : tracks
 ```
 
-## 6.2 Tables and schemas
+## 6.2 Table inventory
 
-### `users`
-
-Schema module: `Reseller.Accounts.User`
-
-Purpose:
-
-- reseller account
-- browser-session principal
-- API token owner
-- admin flag carrier
-
-Key fields:
-
-| Field | Type | Notes |
+| Table | Ecto module | Purpose |
 | --- | --- | --- |
-| `email` | `string` | unique, normalized to lowercase |
-| `hashed_password` | `string` | required |
-| `confirmed_at` | `utc_datetime` | currently optional |
-| `is_admin` | `boolean` | default `false` |
-| `selected_marketplaces` | `string[]` | per-user marketplace-generation defaults |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraints:
-
-- unique index on `email`
-
-### `api_tokens`
-
-Schema module: `Reseller.Accounts.ApiToken`
-
-Purpose:
-
-- bearer-token auth for API clients
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `user_id` | FK -> `users` | required |
-| `token_hash` | `binary` | unique SHA-256 hash of the raw token |
-| `context` | `string` | currently defaults to `mobile` |
-| `device_name` | `string` | optional |
-| `expires_at` | `utc_datetime` | required |
-| `last_used_at` | `utc_datetime` | optional |
-| `inserted_at` | `utc_datetime` | no `updated_at` |
-
-Constraints:
-
-- index on `user_id`
-- unique index on `token_hash`
-
-### `products`
-
-Schema module: `Reseller.Catalog.Product`
-
-Purpose:
-
-- primary inventory record
-- aggregate root for media, AI output, listings, and processing runs
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `user_id` | FK -> `users` | required |
-| `status` | `string` | `draft`, `uploading`, `processing`, `review`, `ready`, `sold`, `archived` |
-| `source` | `string` | `manual`, `mobile`, `import`, `ai` |
-| `title` | `string` | optional but preferred |
-| `brand` / `category` / `condition` / `color` / `size` / `material` | `string` | editable product metadata |
-| `price` / `cost` | `decimal(12,2)` | user-entered commercial values |
-| `sku` | `string` | unique per user when present |
-| `tags` | `string[]` | seller-defined labels for search/filtering/grouping |
-| `notes` | `text` | reseller notes |
-| `ai_summary` | `text` | AI-generated short summary |
-| `ai_confidence` | `float` | normalized recognition confidence |
-| `sold_at` | `utc_datetime` | set when product is marked sold |
-| `archived_at` | `utc_datetime` | set when product is archived |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraints:
-
-- index on `user_id`
-- compound index on `user_id, status`
-- unique partial index on `user_id, sku` where `sku IS NOT NULL`
-
-Manual status rules:
-
-- sellers may set `draft`, `review`, `ready`, `sold`, and `archived`
-- system-only statuses `uploading` and `processing` remain pipeline-controlled
-- moving to `sold` sets `sold_at`
-- moving to `archived` sets `archived_at`
-- moving back to `draft`, `review`, or `ready` clears both timestamps
-
-### `product_images`
-
-Schema module: `Reseller.Media.ProductImage`
-
-Purpose:
-
-- original uploads
-- finalized uploads
-- processed variants
-- AI-generated lifestyle preview outputs
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | required |
-| `kind` | `string` | `original`, `background_removed`, legacy `white_background`, etc. |
-| `position` | `integer` | display/order position |
-| `storage_key` | `string` | object path in Tigris |
-| `content_type` | `string` | must be image content |
-| `width` / `height` | `integer` | optional image dimensions |
-| `byte_size` | `integer` | optional at create, populated on finalize/upload |
-| `checksum` | `string` | optional checksum of uploaded object |
-| `background_style` | `string` | processed variant style metadata |
-| `processing_status` | `string` | `pending_upload`, `uploaded`, `processing`, `ready`, `failed` |
-| `original_filename` | `string` | client or archive filename |
-| `lifestyle_generation_run_id` | FK -> `product_lifestyle_generation_runs` | nullable trace back to a dedicated lifestyle-image run |
-| `scene_key` | `string` | nullable scene identifier like `model_studio` |
-| `variant_index` | `integer` | nullable per-run image slot |
-| `source_image_ids` | `integer[]` | original/processed product-image ids used as generation inputs |
-| `seller_approved` | `boolean` | seller review flag for lifestyle-generated previews |
-| `approved_at` | `utc_datetime` | when a seller approved the preview for listing use |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraints:
-
-- index on `product_id`
-- unique index on `storage_key`
-- unique index on `product_id, kind, position`
-- index on `lifestyle_generation_run_id`
-- partial unique index on `lifestyle_generation_run_id, scene_key, variant_index`
-
-### `product_lifestyle_generation_runs`
-
-Schema module: `Reseller.AI.ProductLifestyleGenerationRun`
-
-Purpose:
-
-- dedicated bookkeeping for Gemini-backed lifestyle-image generation
-- separation from the main recognition/description/price/listing processing run lifecycle
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | required |
-| `status` | `string` | `queued`, `running`, `completed`, `partial`, `failed` |
-| `step` | `string` | stage such as `queued`, `lifestyle_generating`, `lifestyle_generated`, `lifestyle_partial`, `lifestyle_failed` |
-| `scene_family` | `string` | optional product/category scene family like `apparel` or `furniture` |
-| `model` | `string` | AI model identifier |
-| `prompt_version` | `string` | prompt-contract revision |
-| `requested_count` / `completed_count` | `integer` | requested vs successful generated-image count |
-| `error_code` | `string` | normalized failure code |
-| `error_message` | `text` | human-readable failure detail |
-| `payload` | `map` | machine-readable run details |
-| `started_at` / `finished_at` | `utc_datetime` | run timing |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Indexes:
-
-- `product_id`
-- `product_id, inserted_at`
-- `status`
-
-### `product_processing_runs`
-
-Schema module: `Reseller.Workers.ProductProcessingRun`
-
-Purpose:
-
-- asynchronous job bookkeeping for product processing
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | required |
-| `status` | `string` | `queued`, `running`, `completed`, `failed`, `stalled` |
-| `step` | `string` | current or terminal stage name |
-| `started_at` / `finished_at` | `utc_datetime` | run timing |
-| `error_code` | `string` | normalized error code |
-| `error_message` | `text` | human-readable failure detail |
-| `payload` | `map` | machine-readable run details |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Indexes:
-
-- `product_id`
-- `product_id, inserted_at`
-- `status`
-
-### `product_description_drafts`
-
-Schema module: `Reseller.AI.ProductDescriptionDraft`
-
-Purpose:
-
-- base AI-authored copy kept separate from editable product fields
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | unique, required |
-| `status` | `string` | `generated`, `review`, `failed` |
-| `provider` | `string` | e.g. Gemini |
-| `model` | `string` | model identifier |
-| `suggested_title` | `string` | generated title |
-| `short_description` | `string` | required |
-| `long_description` | `text` | optional |
-| `key_features` | `string[]` | structured bullets |
-| `seo_keywords` | `string[]` | generated keywords |
-| `missing_details_warning` | `string` | caution text |
-| `raw_payload` | `map` | provider payload snapshot |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraint:
-
-- unique index on `product_id`
-
-### `product_price_researches`
-
-Schema module: `Reseller.AI.ProductPriceResearch`
-
-Purpose:
-
-- generated pricing guidance and evidence, separate from `products.price`
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | unique, required |
-| `status` | `string` | `generated`, `review`, `failed` |
-| `provider` | `string` | AI provider |
-| `model` | `string` | model identifier |
-| `currency` | `string` | defaults to `USD` |
-| `suggested_min_price` / `suggested_target_price` / `suggested_max_price` / `suggested_median_price` | `decimal(12,2)` | advisory prices |
-| `pricing_confidence` | `float` | 0..1 |
-| `rationale_summary` | `text` | human-readable explanation |
-| `market_signals` | `string[]` | extracted pricing factors |
-| `comparable_results` | `map` | normalized match data |
-| `raw_payload` | `map` | provider payload snapshot |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraint:
-
-- unique index on `product_id`
-
-### `marketplace_listings`
-
-Schema module: `Reseller.Marketplaces.MarketplaceListing`
-
-Purpose:
-
-- marketplace-specific generated listing variants
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `product_id` | FK -> `products` | required |
-| `marketplace` | `string` | marketplace id such as `ebay`, `depop`, `mercari`, or `etsy` |
-| `status` | `string` | `generated`, `review`, `failed` |
-| `generated_title` | `string` | required |
-| `generated_description` | `text` | required |
-| `generated_tags` | `string[]` | tags/keywords |
-| `generated_price_suggestion` | `decimal(12,2)` | optional |
-| `generation_version` | `string` | model or generation version |
-| `compliance_warnings` | `string[]` | policy or formatting concerns |
-| `raw_payload` | `map` | provider snapshot |
-| `last_generated_at` | `utc_datetime` | recency tracking |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Constraint:
-
-- unique index on `product_id, marketplace`
-
-### `exports`
-
-Schema module: `Reseller.Exports.Export`
-
-Purpose:
-
-- ZIP export bookkeeping
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `user_id` | FK -> `users` | required |
-| `name` | `string` | saved user-facing export label |
-| `file_name` | `string` | ZIP filename used for download |
-| `filter_params` | `map` | normalized search/status/date/sort filters from Products |
-| `product_count` | `integer` | total matching products included in the archive |
-| `status` | `string` | `queued`, `running`, `completed`, `failed`, `stalled` |
-| `storage_key` | `string` | ZIP object key in Tigris |
-| `expires_at` | `utc_datetime` | artifact TTL boundary |
-| `requested_at` | `utc_datetime` | required |
-| `completed_at` | `utc_datetime` | terminal timestamp |
-| `error_message` | `text` | failure detail |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Index:
-
-- `user_id`
-
-### `imports`
-
-Schema module: `Reseller.Imports.Import`
-
-Purpose:
-
-- ZIP import bookkeeping
-
-Key fields:
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `user_id` | FK -> `users` | required |
-| `status` | `string` | `queued`, `running`, `completed`, `failed` |
-| `source_filename` | `string` | uploaded ZIP filename |
-| `source_storage_key` | `string` | stored source archive key |
-| `requested_at` / `started_at` / `finished_at` | `utc_datetime` | timing |
-| `total_products` / `imported_products` / `failed_products` | `integer` | counters |
-| `error_message` | `text` | failure summary |
-| `failure_details` | `map` | per-product failure items |
-| `payload` | `map` | extra import metadata |
-| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
-
-Index:
-
-- `user_id`
+| `users` | `Reseller.Accounts.User` | reseller accounts, browser auth principal, admin flag, marketplace defaults |
+| `api_tokens` | `Reseller.Accounts.ApiToken` | mobile/API bearer tokens with expiry and `last_used_at` tracking |
+| `products` | `Reseller.Catalog.Product` | aggregate root for inventory, AI data, media, exports, and lifecycle |
+| `product_images` | `Reseller.Media.ProductImage` | original uploads, processed variants, and lifestyle-generated previews |
+| `product_processing_runs` | `Reseller.Workers.ProductProcessingRun` | async AI pipeline bookkeeping for products |
+| `product_lifestyle_generation_runs` | `Reseller.AI.ProductLifestyleGenerationRun` | dedicated lifestyle-image generation bookkeeping |
+| `product_description_drafts` | `Reseller.AI.ProductDescriptionDraft` | AI-authored base titles and descriptions |
+| `product_price_researches` | `Reseller.AI.ProductPriceResearch` | AI-authored pricing guidance and evidence |
+| `marketplace_listings` | `Reseller.Marketplaces.MarketplaceListing` | marketplace-specific generated copy for one product |
+| `exports` | `Reseller.Exports.Export` | ZIP export request history, artifact metadata, stalled/failure state |
+| `imports` | `Reseller.Imports.Import` | ZIP import request history, counters, and failure details |
+
+## 6.3 Important constraints and indexes
+
+- `users.email` is unique.
+- `api_tokens.token_hash` is unique; `api_tokens.user_id` is indexed.
+- `products` has indexes on `user_id`, `user_id + status`, and a partial unique index on `user_id + sku` when `sku IS NOT NULL`.
+- `products.search_document` is a PostgreSQL `tsvector` maintained by the `products_search_document_update` trigger and indexed with `products_search_document_index`.
+- `product_images.storage_key` is unique.
+- `product_images` is unique on `product_id + kind + position`.
+- `product_images` also has a partial unique index on `lifestyle_generation_run_id + scene_key + variant_index`.
+- `product_description_drafts.product_id` and `product_price_researches.product_id` are one-to-one unique foreign keys.
+- `marketplace_listings` is unique on `product_id + marketplace`.
+- `exports.user_id`, `imports.user_id`, `product_processing_runs.status`, and `product_lifestyle_generation_runs.status` are indexed for read/reporting paths.
 
 ## 7. State Machines
 

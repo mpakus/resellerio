@@ -30,6 +30,32 @@ Error responses use:
 }
 ```
 
+## Authentication and Authorization
+
+Protected routes require an API bearer token created by `POST /api/v1/auth/register` or `POST /api/v1/auth/login`.
+
+Authentication rules:
+
+- Send `Authorization: Bearer <token>` on every protected request.
+- The auth scheme is accepted case-insensitively, so `Bearer` and `bearer` both work.
+- Tokens expire at the `expires_at` value returned by the auth endpoints.
+- Tokens are stored server-side with `context: "mobile"` and the optional `device_name` supplied by the client.
+- Successful protected requests update `api_tokens.last_used_at`.
+
+Authorization rules:
+
+- Missing, malformed, blank, or expired bearer tokens return `401`.
+- Ownership-scoped resources return `404` when they belong to a different user.
+- There is no refresh-token or logout API yet. Mobile clients should prompt for sign-in again after a `401`.
+
+Mobile request example:
+
+```text
+Authorization: Bearer eyJhbGciOi...
+Content-Type: application/json
+Accept: application/json
+```
+
 ## Current Endpoints
 
 ### `GET /api/v1`
@@ -148,7 +174,7 @@ Example response:
       {
         "method": "POST",
         "path": "/api/v1/exports",
-        "description": "Queues a ZIP export for the authenticated user."
+        "description": "Queues a filtered ZIP export for the authenticated user with optional saved name and filter params."
       },
       {
         "method": "GET",
@@ -158,7 +184,7 @@ Example response:
       {
         "method": "POST",
         "path": "/api/v1/imports",
-        "description": "Queues a ZIP import for the authenticated user."
+        "description": "Queues a Resellerio ZIP import for the authenticated user using Products.xls, manifest.json, and images."
       },
       {
         "method": "GET",
@@ -189,6 +215,8 @@ Example response:
 ### `POST /api/v1/auth/register`
 
 Creates a user account and returns a bearer token for the mobile client.
+
+`device_name` and `selected_marketplaces` are optional. `device_name` is recommended so issued tokens are traceable to a specific client installation.
 
 Request body:
 
@@ -239,6 +267,8 @@ Validation failures return `422` with field-level details.
 
 Authenticates a user with email and password and returns a new bearer token.
 
+`device_name` is optional but recommended for mobile installs.
+
 Request body:
 
 ```json
@@ -272,6 +302,8 @@ Required header:
 ```text
 Authorization: Bearer <token>
 ```
+
+`bearer <token>` is also accepted.
 
 Response:
 

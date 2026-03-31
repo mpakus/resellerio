@@ -26,7 +26,6 @@ defmodule ResellerWeb.WorkspaceLive do
      )
      |> assign(
        page_title: ResellerWeb.PageTitle.build("Dashboard", "Workspace"),
-       current_scope: nil,
        section_key: :dashboard,
        workspace_nav: [],
        stats: [],
