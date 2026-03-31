@@ -4,6 +4,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
   import Phoenix.LiveViewTest
 
   alias Reseller.Catalog
+  alias Reseller.Accounts
   alias Reseller.Exports
   alias Reseller.Imports
 
@@ -144,6 +145,34 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert_route_section(conn, "/app/listings", "#workspace-listings")
     assert_route_section(conn, "/app/exports", "#workspace-exports")
     assert_route_section(conn, "/app/settings", "#workspace-settings")
+  end
+
+  test "updates marketplace defaults from the settings screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/settings")
+
+    assert has_element?(view, "#marketplace-settings-form")
+    assert has_element?(view, "#selected-marketplace-count", "3 selected")
+
+    view
+    |> form("#marketplace-settings-form", %{
+      "settings" => %{
+        "selected_marketplaces" => ["ebay", "mercari", "etsy"]
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#flash-info",
+             "Marketplace defaults updated for future processing runs."
+           )
+
+    assert has_element?(view, "#selected-marketplace-count", "3 selected")
+
+    assert Accounts.get_user!(user.id).selected_marketplaces == ["ebay", "mercari", "etsy"]
   end
 
   defp assert_route_section(conn, path, selector) do

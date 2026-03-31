@@ -171,8 +171,8 @@ If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy 
   The AI pipeline now prefers signed download URLs for Gemini and Photoroom, so the bucket no longer has to be fully public for background processing to work
 
 - `PHOTOROOM_API_KEY`
-  Photoroom API key used for background removal and white-background image variants
-  If this is missing, the main AI pipeline still completes, but `background_removed` / `white_background` variants are skipped and the processing run records a variant-generation failure
+  Photoroom API key used for background removal image variants
+  If this is missing, the main AI pipeline still completes, but `background_removed` variants are skipped and the processing run records a variant-generation failure
 
 ### Optional Runtime Variables
 
@@ -198,8 +198,9 @@ If you want to override the default Gemini model per operation, set any of:
 - `GEMINI_MODEL_MARKETPLACE_LISTING`
 - `GEMINI_MODEL_PRICE_RESEARCH`
 - `GEMINI_MODEL_RECONCILIATION`
+- `GEMINI_MODEL_LIFESTYLE_IMAGE`
 
-Current defaults in runtime config are all `gemini-2.5-flash`.
+Current defaults in runtime config are `gemini-2.5-flash` for recognition, description, marketplace, price-research, and reconciliation requests, plus `gemini-2.5-flash-image` for lifestyle-image generation.
 
 ### Optional Gemini Retry Controls
 
@@ -304,7 +305,7 @@ The compose setup will:
 - recognized products can now also receive a generated `product_description_draft` during the same processing run
 - recognized products can now also receive a generated `product_price_research` during the same processing run
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
-- recognized products can now also receive Photoroom-backed `background_removed` and `white_background` image variants during the same processing run
+- recognized products can now also receive a Photoroom-backed `background_removed` image variant during the same processing run
 - authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
 - authenticated users can now import Resellerio ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
 - authenticated users can now update product details, delete products, mark products as sold, archive them, and restore archived products through explicit lifecycle endpoints

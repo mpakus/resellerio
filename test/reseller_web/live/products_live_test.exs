@@ -207,6 +207,22 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert List.first(refreshed_product.processing_runs).status == "completed"
   end
 
+  test "review page seeds ai tags and renders copy controls for editable text fields", %{
+    conn: conn
+  } do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = variant_failure_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product_tags")
+    assert render(view) =~ "nike, sneakers, retro, runners, streetwear"
+    assert has_element?(view, "#product_title-copy")
+    assert has_element?(view, "#product_tags-copy")
+    assert has_element?(view, "#product_notes-copy")
+  end
+
   test "review page shows a visual pipeline tracker while processing", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     product = processing_product_fixture(user)
@@ -215,9 +231,12 @@ defmodule ResellerWeb.ProductsLiveTest do
     {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
 
     assert has_element?(view, "#product-pipeline-progress")
+    assert has_element?(view, "#pipeline-progressbar[role=\"progressbar\"]")
     assert has_element?(view, "#pipeline-step-uploads-state", "Done")
     assert has_element?(view, "#pipeline-step-ai_extraction-state", "In progress")
     assert has_element?(view, "#pipeline-step-price_search-state", "Pending")
+    assert has_element?(view, "#pipeline-step-lifestyle_previews-state", "Pending")
+    assert render(view) =~ "reseller-progress-bar-active"
   end
 
   test "review page shows variant generation errors from processing runs", %{conn: conn} do
@@ -232,7 +251,143 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert has_element?(view, "#pipeline-step-marketplace_texts-state", "Done")
     assert has_element?(view, "#pipeline-step-image_processing-state", "Warning")
     assert has_element?(view, "#pipeline-step-review-state", "Done")
+    assert has_element?(view, "#pipeline-step-lifestyle_previews-state", "Optional")
+    assert has_element?(view, "#product-lifestyle-preview-empty")
     assert render(view) =~ "variants_failed"
+  end
+
+  test "review page renders marketplace listings as stacked cards with copy actions", %{
+    conn: conn
+  } do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = variant_failure_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    [listing | _rest] = product.marketplace_listings
+
+    assert has_element?(view, "#copy-marketplace-title-#{listing.id}", "Copy title")
+
+    assert has_element?(
+             view,
+             "#copy-marketplace-description-#{listing.id}",
+             "Copy description"
+           )
+
+    assert has_element?(view, "#marketplace-title-#{listing.id}", listing.generated_title)
+
+    assert has_element?(
+             view,
+             "#marketplace-description-#{listing.id}",
+             listing.generated_description
+           )
+
+    assert render(view) =~ "#nike"
+    refute render(view) =~ "Hashtags"
+  end
+
+  test "review page lets sellers delete old images and upload replacements", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = finalized_review_product_fixture(user)
+    [original_image] = product.images
+
+    assert {:ok, [_background_removed]} =
+             Reseller.Media.generate_product_variants(product,
+               public_base_url: "https://cdn.example.com/catalog",
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage
+             )
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product-image-group-#{original_image.id}")
+    assert has_element?(view, "#delete-product-image-#{original_image.id}", "Delete")
+
+    view
+    |> element("#delete-product-image-#{original_image.id}")
+    |> render_click()
+
+    assert has_element?(view, "#product-image-gallery-empty")
+
+    deleted_product = Catalog.get_product_for_user(user, product.id)
+    assert deleted_product.status == "draft"
+    assert deleted_product.images == []
+
+    upload =
+      file_input(view, "#product-image-upload-form", :product_images, [
+        %{name: "replacement.jpg", content: "replacement-image-binary", type: "image/jpeg"}
+      ])
+
+    assert render_upload(upload, "replacement.jpg") =~ "replacement.jpg"
+
+    view
+    |> form("#product-image-upload-form")
+    |> render_submit()
+
+    assert has_element?(view, "#product-processing-banner")
+    assert has_element?(view, "#flash-info", "Images uploaded. AI processing restarted.")
+
+    uploaded_product = Catalog.get_product_for_user(user, product.id)
+
+    assert uploaded_product.status == "processing"
+    assert Enum.map(uploaded_product.images, & &1.kind) == ["original"]
+    assert Enum.map(uploaded_product.images, & &1.original_filename) == ["replacement.jpg"]
+  end
+
+  test "review page shows lifestyle generation runs and generated image labels", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = lifestyle_generation_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product-lifestyle-generation-runs")
+    assert has_element?(view, "#pipeline-step-lifestyle_previews-state", "Done")
+    assert has_element?(view, "#product-image-gallery", "Original")
+
+    assert has_element?(
+             view,
+             "#product-lifestyle-preview-gallery",
+             "AI-generated real-life preview"
+           )
+
+    assert render(view) =~ "Step 8 · Real-life previews"
+    assert render(view) =~ "Lifestyle image runs"
+  end
+
+  test "review page can generate, approve, and delete lifestyle previews", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = finalized_review_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#generate-lifestyle-images-button", "Generate previews")
+
+    view
+    |> element("#generate-lifestyle-images-button")
+    |> render_click()
+
+    assert has_element?(view, "#product-lifestyle-preview-gallery")
+    assert has_element?(view, "#product-lifestyle-generation-runs")
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+    generated_image = Enum.find(refreshed_product.images, &(&1.kind == "lifestyle_generated"))
+
+    view
+    |> element("#approve-lifestyle-image-#{generated_image.id}")
+    |> render_click()
+
+    assert has_element?(view, "#lifestyle-preview-image-#{generated_image.id}", "Approved")
+
+    view
+    |> element("#delete-lifestyle-image-#{generated_image.id}")
+    |> render_click()
+
+    refute has_element?(view, "#lifestyle-preview-image-#{generated_image.id}")
   end
 
   defp assert_in_order(html, first, second) do
@@ -343,7 +498,7 @@ defmodule ResellerWeb.ProductsLiveTest do
              model: "gemini-description",
              output: %{
                "suggested_title" => "Nike Air Max 90",
-               "short_description" => "Short copy"
+               "short_description" => "Retro runners streetwear"
              }
            }},
         shopping_result: {:ok, %{provider: :serp_api, matches: []}},
@@ -367,6 +522,7 @@ defmodule ResellerWeb.ProductsLiveTest do
                output: %{
                  "generated_title" => "eBay title",
                  "generated_description" => "desc",
+                 "generated_tags" => ["nike", "sneakers", "streetwear"],
                  "generated_price_suggestion" => 125
                }
              }},
@@ -378,6 +534,7 @@ defmodule ResellerWeb.ProductsLiveTest do
                output: %{
                  "generated_title" => "Depop title",
                  "generated_description" => "desc",
+                 "generated_tags" => ["nike", "runners", "y2k"],
                  "generated_price_suggestion" => 124
                }
              }},
@@ -389,6 +546,7 @@ defmodule ResellerWeb.ProductsLiveTest do
                output: %{
                  "generated_title" => "Poshmark title",
                  "generated_description" => "desc",
+                 "generated_tags" => ["nike", "chunky", "athleisure"],
                  "generated_price_suggestion" => 126
                }
              }}
@@ -397,5 +555,77 @@ defmodule ResellerWeb.ProductsLiveTest do
       )
 
     Catalog.get_product_for_user(user, product.id)
+  end
+
+  defp lifestyle_generation_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Lifestyle sample"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    {:ok, run} =
+      Reseller.AI.create_product_lifestyle_generation_run(finalized_product, %{
+        "status" => "completed",
+        "step" => "lifestyle_generated",
+        "scene_family" => "apparel",
+        "model" => "gemini-2.5-flash-image",
+        "prompt_version" => "v1",
+        "requested_count" => 1,
+        "completed_count" => 1,
+        "payload" => %{"summary" => "Generated one lifestyle preview."}
+      })
+
+    {:ok, _generated_image} =
+      Reseller.Media.create_lifestyle_generated_image(finalized_product, %{
+        "storage_key" =>
+          "users/#{user.id}/products/#{finalized_product.id}/generated/preview-1.png",
+        "content_type" => "image/png",
+        "byte_size" => 321_000,
+        "checksum" => "preview123",
+        "width" => 1024,
+        "height" => 1280,
+        "original_filename" => "preview-1.png",
+        "lifestyle_generation_run_id" => run.id,
+        "scene_key" => "model_studio",
+        "variant_index" => 1,
+        "source_image_ids" => [image.id]
+      })
+
+    Catalog.get_product_for_user(user, finalized_product.id)
+  end
+
+  defp finalized_review_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Manual lifestyle review"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^finalized_product.id)
+    |> Repo.update_all(set: [status: "ready"])
+
+    from(i in Reseller.Media.ProductImage, where: i.product_id == ^finalized_product.id)
+    |> Repo.update_all(set: [processing_status: "ready"])
+
+    Catalog.get_product_for_user(user, finalized_product.id)
   end
 end

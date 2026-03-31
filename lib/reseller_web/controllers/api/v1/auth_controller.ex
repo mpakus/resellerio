@@ -2,6 +2,7 @@ defmodule ResellerWeb.API.V1.AuthController do
   use ResellerWeb, :controller
 
   alias Reseller.Accounts
+  alias ResellerWeb.API.V1.UserJSON
   alias ResellerWeb.APIError
 
   def register(conn, params) do
@@ -31,12 +32,8 @@ defmodule ResellerWeb.API.V1.AuthController do
     %{
       token: token,
       token_type: "Bearer",
-      expires_at: DateTime.to_iso8601(expires_at),
-      user: %{
-        id: user.id,
-        email: user.email,
-        confirmed_at: user.confirmed_at && DateTime.to_iso8601(user.confirmed_at)
-      }
+      expires_at: DateTime.to_iso8601(expires_at)
     }
+    |> Map.merge(UserJSON.response(user))
   end
 end

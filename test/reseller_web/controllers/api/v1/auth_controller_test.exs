@@ -15,12 +15,14 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
       assert %{
                "data" => %{
                  "expires_at" => expires_at,
+                 "supported_marketplaces" => supported_marketplaces,
                  "token" => token,
                  "token_type" => "Bearer",
                  "user" => %{
                    "email" => "seller@example.com",
                    "id" => user_id,
-                   "confirmed_at" => nil
+                   "confirmed_at" => nil,
+                   "selected_marketplaces" => ["ebay", "depop", "poshmark"]
                  }
                }
              } = json_response(conn, 200)
@@ -28,6 +30,7 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
       assert is_binary(token)
       assert is_binary(expires_at)
       assert is_integer(user_id)
+      assert Enum.any?(supported_marketplaces, &(&1["id"] == "mercari"))
     end
 
     test "ignores admin privilege escalation fields", %{conn: conn} do
@@ -38,7 +41,15 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
           "is_admin" => true
         })
 
-      assert %{"data" => %{"user" => %{"email" => "seller@example.com", "id" => user_id}}} =
+      assert %{
+               "data" => %{
+                 "user" => %{
+                   "email" => "seller@example.com",
+                   "id" => user_id,
+                   "selected_marketplaces" => ["ebay", "depop", "poshmark"]
+                 }
+               }
+             } =
                json_response(conn, 200)
 
       refute Accounts.get_user!(user_id).is_admin
@@ -84,11 +95,16 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
                "data" => %{
                  "token" => token,
                  "token_type" => "Bearer",
-                 "user" => %{"email" => "seller@example.com"}
+                 "supported_marketplaces" => supported_marketplaces,
+                 "user" => %{
+                   "email" => "seller@example.com",
+                   "selected_marketplaces" => ["ebay", "depop", "poshmark"]
+                 }
                }
              } = json_response(conn, 200)
 
       assert is_binary(token)
+      assert Enum.any?(supported_marketplaces, &(&1["id"] == "etsy"))
     end
 
     test "rejects invalid credentials", %{conn: conn} do

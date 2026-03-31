@@ -77,7 +77,7 @@ defmodule ResellerWeb.HomeLive do
                 AI recognition
               </span>
               <span class="inline-flex items-center rounded-full border border-base-300 bg-base-200/80 px-4 py-3 font-medium">
-                eBay / Depop / Poshmark
+                eBay / Depop / Mercari / more
               </span>
             </div>
           </div>
@@ -140,7 +140,7 @@ defmodule ResellerWeb.HomeLive do
                       One product, tuned for each storefront.
                     </p>
                     <p class="text-sm text-neutral-content/72">
-                      Draft listing copy for eBay, Depop, and Poshmark without retyping the same story.
+                      Draft listing copy for the marketplaces you actually use without retyping the same story.
                     </p>
                   </div>
                   <div class="grid gap-3">
@@ -155,9 +155,9 @@ defmodule ResellerWeb.HomeLive do
                       <p class="mt-2 text-xs text-neutral-content/70">Style-forward tone + tags</p>
                     </div>
                     <div class="rounded-[1.25rem] bg-white/8 p-4">
-                      <p class="text-sm font-semibold">Poshmark</p>
+                      <p class="text-sm font-semibold">Mercari</p>
                       <p class="mt-2 text-xs text-neutral-content/70">
-                        Concise copy + buyer-friendly highlights
+                        Short mobile-first copy + quick-sell details
                       </p>
                     </div>
                   </div>

@@ -17,7 +17,8 @@ Core business goal:
 3. run AI recognition and enrichment
 4. generate marketplace-ready listing drafts
 5. optionally create processed image variants
-6. support export/import of reseller archives
+6. optionally generate AI lifestyle preview images
+7. support export/import of reseller archives
 
 ## 2. System Overview
 
@@ -98,6 +99,7 @@ Responsibilities:
 - password verification
 - browser session support
 - API bearer token issuing and validation
+- per-user marketplace-generation defaults
 - admin grants
 
 Primary modules:
@@ -150,17 +152,22 @@ Responsibilities:
 - normalization of AI output
 - description generation
 - price research generation
+- lifestyle-image generation run tracking
 - provider abstraction
 
 Primary modules:
 
 - `Reseller.AI`
+- `Reseller.AI.GeneratedImage`
+- `Reseller.AI.LifestylePromptBuilder`
 - `Reseller.AI.Provider`
 - `Reseller.AI.RecognitionPipeline`
 - `Reseller.AI.ImageSelection`
 - `Reseller.AI.Normalizer`
 - `Reseller.AI.ProductDescriptionDraft`
+- `Reseller.AI.ProductLifestyleGenerationRun`
 - `Reseller.AI.ProductPriceResearch`
+- `Reseller.AI.ScenePlanner`
 - `Reseller.AI.Providers.Gemini`
 
 ### `Reseller.Search`
@@ -182,7 +189,12 @@ Primary modules:
 Responsibilities:
 
 - per-marketplace generated listing persistence
-- supported marketplace set
+- supported marketplace catalog
+- marketplace label normalization for UI and API consumers
+
+Reference docs:
+
+- `docs/MARKETS.md`
 
 Primary modules:
 
@@ -204,6 +216,7 @@ Primary modules:
 - `Reseller.Workers.ProductProcessingWorker`
 - `Reseller.Workers.ProductProcessor`
 - `Reseller.Workers.AIProductProcessor`
+- `Reseller.Workers.LifestyleImageGenerator`
 
 ### `Reseller.Exports`
 
@@ -261,6 +274,7 @@ The workspace LiveView currently supports:
 - product editing
 - product lifecycle actions
 - marketplace listing review
+- marketplace target settings
 - export requests
 - ZIP import uploads
 
@@ -269,6 +283,7 @@ The workspace LiveView currently supports:
 Current authenticated API surface:
 
 - `GET /api/v1/me`
+- `PATCH /api/v1/me`
 - `GET /api/v1/products`
 - `POST /api/v1/products`
 - `GET /api/v1/products/:id`
@@ -305,9 +320,11 @@ erDiagram
 
     products ||--o{ product_images : has
     products ||--o{ product_processing_runs : has
+    products ||--o{ product_lifestyle_generation_runs : has
     products ||--|| product_description_drafts : has_one
     products ||--|| product_price_researches : has_one
     products ||--o{ marketplace_listings : has
+    product_lifestyle_generation_runs ||--o{ product_images : tracks
 ```
 
 ## 6.2 Tables and schemas
@@ -331,6 +348,7 @@ Key fields:
 | `hashed_password` | `string` | required |
 | `confirmed_at` | `utc_datetime` | currently optional |
 | `is_admin` | `boolean` | default `false` |
+| `selected_marketplaces` | `string[]` | per-user marketplace-generation defaults |
 | `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
 
 Constraints:
@@ -413,13 +431,14 @@ Purpose:
 - original uploads
 - finalized uploads
 - processed variants
+- AI-generated lifestyle preview outputs
 
 Key fields:
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `product_id` | FK -> `products` | required |
-| `kind` | `string` | `original`, `background_removed`, `white_background`, etc. |
+| `kind` | `string` | `original`, `background_removed`, legacy `white_background`, etc. |
 | `position` | `integer` | display/order position |
 | `storage_key` | `string` | object path in Tigris |
 | `content_type` | `string` | must be image content |
@@ -429,6 +448,12 @@ Key fields:
 | `background_style` | `string` | processed variant style metadata |
 | `processing_status` | `string` | `pending_upload`, `uploaded`, `processing`, `ready`, `failed` |
 | `original_filename` | `string` | client or archive filename |
+| `lifestyle_generation_run_id` | FK -> `product_lifestyle_generation_runs` | nullable trace back to a dedicated lifestyle-image run |
+| `scene_key` | `string` | nullable scene identifier like `model_studio` |
+| `variant_index` | `integer` | nullable per-run image slot |
+| `source_image_ids` | `integer[]` | original/processed product-image ids used as generation inputs |
+| `seller_approved` | `boolean` | seller review flag for lifestyle-generated previews |
+| `approved_at` | `utc_datetime` | when a seller approved the preview for listing use |
 | `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
 
 Constraints:
@@ -436,6 +461,40 @@ Constraints:
 - index on `product_id`
 - unique index on `storage_key`
 - unique index on `product_id, kind, position`
+- index on `lifestyle_generation_run_id`
+- partial unique index on `lifestyle_generation_run_id, scene_key, variant_index`
+
+### `product_lifestyle_generation_runs`
+
+Schema module: `Reseller.AI.ProductLifestyleGenerationRun`
+
+Purpose:
+
+- dedicated bookkeeping for Gemini-backed lifestyle-image generation
+- separation from the main recognition/description/price/listing processing run lifecycle
+
+Key fields:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `product_id` | FK -> `products` | required |
+| `status` | `string` | `queued`, `running`, `completed`, `partial`, `failed` |
+| `step` | `string` | stage such as `queued`, `lifestyle_generating`, `lifestyle_generated`, `lifestyle_partial`, `lifestyle_failed` |
+| `scene_family` | `string` | optional product/category scene family like `apparel` or `furniture` |
+| `model` | `string` | AI model identifier |
+| `prompt_version` | `string` | prompt-contract revision |
+| `requested_count` / `completed_count` | `integer` | requested vs successful generated-image count |
+| `error_code` | `string` | normalized failure code |
+| `error_message` | `text` | human-readable failure detail |
+| `payload` | `map` | machine-readable run details |
+| `started_at` / `finished_at` | `utc_datetime` | run timing |
+| `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
+
+Indexes:
+
+- `product_id`
+- `product_id, inserted_at`
+- `status`
 
 ### `product_processing_runs`
 
@@ -535,7 +594,7 @@ Key fields:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `product_id` | FK -> `products` | required |
-| `marketplace` | `string` | `ebay`, `depop`, `poshmark` |
+| `marketplace` | `string` | marketplace id such as `ebay`, `depop`, `mercari`, or `etsy` |
 | `status` | `string` | `generated`, `review`, `failed` |
 | `generated_title` | `string` | required |
 | `generated_description` | `text` | required |
@@ -703,7 +762,8 @@ flowchart TD
     K --> L["Generate marketplace listings"]
     L --> M["Generate image variants"]
     M --> N["Mark images ready"]
-    N --> O["Run completed"]
+    N --> O["Generate lifestyle preview images (optional)"]
+    O --> P["Run completed"]
 ```
 
 Detailed steps:
@@ -715,16 +775,23 @@ Detailed steps:
 5. Reconciled result is normalized and persisted onto `products`
 6. Description draft is generated and upserted
 7. Price research is generated using AI plus normalized search evidence
-8. Marketplace listings are generated per supported marketplace
+8. Marketplace listings are generated per selected marketplace on the owning user
 9. Photoroom-backed image variants are attempted
 10. Original images in processing are marked `ready`
-11. Run is marked `completed` with detailed payload
+11. If `Reseller.AI.lifestyle_generation_enabled?/1` is enabled, category-aware Gemini lifestyle prompts run against up to three cleaned or original source images
+12. Run is marked `completed` with detailed payload including any lifestyle-generation summary
 
 Failure path:
 
 1. worker marks in-flight images `failed`
 2. product is moved to `review`
 3. run is marked `failed` with code, message, and payload
+
+Optional lifestyle-generation behavior:
+
+- this step runs after the product is already usable
+- partial or failed lifestyle generation does not roll back the product to an unusable state
+- a dedicated `product_lifestyle_generation_runs` row captures scene-level success and failure details separately from the main processing run
 
 ## 8.5 ZIP export flow
 
@@ -808,7 +875,6 @@ Adapter:
 Used for:
 
 - background removal
-- white-background variant generation
 
 Adapter:
 
@@ -830,7 +896,7 @@ Used for:
 - SerpApi base URL
 - media provider modules
 - worker mode and processor module
-- marketplace list
+- supported and default marketplace lists
 - export builder/notifier
 - Backpex
 

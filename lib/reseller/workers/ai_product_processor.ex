@@ -11,7 +11,9 @@ defmodule Reseller.Workers.AIProductProcessor do
   alias Reseller.Catalog.Product
   alias Reseller.Marketplaces
   alias Reseller.Media
+  alias Reseller.Repo
   alias Reseller.Search
+  alias Reseller.Workers.LifestyleImageGenerator
 
   @impl true
   def process(%Product{} = product, opts) do
@@ -37,17 +39,21 @@ defmodule Reseller.Workers.AIProductProcessor do
            ),
          variant_generation = generate_image_variants(updated_product, opts),
          {:ok, _updated_count} <- Media.mark_product_images_ready(updated_product) do
+      ready_product = Repo.preload(updated_product, :images, force: true)
+      lifestyle_generation = generate_lifestyle_images(ready_product, opts)
+
       {:ok,
        %{
-         step: variant_generation_step(variant_generation),
+         step: processing_step(variant_generation, lifestyle_generation),
          payload:
            build_payload(
-             updated_product,
+             ready_product,
              result,
              description_draft,
              price_research,
              marketplace_listings,
-             variant_generation
+             variant_generation,
+             lifestyle_generation
            )
        }}
     else
@@ -102,7 +108,8 @@ defmodule Reseller.Workers.AIProductProcessor do
          description_draft,
          price_research,
          marketplace_listings,
-         variant_generation
+         variant_generation,
+         lifestyle_generation
        ) do
     %{
       "pipeline_status" => Atom.to_string(result.status),
@@ -127,6 +134,7 @@ defmodule Reseller.Workers.AIProductProcessor do
       },
       "marketplace_listings" => Enum.map(marketplace_listings, &marketplace_listing_payload/1),
       "variant_generation" => variant_generation,
+      "lifestyle_generation" => lifestyle_generation,
       "product" => %{
         "id" => product.id,
         "status" => product.status,
@@ -163,6 +171,17 @@ defmodule Reseller.Workers.AIProductProcessor do
   defp variant_generation_step(%{"status" => "generated"}), do: "variants_generated"
   defp variant_generation_step(_variant_generation), do: "variants_failed"
 
+  defp processing_step(_variant_generation, %{"status" => "generated"}), do: "lifestyle_generated"
+  defp processing_step(_variant_generation, %{"status" => "partial"}), do: "lifestyle_partial"
+  defp processing_step(_variant_generation, %{"status" => "failed"}), do: "lifestyle_failed"
+
+  defp processing_step(variant_generation, _lifestyle_generation),
+    do: variant_generation_step(variant_generation)
+
+  defp generate_lifestyle_images(%Product{} = product, opts) do
+    LifestyleImageGenerator.generate(product, opts)
+  end
+
   defp generate_marketplace_listings(
          %Product{} = product,
          final_result,
@@ -170,7 +189,7 @@ defmodule Reseller.Workers.AIProductProcessor do
          price_research,
          opts
        ) do
-    marketplaces = Marketplaces.supported_marketplaces(opts)
+    marketplaces = Marketplaces.selected_marketplaces(opts)
 
     marketplaces
     |> Enum.reduce_while({:ok, []}, fn marketplace, {:ok, listings} ->

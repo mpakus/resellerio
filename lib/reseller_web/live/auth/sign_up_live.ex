@@ -40,7 +40,7 @@ defmodule ResellerWeb.Auth.SignUpLive do
                 Review AI-generated details before anything becomes a finished listing.
               </.surface>
               <.surface tag="div" variant="ghost" padding="md">
-                Prepare copy for eBay, Depop, and Poshmark in one place.
+                Prepare copy for the marketplaces you choose in one place.
               </.surface>
             </div>
           </div>

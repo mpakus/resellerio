@@ -2,6 +2,8 @@ defmodule Reseller.Catalog do
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
+  alias Reseller.AI
+  alias Reseller.Accounts
   alias Reseller.Accounts.User
   alias Reseller.Catalog.Product
   alias Reseller.Media
@@ -189,13 +191,42 @@ defmodule Reseller.Catalog do
       product ->
         with {:ok, %{product: product, finalized_images: finalized_images}} <-
                Media.finalize_product_uploads(Repo, product, uploads),
-             {:ok, processing_run} <- maybe_start_processing(product) do
+             {:ok, processing_run} <- maybe_start_processing(product, user) do
           {:ok,
            %{
              product: refresh_product(product),
              finalized_images: finalized_images,
              processing_run: processing_run
            }}
+        end
+    end
+  end
+
+  def prepare_product_uploads_for_user(%User{} = user, product_id, uploads, opts \\ [])
+      when is_list(uploads) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        with :ok <- ensure_product_image_management_allowed(product),
+             {:ok, upload_bundle} <- Media.prepare_product_uploads(Repo, product, uploads, opts) do
+          {:ok, %{product: refresh_product(product), upload_bundle: upload_bundle}}
+        end
+    end
+  end
+
+  def delete_product_image_for_user(%User{} = user, product_id, image_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        with :ok <- ensure_product_image_management_allowed(product),
+             {:ok, _result} <- Media.delete_product_image(product, image_id) do
+          product
+          |> refresh_product()
+          |> reconcile_product_status_after_image_change()
         end
     end
   end
@@ -232,8 +263,61 @@ defmodule Reseller.Catalog do
         with {:ok, _count} <- Media.mark_product_images_retryable(product),
              {:ok, processing_product} <-
                update_status_for_product(product, %{"status" => "processing"}),
-             {:ok, processing_run} <- Workers.start_product_processing(processing_product, opts) do
+             {:ok, processing_run} <-
+               Workers.start_product_processing(
+                 processing_product,
+                 Keyword.put_new(opts, :marketplaces, Accounts.selected_marketplaces(user))
+               ) do
           {:ok, %{product: refresh_product(processing_product), processing_run: processing_run}}
+        end
+    end
+  end
+
+  def list_lifestyle_generation_runs_for_user(%User{} = user, product_id) do
+    case get_product_for_user(user, product_id) do
+      nil -> {:error, :not_found}
+      product -> {:ok, AI.list_product_lifestyle_generation_runs(product.id)}
+    end
+  end
+
+  def generate_lifestyle_images_for_user(%User{} = user, product_id, opts \\ []) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        with :ok <- ensure_lifestyle_generation_allowed(product),
+             {:ok, lifestyle_run} <- Workers.start_product_lifestyle_generation(product, opts) do
+          {:ok,
+           %{
+             product: refresh_product(product),
+             lifestyle_generation_run:
+               lifestyle_run && Repo.preload(lifestyle_run, :generated_images)
+           }}
+        end
+    end
+  end
+
+  def approve_lifestyle_image_for_user(%User{} = user, product_id, image_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        with {:ok, _image} <- Media.approve_lifestyle_generated_image(product, image_id) do
+          {:ok, refresh_product(product)}
+        end
+    end
+  end
+
+  def delete_lifestyle_image_for_user(%User{} = user, product_id, image_id) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        with {:ok, _image} <- Media.delete_lifestyle_generated_image(product, image_id) do
+          {:ok, refresh_product(product)}
         end
     end
   end
@@ -314,6 +398,10 @@ defmodule Reseller.Catalog do
       :marketplace_listings,
       images:
         from(image in Reseller.Media.ProductImage, order_by: [asc: image.position, asc: image.id]),
+      lifestyle_generation_runs:
+        from(run in Reseller.AI.ProductLifestyleGenerationRun,
+          order_by: [desc: run.inserted_at, desc: run.id]
+        ),
       processing_runs:
         from(run in Reseller.Workers.ProductProcessingRun,
           order_by: [desc: run.inserted_at, desc: run.id]
@@ -321,13 +409,37 @@ defmodule Reseller.Catalog do
     ]
   end
 
-  defp maybe_start_processing(%Product{status: "processing"} = product) do
-    Workers.start_product_processing(product)
+  defp ensure_lifestyle_generation_allowed(%Product{images: []}), do: {:error, :no_product_images}
+
+  defp ensure_lifestyle_generation_allowed(%Product{status: status})
+       when status in ~w(review ready sold archived),
+       do: :ok
+
+  defp ensure_lifestyle_generation_allowed(_product), do: {:error, :invalid_product_state}
+
+  defp ensure_product_image_management_allowed(%Product{status: status})
+       when status in ~w(draft review ready),
+       do: :ok
+
+  defp ensure_product_image_management_allowed(_product), do: {:error, :invalid_product_state}
+
+  defp maybe_start_processing(%Product{status: "processing"} = product, %User{} = user) do
+    Workers.start_product_processing(product,
+      marketplaces: Accounts.selected_marketplaces(user)
+    )
   end
 
-  defp maybe_start_processing(_product), do: {:ok, nil}
+  defp maybe_start_processing(_product, _user), do: {:ok, nil}
 
   defp refresh_product(product), do: Repo.preload(product, product_preload(), force: true)
+
+  defp reconcile_product_status_after_image_change(%Product{} = product) do
+    if Enum.any?(product.images, &(&1.kind == "original")) do
+      {:ok, product}
+    else
+      update_status_for_product(product, %{"status" => "draft"})
+    end
+  end
 
   defp update_status_for_product(%Product{} = product, attrs) do
     product

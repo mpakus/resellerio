@@ -3,24 +3,27 @@
 ## Progress Tracker
 
 - [x] Step GI1: Research Gemini Developer API image generation and editing capabilities for this repo.
-- [ ] Step GI2: Add a dedicated lifecycle model for lifestyle-image generation runs and generated outputs.
-- [ ] Step GI3: Add Gemini provider support for image generation/editing from existing product images.
-- [ ] Step GI4: Add category-aware scene planning for apparel, furniture, electronics, and fallback product types.
-- [ ] Step GI5: Run lifestyle-image generation as the last optional product-processing step.
-- [ ] Step GI6: Add review, regenerate, approve, and delete controls in web and API surfaces.
+- [x] Step GI2: Add a dedicated lifecycle model for lifestyle-image generation runs and generated outputs.
+- [x] Step GI3: Add Gemini provider support for image generation/editing from existing product images.
+- [x] Step GI4: Add category-aware scene planning for apparel, furniture, electronics, and fallback product types.
+- [x] Step GI5: Run lifestyle-image generation as the 8th and final optional product-processing step.
+- [x] Step GI6: Add review, regenerate, approve, and delete controls in web and API surfaces.
 - [ ] Step GI7: Add cost controls, rate limits, observability, and rollout guardrails.
 
 ## Latest Planning Status
 
-- Current status: this is feasible with the Gemini Developer API. The official Gemini image-generation docs state that Gemini can generate and process images conversationally with text, images, or a combination of both, which fits our goal of using uploaded and background-cleaned product images as conditioning input.
+- Current status: Steps GI3 through GI6 are now in place. The product page and JSON API can review dedicated lifestyle-generation runs, manually trigger generation or scene regeneration, approve generated previews, and delete unwanted outputs.
+- Rollout status: auto-generation is still disabled by default behind `Reseller.AI.lifestyle_generation_enabled?/1`, but seller-triggered generation controls now work for products that already reached review-ready states.
+- Next implementation target: Step GI7, adding cost controls, rate limits, observability, and rollout guardrails.
+- Technical fit remains strong: the official Gemini image-generation docs state that Gemini can generate and process images conversationally with text, images, or a combination of both, which fits our goal of using uploaded and background-cleaned product images as conditioning input.
 - Recommended default model: `gemini-2.5-flash-image` for the first implementation because the repo already uses the Gemini Developer API directly with `Req`, and this model is optimized for fast, high-volume image generation and editing.
 - Recommended quality fallback: `gemini-3.1-flash-image-preview` or `gemini-3-pro-image-preview` for seller-triggered regenerations or high-value items where fidelity matters more than cost.
 - Recommended generation pattern: generate 2-3 lifestyle images as 2-3 separate requests, not one bulk request. This keeps prompt variation explicit, isolates failures, and fits the current worker architecture better than trying to multiplex all variants in one response.
-- Recommended source image policy: prefer `background_removed` first, then `white_background`, then fall back to the original upload. Gemini docs currently say `gemini-2.5-flash-image` works best with up to 3 input images, so we should keep each request tight.
+- Recommended source image policy: prefer `background_removed` first, then fall back to the original upload. Legacy `white_background` images can still be used as a fallback when older products already have them attached. Gemini docs currently say `gemini-2.5-flash-image` works best with up to 3 input images, so we should keep each request tight.
 
 ## 1. Goal
 
-Add a final AI workflow that creates 2-3 "real life" lifestyle images for each product after uploads, recognition, pricing, and marketplace copy are already complete.
+Add a final AI workflow that creates 2-3 "real life" lifestyle images for each product as the 8th and last processing step, after uploads, recognition, pricing, marketplace copy, and image cleanup are already complete.
 
 Examples:
 
@@ -53,7 +56,7 @@ Planning implication:
 The repo already has the right foundations:
 
 - `Reseller.Media.ProductImage` stores original and processed images.
-- `Reseller.Media.generate_product_variants/2` already creates `background_removed` and `white_background` variants.
+- `Reseller.Media.generate_product_variants/2` already creates a `background_removed` variant, and older products may still carry legacy `white_background` variants.
 - `Reseller.Workers.AIProductProcessor` already orchestrates the product AI pipeline.
 - `Reseller.Workers.ProductProcessingRun` already records pipeline status and payloads.
 - `Reseller.AI.Providers.Gemini` already talks to Gemini through direct HTTP requests with `Req`.
@@ -173,8 +176,8 @@ For categories that do not fit the above:
 Per lifestyle generation request, use at most 3 input images:
 
 1. primary: `background_removed`
-2. secondary: `white_background`
-3. fallback/detail: one original image
+2. secondary fallback: one original image
+3. legacy fallback: `white_background` only when older products already have it attached
 
 Why:
 
@@ -260,7 +263,7 @@ Recommended direction:
 
 ## 10. Worker Flow Recommendation
 
-Add this as the last optional step in `Reseller.Workers.AIProductProcessor`.
+Add this as the 8th and last optional step in `Reseller.Workers.AIProductProcessor`.
 
 Recommended order:
 
@@ -269,15 +272,16 @@ Recommended order:
 3. description draft
 4. price research
 5. marketplace texts
-6. cleaned variants (`background_removed`, `white_background`)
-7. lifestyle image generation
-8. mark image states ready
+6. cleaned variants (`background_removed`)
+7. mark image states ready
+8. lifestyle image generation
 
 Important behavior:
 
 - lifestyle generation failure must not make the whole product unusable
 - treat it like a warning or partial failure, similar to the current image-variant failure handling
-- the product should still reach `review` or `ready` even if the generated lifestyle scenes fail
+- the product should already be usable by step 7, and should still remain `review` or `ready` even if the final generated lifestyle scenes fail
+- keep the step feature-flagged until seller review/regeneration controls are shipped
 
 Recommended run steps:
 

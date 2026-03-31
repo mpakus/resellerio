@@ -138,7 +138,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
            ]
 
     assert run.payload["variant_generation"]["status"] == "generated"
-    assert run.payload["variant_generation"]["count"] == 2
+    assert run.payload["variant_generation"]["count"] == 1
 
     refreshed_product = Catalog.get_product_for_user(user, product.id)
 
@@ -167,8 +167,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert Enum.map(refreshed_product.images, & &1.kind) == [
              "original",
-             "background_removed",
-             "white_background"
+             "background_removed"
            ]
 
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
@@ -198,9 +197,6 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert_received {:media_processor_called, "https://cdn.example.com/catalog/" <> _,
                      %{kind: "background_removed"}, _opts}
-
-    assert_received {:media_processor_called, "https://cdn.example.com/catalog/" <> _,
-                     %{kind: "white_background"}, _opts}
 
     refute_received {:search_provider_called, :lens_matches, _, _}
   end
@@ -374,8 +370,7 @@ defmodule Reseller.Workers.AIProductProcessorTest do
 
     assert Enum.map(refreshed_product.images, & &1.kind) == [
              "original",
-             "background_removed",
-             "white_background"
+             "background_removed"
            ]
 
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
@@ -487,6 +482,259 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert refreshed_product.status == "ready"
     assert Enum.map(refreshed_product.images, & &1.kind) == ["original"]
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "ready"))
+  end
+
+  test "runs lifestyle generation as the final optional step when enabled" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    recognize_result =
+      {:ok,
+       %{
+         provider: :gemini,
+         output: %{
+           "brand" => "Nike",
+           "category" => "Sneakers",
+           "possible_model" => "Air Max 90",
+           "color" => "White",
+           "material" => "Mesh",
+           "confidence_score" => 0.91,
+           "needs_review" => false
+         }
+       }}
+
+    assert {:ok, run} =
+             Workers.start_product_processing(product,
+               processor: AIProductProcessor,
+               lifestyle_generation_enabled: true,
+               public_base_url: "https://cdn.example.com/catalog",
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               search_provider: Reseller.Support.Fakes.SearchProvider,
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
+               recognize_result: recognize_result,
+               description_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-description",
+                    output: %{
+                      "suggested_title" => "Nike Air Max 90",
+                      "short_description" => "Classic Nike Air Max 90 sneakers in white mesh."
+                    }
+                  }},
+               shopping_result: {:ok, %{provider: :serp_api, matches: []}},
+               price_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-pricing",
+                    output: %{
+                      "currency" => "USD",
+                      "suggested_target_price" => 125,
+                      "pricing_confidence" => 0.82
+                    }
+                  }},
+               marketplace_listing_results: %{
+                 "ebay" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "eBay title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 125
+                      }
+                    }},
+                 "depop" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Depop title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 124
+                      }
+                    }},
+                 "poshmark" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Poshmark title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 126
+                      }
+                    }}
+               },
+               lifestyle_image_results: %{
+                 "model_studio" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-2.5-flash-image",
+                      generated_images: [
+                        %{mime_type: "image/png", data_base64: Base.encode64("scene-1")}
+                      ]
+                    }},
+                 "casual_lifestyle" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-2.5-flash-image",
+                      generated_images: [
+                        %{mime_type: "image/png", data_base64: Base.encode64("scene-2")}
+                      ]
+                    }},
+                 "styled_detail" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-2.5-flash-image",
+                      generated_images: [
+                        %{mime_type: "image/png", data_base64: Base.encode64("scene-3")}
+                      ]
+                    }}
+               }
+             )
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert run.step == "lifestyle_generated"
+    assert run.payload["lifestyle_generation"]["status"] == "generated"
+    assert run.payload["lifestyle_generation"]["completed_count"] == 3
+    assert refreshed_product.status == "ready"
+    assert Enum.count(refreshed_product.images, &(&1.kind == "lifestyle_generated")) == 3
+
+    assert List.first(refreshed_product.lifestyle_generation_runs).status == "completed"
+    assert List.first(refreshed_product.lifestyle_generation_runs).completed_count == 3
+
+    assert_received {:ai_provider_called, :generate_lifestyle_image,
+                     %{"scene_key" => "model_studio"}, inputs, _opts}
+
+    assert Enum.map(inputs, & &1.kind) == ["background_removed", "original"]
+  end
+
+  test "keeps the product usable when lifestyle generation partially fails" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    recognize_result =
+      {:ok,
+       %{
+         provider: :gemini,
+         output: %{
+           "brand" => "Nike",
+           "category" => "Sneakers",
+           "possible_model" => "Air Max 90",
+           "confidence_score" => 0.91,
+           "needs_review" => false
+         }
+       }}
+
+    assert {:ok, run} =
+             Workers.start_product_processing(product,
+               processor: AIProductProcessor,
+               lifestyle_generation_enabled: true,
+               public_base_url: "https://cdn.example.com/catalog",
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               search_provider: Reseller.Support.Fakes.SearchProvider,
+               media_processor: Reseller.Support.Fakes.MediaProcessor,
+               storage: Reseller.Support.Fakes.MediaStorage,
+               recognize_result: recognize_result,
+               description_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-description",
+                    output: %{
+                      "suggested_title" => "Nike Air Max 90",
+                      "short_description" => "Short copy"
+                    }
+                  }},
+               shopping_result: {:ok, %{provider: :serp_api, matches: []}},
+               price_result:
+                 {:ok,
+                  %{
+                    provider: :gemini,
+                    model: "gemini-pricing",
+                    output: %{
+                      "currency" => "USD",
+                      "suggested_target_price" => 125,
+                      "pricing_confidence" => 0.8
+                    }
+                  }},
+               marketplace_listing_results: %{
+                 "ebay" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "eBay title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 125
+                      }
+                    }},
+                 "depop" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Depop title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 124
+                      }
+                    }},
+                 "poshmark" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-marketplace",
+                      output: %{
+                        "generated_title" => "Poshmark title",
+                        "generated_description" => "desc",
+                        "generated_price_suggestion" => 126
+                      }
+                    }}
+               },
+               lifestyle_image_results: %{
+                 "model_studio" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-2.5-flash-image",
+                      generated_images: [
+                        %{mime_type: "image/png", data_base64: Base.encode64("scene-1")}
+                      ]
+                    }},
+                 "casual_lifestyle" => {:error, {:http_error, 429, %{"error" => "rate limited"}}},
+                 "styled_detail" =>
+                   {:ok,
+                    %{
+                      provider: :gemini,
+                      model: "gemini-2.5-flash-image",
+                      generated_images: [
+                        %{mime_type: "image/png", data_base64: Base.encode64("scene-3")}
+                      ]
+                    }}
+               }
+             )
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+    lifestyle_run = List.first(refreshed_product.lifestyle_generation_runs)
+
+    assert run.step == "lifestyle_partial"
+    assert run.payload["lifestyle_generation"]["status"] == "partial"
+    assert run.payload["lifestyle_generation"]["completed_count"] == 2
+    assert refreshed_product.status == "ready"
+    assert Enum.count(refreshed_product.images, &(&1.kind == "lifestyle_generated")) == 2
+    assert lifestyle_run.status == "partial"
+    assert lifestyle_run.completed_count == 2
   end
 
   test "marks the run, product, and images as failed when public image URLs are invalid" do

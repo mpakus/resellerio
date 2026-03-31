@@ -56,6 +56,26 @@ Example response:
         "description": "Returns service health and application version information."
       },
       {
+        "method": "POST",
+        "path": "/api/v1/auth/register",
+        "description": "Creates a user account and returns a bearer token."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "description": "Authenticates a user and returns a bearer token."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/me",
+        "description": "Returns the authenticated user and marketplace settings."
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/v1/me",
+        "description": "Updates the authenticated user's marketplace settings."
+      },
+      {
         "method": "GET",
         "path": "/api/v1/products",
         "description": "Lists products for the authenticated user."
@@ -84,6 +104,31 @@ Example response:
         "method": "POST",
         "path": "/api/v1/products/:id/finalize_uploads",
         "description": "Marks uploaded product images as ready for processing."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/reprocess",
+        "description": "Restarts the core AI pipeline for one product."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/generate_lifestyle_images",
+        "description": "Starts manual lifestyle-image generation for a review-ready product."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/products/:id/lifestyle_generation_runs",
+        "description": "Lists dedicated lifestyle-image generation runs for one product."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/generated_images/:image_id/approve",
+        "description": "Marks one generated lifestyle preview as seller-approved."
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/products/:id/generated_images/:image_id",
+        "description": "Deletes one generated lifestyle preview."
       },
       {
         "method": "POST",
@@ -151,7 +196,8 @@ Request body:
 {
   "email": "seller@example.com",
   "password": "very-secure-password",
-  "device_name": "iPhone"
+  "device_name": "iPhone",
+  "selected_marketplaces": ["ebay", "depop", "poshmark"]
 }
 ```
 
@@ -163,10 +209,25 @@ Response:
     "token": "token-value",
     "token_type": "Bearer",
     "expires_at": "2026-04-28T18:00:00Z",
+    "supported_marketplaces": [
+      { "id": "ebay", "label": "eBay" },
+      { "id": "depop", "label": "Depop" },
+      { "id": "poshmark", "label": "Poshmark" },
+      { "id": "mercari", "label": "Mercari" },
+      { "id": "facebook_marketplace", "label": "Facebook Marketplace" },
+      { "id": "offerup", "label": "OfferUp" },
+      { "id": "whatnot", "label": "Whatnot" },
+      { "id": "grailed", "label": "Grailed" },
+      { "id": "therealreal", "label": "The RealReal" },
+      { "id": "vestiaire_collective", "label": "Vestiaire Collective" },
+      { "id": "thredup", "label": "thredUp" },
+      { "id": "etsy", "label": "Etsy" }
+    ],
     "user": {
       "id": 1,
       "email": "seller@example.com",
-      "confirmed_at": null
+      "confirmed_at": null,
+      "selected_marketplaces": ["ebay", "depop", "poshmark"]
     }
   }
 }
@@ -187,6 +248,8 @@ Request body:
   "device_name": "Pixel"
 }
 ```
+
+Successful responses use the same payload shape as `POST /api/v1/auth/register`, including `user.selected_marketplaces` and `supported_marketplaces`.
 
 Invalid credentials return:
 
@@ -215,14 +278,83 @@ Response:
 ```json
 {
   "data": {
+    "supported_marketplaces": [
+      { "id": "ebay", "label": "eBay" },
+      { "id": "depop", "label": "Depop" },
+      { "id": "poshmark", "label": "Poshmark" },
+      { "id": "mercari", "label": "Mercari" },
+      { "id": "facebook_marketplace", "label": "Facebook Marketplace" },
+      { "id": "offerup", "label": "OfferUp" },
+      { "id": "whatnot", "label": "Whatnot" },
+      { "id": "grailed", "label": "Grailed" },
+      { "id": "therealreal", "label": "The RealReal" },
+      { "id": "vestiaire_collective", "label": "Vestiaire Collective" },
+      { "id": "thredup", "label": "thredUp" },
+      { "id": "etsy", "label": "Etsy" }
+    ],
     "user": {
       "id": 1,
       "email": "seller@example.com",
-      "confirmed_at": null
+      "confirmed_at": null,
+      "selected_marketplaces": ["ebay", "depop", "poshmark"]
     }
   }
 }
 ```
+
+### `PATCH /api/v1/me`
+
+Updates the authenticated user’s marketplace-generation defaults.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "user": {
+    "selected_marketplaces": ["ebay", "mercari", "etsy"]
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "supported_marketplaces": [
+      { "id": "ebay", "label": "eBay" },
+      { "id": "depop", "label": "Depop" },
+      { "id": "poshmark", "label": "Poshmark" },
+      { "id": "mercari", "label": "Mercari" },
+      { "id": "facebook_marketplace", "label": "Facebook Marketplace" },
+      { "id": "offerup", "label": "OfferUp" },
+      { "id": "whatnot", "label": "Whatnot" },
+      { "id": "grailed", "label": "Grailed" },
+      { "id": "therealreal", "label": "The RealReal" },
+      { "id": "vestiaire_collective", "label": "Vestiaire Collective" },
+      { "id": "thredup", "label": "thredUp" },
+      { "id": "etsy", "label": "Etsy" }
+    ],
+    "user": {
+      "id": 1,
+      "email": "seller@example.com",
+      "confirmed_at": null,
+      "selected_marketplaces": ["ebay", "mercari", "etsy"]
+    }
+  }
+}
+```
+
+Notes:
+
+- `selected_marketplaces` may be an empty array if the user wants to skip marketplace-copy generation for future runs.
+- future processing and reprocessing runs generate `marketplace_listings` only for the selected marketplaces on the owning user account.
 
 ### `GET /api/v1/products`
 
@@ -372,6 +504,53 @@ Unknown or unauthorized product IDs return:
 }
 ```
 
+Product payload notes:
+
+- `latest_processing_run` returns the newest core AI-processing run, if one exists.
+- `latest_lifestyle_generation_run` returns the newest dedicated lifestyle-image generation run, if one exists.
+- each image now reserves lifecycle metadata for AI-generated lifestyle previews:
+  - `lifestyle_generation_run_id`
+  - `scene_key`
+  - `variant_index`
+  - `source_image_ids`
+  - `seller_approved`
+  - `approved_at`
+
+Example excerpt:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 12,
+      "status": "ready",
+      "latest_lifestyle_generation_run": {
+        "id": 4,
+        "status": "completed",
+        "step": "lifestyle_generated",
+        "scene_family": "apparel",
+        "model": "gemini-2.5-flash-image",
+        "prompt_version": "v1",
+        "requested_count": 1,
+        "completed_count": 1
+      },
+      "images": [
+        {
+          "id": 44,
+          "kind": "lifestyle_generated",
+          "scene_key": "model_studio",
+          "variant_index": 1,
+          "lifestyle_generation_run_id": 4,
+          "source_image_ids": [31],
+          "seller_approved": false,
+          "approved_at": null
+        }
+      ]
+    }
+  }
+}
+```
+
 ### `PATCH /api/v1/products/:id`
 
 Updates seller-managed product fields for the authenticated user.
@@ -425,7 +604,7 @@ System-managed statuses like `uploading` and `processing`, and system fields lik
 
 ### `DELETE /api/v1/products/:id`
 
-Deletes one product for the authenticated user. Related images, AI metadata, listings, and processing runs are removed through cascading deletes.
+Deletes one product for the authenticated user. Related images, AI metadata, listings, processing runs, and lifestyle-generation runs are removed through cascading deletes.
 
 Required header:
 
@@ -519,8 +698,8 @@ Current behavior notes:
 - when recognition finishes, the product moves to `ready` or `review`
 - when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
 - when price research finishes, the product may also include a `price_research` object with grounded price ranges and comparables
-- when marketplace generation finishes, the product may also include `marketplace_listings` for eBay, Depop, and Poshmark
-- when image-variant generation finishes, the product may also include processed `images` such as `background_removed` and `white_background`
+- when marketplace generation finishes, the product may also include `marketplace_listings` for the authenticated user's selected marketplaces
+- when image-variant generation finishes, the product may also include a processed `background_removed` image for each uploaded original
 - on success, in-flight images move from `processing` to `ready`
 - on worker failure, the product falls back to `review`
 - non-retryable worker failures move in-flight images from `processing` to `failed`
@@ -558,6 +737,103 @@ Notes:
 - this is useful after retryable Gemini failures such as `ai_quota_exhausted` or `ai_rate_limited`
 - the endpoint returns `202 Accepted`
 - original product images are moved back to a retryable state before the new run is queued
+
+## Lifestyle Preview Review Controls
+
+### `POST /api/v1/products/:id/generate_lifestyle_images`
+
+Starts seller-triggered lifestyle preview generation for a product that already reached `review`, `ready`, `sold`, or `archived`.
+
+Optional request body:
+
+```json
+{
+  "scene_key": "casual_lifestyle"
+}
+```
+
+When `scene_key` is omitted, the backend generates the default 2-3 scene set. When it is provided, the backend regenerates only that scene profile.
+
+Response example:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 12,
+      "latest_lifestyle_generation_run": {
+        "id": 19,
+        "status": "completed",
+        "step": "lifestyle_generated",
+        "requested_count": 3,
+        "completed_count": 3
+      }
+    },
+    "lifestyle_generation_run": {
+      "id": 19,
+      "status": "completed",
+      "step": "lifestyle_generated",
+      "requested_count": 3,
+      "completed_count": 3
+    }
+  }
+}
+```
+
+Notes:
+
+- the endpoint returns `202 Accepted`
+- seller-triggered generation works even while the auto-run rollout flag remains disabled
+- invalid product states return `422 invalid_product_state`
+
+### `GET /api/v1/products/:id/lifestyle_generation_runs`
+
+Returns the dedicated lifestyle-image generation history for one product.
+
+Response example:
+
+```json
+{
+  "data": {
+    "runs": [
+      {
+        "id": 19,
+        "status": "completed",
+        "step": "lifestyle_generated",
+        "scene_family": "apparel",
+        "requested_count": 3,
+        "completed_count": 3
+      }
+    ]
+  }
+}
+```
+
+### `POST /api/v1/products/:id/generated_images/:image_id/approve`
+
+Marks one generated lifestyle preview as seller-approved.
+
+Response shape:
+
+- returns the refreshed `product` payload
+- the selected generated image now includes `"seller_approved": true` and an `approved_at` timestamp
+
+### `DELETE /api/v1/products/:id/generated_images/:image_id`
+
+Deletes one generated lifestyle preview.
+
+Response shape:
+
+```json
+{
+  "data": {
+    "deleted": true,
+    "product": {
+      "id": 12
+    }
+  }
+}
+```
 
 ### Product Processing Status
 
@@ -602,16 +878,11 @@ Example:
       ],
       "variant_generation": {
         "status": "generated",
-        "count": 2,
+        "count": 1,
         "variants": [
           {
             "kind": "background_removed",
             "background_style": "transparent",
-            "processing_status": "ready"
-          },
-          {
-            "kind": "white_background",
-            "background_style": "white",
             "processing_status": "ready"
           }
         ]
@@ -733,7 +1004,7 @@ Product payloads may include a `marketplace_listings` array after AI processing 
 }
 ```
 
-These records are generated per marketplace and can be regenerated without overwriting core product fields.
+These records are generated per marketplace and can be regenerated without overwriting core product fields. Supported marketplace IDs currently include `ebay`, `depop`, `poshmark`, `mercari`, `facebook_marketplace`, `offerup`, `whatnot`, `grailed`, `therealreal`, `vestiaire_collective`, `thredup`, and `etsy`. Generation uses the authenticated user's current `selected_marketplaces` list.
 
 ### Image Variants
 
@@ -751,12 +1022,6 @@ The `images` array may include processed variants in addition to originals:
       "kind": "background_removed",
       "position": 1,
       "background_style": "transparent",
-      "processing_status": "ready"
-    },
-    {
-      "kind": "white_background",
-      "position": 1,
-      "background_style": "white",
       "processing_status": "ready"
     }
   ]

@@ -9,13 +9,77 @@ defmodule Reseller.Marketplaces do
   alias Reseller.Marketplaces.MarketplaceListing
   alias Reseller.Repo
 
+  @marketplace_catalog [
+    %{id: "ebay", label: "eBay"},
+    %{id: "depop", label: "Depop"},
+    %{id: "poshmark", label: "Poshmark"},
+    %{id: "mercari", label: "Mercari"},
+    %{id: "facebook_marketplace", label: "Facebook Marketplace"},
+    %{id: "offerup", label: "OfferUp"},
+    %{id: "whatnot", label: "Whatnot"},
+    %{id: "grailed", label: "Grailed"},
+    %{id: "therealreal", label: "The RealReal"},
+    %{id: "vestiaire_collective", label: "Vestiaire Collective"},
+    %{id: "thredup", label: "thredUp"},
+    %{id: "etsy", label: "Etsy"}
+  ]
+
+  @all_marketplace_ids Enum.map(@marketplace_catalog, & &1.id)
+  @marketplace_labels Map.new(@marketplace_catalog, &{&1.id, &1.label})
+
+  @spec catalog(keyword()) :: [map()]
+  def catalog(opts \\ []) do
+    supported_ids = supported_marketplaces(opts)
+    Enum.filter(@marketplace_catalog, &(&1.id in supported_ids))
+  end
+
   @spec supported_marketplaces(keyword()) :: [String.t()]
   def supported_marketplaces(opts \\ []) do
-    Keyword.get(
-      opts,
-      :marketplaces,
-      Application.fetch_env!(:reseller, __MODULE__)[:marketplaces]
+    opts
+    |> Keyword.get(
+      :supported_marketplaces,
+      Application.fetch_env!(:reseller, __MODULE__)[:supported_marketplaces] ||
+        @all_marketplace_ids
     )
+    |> normalize_marketplaces(@all_marketplace_ids)
+  end
+
+  @spec default_marketplaces(keyword()) :: [String.t()]
+  def default_marketplaces(opts \\ []) do
+    opts
+    |> Keyword.get(
+      :default_marketplaces,
+      Application.fetch_env!(:reseller, __MODULE__)[:default_marketplaces] ||
+        ~w(ebay depop poshmark)
+    )
+    |> normalize_marketplaces(supported_marketplaces(opts))
+  end
+
+  @spec selected_marketplaces(keyword()) :: [String.t()]
+  def selected_marketplaces(opts \\ []) do
+    marketplaces =
+      Keyword.get_lazy(opts, :marketplaces, fn ->
+        Keyword.get_lazy(opts, :selected_marketplaces, fn -> default_marketplaces(opts) end)
+      end)
+
+    normalize_marketplaces(marketplaces, supported_marketplaces(opts))
+  end
+
+  @spec marketplace_label(String.t()) :: String.t()
+  def marketplace_label(marketplace) when is_binary(marketplace) do
+    Map.get(@marketplace_labels, marketplace, humanize_marketplace(marketplace))
+  end
+
+  @spec invalid_marketplaces(term(), [String.t()]) :: [String.t()]
+  def invalid_marketplaces(marketplaces, allowed_ids) when is_list(allowed_ids) do
+    normalized = normalize_input_marketplaces(marketplaces)
+    Enum.reject(normalized, &(&1 in allowed_ids))
+  end
+
+  @spec normalize_marketplaces(term(), [String.t()]) :: [String.t()]
+  def normalize_marketplaces(marketplaces, allowed_ids \\ @all_marketplace_ids) do
+    requested_ids = normalize_input_marketplaces(marketplaces)
+    Enum.filter(allowed_ids, &(&1 in requested_ids))
   end
 
   @spec list_product_marketplace_listings(pos_integer()) :: [MarketplaceListing.t()]
@@ -83,4 +147,29 @@ defmodule Reseller.Marketplaces do
 
   defp stringify_value(value) when is_map(value), do: stringify_keys(value)
   defp stringify_value(value), do: value
+
+  defp normalize_input_marketplaces(nil), do: []
+
+  defp normalize_input_marketplaces(marketplace) when is_binary(marketplace) do
+    normalize_input_marketplaces([marketplace])
+  end
+
+  defp normalize_input_marketplaces(marketplaces) when is_list(marketplaces) do
+    marketplaces
+    |> Enum.map(fn
+      marketplace when is_binary(marketplace) -> String.trim(marketplace)
+      marketplace -> marketplace |> to_string() |> String.trim()
+    end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp normalize_input_marketplaces(_marketplaces), do: []
+
+  defp humanize_marketplace(marketplace) do
+    marketplace
+    |> String.replace("_", " ")
+    |> String.split()
+    |> Enum.map_join(" ", &String.capitalize/1)
+  end
 end

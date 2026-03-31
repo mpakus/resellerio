@@ -1,4 +1,6 @@
 defmodule Reseller.AI do
+  import Ecto.Query, warn: false
+
   @moduledoc """
   Entry point for AI-backed product recognition, description generation,
   pricing research, and reconciliation flows.
@@ -6,6 +8,7 @@ defmodule Reseller.AI do
 
   alias Reseller.AI.Provider
   alias Reseller.AI.ProductDescriptionDraft
+  alias Reseller.AI.ProductLifestyleGenerationRun
   alias Reseller.AI.ProductPriceResearch
   alias Reseller.Catalog.Product
   alias Reseller.Repo
@@ -29,6 +32,12 @@ defmodule Reseller.AI do
   @spec generate_marketplace_listing(map(), keyword()) :: Provider.provider_result()
   def generate_marketplace_listing(attrs, opts \\ []) when is_map(attrs) do
     provider(opts).generate_marketplace_listing(attrs, opts)
+  end
+
+  @spec generate_lifestyle_image(map(), [map()], keyword()) :: Provider.provider_result()
+  def generate_lifestyle_image(attrs, images, opts \\ [])
+      when is_map(attrs) and is_list(images) do
+    provider(opts).generate_lifestyle_image(attrs, images, opts)
   end
 
   @spec reconcile_product(map(), map(), keyword()) :: Provider.provider_result()
@@ -73,6 +82,45 @@ defmodule Reseller.AI do
     Repo.get_by(ProductPriceResearch, product_id: product_id)
   end
 
+  @spec list_product_lifestyle_generation_runs(pos_integer()) :: [
+          ProductLifestyleGenerationRun.t()
+        ]
+  def list_product_lifestyle_generation_runs(product_id) when is_integer(product_id) do
+    ProductLifestyleGenerationRun
+    |> where([run], run.product_id == ^product_id)
+    |> order_by([run], desc: run.inserted_at, desc: run.id)
+    |> Repo.all()
+  end
+
+  @spec latest_product_lifestyle_generation_run(pos_integer()) ::
+          ProductLifestyleGenerationRun.t() | nil
+  def latest_product_lifestyle_generation_run(product_id) when is_integer(product_id) do
+    ProductLifestyleGenerationRun
+    |> where([run], run.product_id == ^product_id)
+    |> order_by([run], desc: run.inserted_at, desc: run.id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @spec create_product_lifestyle_generation_run(Product.t(), map()) ::
+          {:ok, ProductLifestyleGenerationRun.t()} | {:error, Ecto.Changeset.t()}
+  def create_product_lifestyle_generation_run(%Product{} = product, attrs)
+      when is_map(attrs) do
+    %ProductLifestyleGenerationRun{}
+    |> ProductLifestyleGenerationRun.create_changeset(attrs)
+    |> Ecto.Changeset.put_assoc(:product, product)
+    |> Repo.insert()
+  end
+
+  @spec update_product_lifestyle_generation_run(ProductLifestyleGenerationRun.t(), map()) ::
+          {:ok, ProductLifestyleGenerationRun.t()} | {:error, Ecto.Changeset.t()}
+  def update_product_lifestyle_generation_run(%ProductLifestyleGenerationRun{} = run, attrs)
+      when is_map(attrs) do
+    run
+    |> ProductLifestyleGenerationRun.update_changeset(attrs)
+    |> Repo.update()
+  end
+
   @spec upsert_product_price_research(Product.t(), map()) ::
           {:ok, ProductPriceResearch.t()} | {:error, Ecto.Changeset.t()}
   def upsert_product_price_research(%Product{} = product, price_result)
@@ -95,7 +143,18 @@ defmodule Reseller.AI do
 
   @spec provider(keyword()) :: module()
   def provider(opts \\ []) do
-    Keyword.get(opts, :provider, Application.fetch_env!(:reseller, __MODULE__)[:provider])
+    Keyword.get_lazy(opts, :provider, fn ->
+      Keyword.get(opts, :ai_provider, Application.fetch_env!(:reseller, __MODULE__)[:provider])
+    end)
+  end
+
+  @spec lifestyle_generation_enabled?(keyword()) :: boolean()
+  def lifestyle_generation_enabled?(opts \\ []) do
+    Keyword.get(
+      opts,
+      :lifestyle_generation_enabled,
+      Application.get_env(:reseller, __MODULE__, [])[:lifestyle_generation_enabled] || false
+    )
   end
 
   defp description_draft_attrs(result) do

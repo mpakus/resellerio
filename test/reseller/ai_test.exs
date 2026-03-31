@@ -41,6 +41,16 @@ defmodule Reseller.AITest do
     assert_received {:ai_provider_called, :generate_marketplace_listing, ^attrs, _opts}
   end
 
+  test "generate_lifestyle_image/3 delegates to the configured provider" do
+    attrs = %{"scene_key" => "model_studio", "prompt" => "Create a studio scene"}
+    images = [%{mime_type: "image/png", data_base64: "abc123"}]
+
+    assert {:ok, %{operation: :generate_lifestyle_image, attrs: ^attrs, images: ^images}} =
+             AI.generate_lifestyle_image(attrs, images)
+
+    assert_received {:ai_provider_called, :generate_lifestyle_image, ^attrs, ^images, _opts}
+  end
+
   test "reconcile_product/3 delegates to the configured provider" do
     recognition_result = %{"brand" => "Nike", "possible_model" => "Air Max 90"}
     search_results = %{"matches" => [%{"title" => "Nike Air Max 90"}]}

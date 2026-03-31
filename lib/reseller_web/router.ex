@@ -82,6 +82,7 @@ defmodule ResellerWeb.Router do
       pipe_through :api_authenticated
 
       get "/me", MeController, :show
+      patch "/me", MeController, :update
       get "/products", ProductController, :index
       post "/products", ProductController, :create
       get "/products/:id", ProductController, :show
@@ -89,6 +90,21 @@ defmodule ResellerWeb.Router do
       delete "/products/:id", ProductController, :delete
       post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
       post "/products/:id/reprocess", ProductController, :reprocess
+
+      post "/products/:id/generate_lifestyle_images",
+           ProductController,
+           :generate_lifestyle_images
+
+      get "/products/:id/lifestyle_generation_runs", ProductController, :lifestyle_generation_runs
+
+      post "/products/:id/generated_images/:image_id/approve",
+           ProductController,
+           :approve_generated_image
+
+      delete "/products/:id/generated_images/:image_id",
+             ProductController,
+             :delete_generated_image
+
       post "/products/:id/mark_sold", ProductController, :mark_sold
       post "/products/:id/archive", ProductController, :archive
       post "/products/:id/unarchive", ProductController, :unarchive

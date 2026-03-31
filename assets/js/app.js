@@ -26,11 +26,103 @@ import {Hooks as BackpexHooks} from "backpex"
 import {hooks as colocatedHooks} from "phoenix-colocated/reseller"
 import topbar from "../vendor/topbar"
 
+const ClipboardButton = {
+  mounted() {
+    this.labelTarget = this.el.querySelector("[data-copy-label]") || this.el
+    this.defaultLabel = this.el.dataset.copyDefaultLabel || this.labelTarget.textContent.trim()
+    this.successLabel = this.el.dataset.copySuccessLabel || "Copied"
+    this.errorLabel = this.el.dataset.copyErrorLabel || "Copy failed"
+    this.setState("idle")
+
+    this.handleClick = async event => {
+      event.preventDefault()
+      this.setState("copying")
+
+      const text = this.resolveText()
+
+      if (text === "") {
+        this.setFeedback(this.errorLabel, "error")
+        return
+      }
+
+      try {
+        await copyText(text)
+        this.setFeedback(this.successLabel, "success")
+      } catch (_error) {
+        this.setFeedback(this.errorLabel, "error")
+      }
+    }
+
+    this.el.addEventListener("click", this.handleClick)
+  },
+
+  destroyed() {
+    this.el.removeEventListener("click", this.handleClick)
+    clearTimeout(this.resetTimer)
+  },
+
+  resolveText() {
+    const copyTarget = this.el.dataset.copyTarget
+
+    if (copyTarget) {
+      const target = document.querySelector(copyTarget)
+
+      if (!target) {
+        return ""
+      }
+
+      if ("value" in target && typeof target.value === "string") {
+        return target.value.trim()
+      }
+
+      return (target.innerText || target.textContent || "").trim()
+    }
+
+    return (this.el.dataset.copyText || "").trim()
+  },
+
+  setFeedback(label, state) {
+    this.labelTarget.textContent = label
+    this.el.setAttribute("title", label)
+    this.el.setAttribute("aria-label", label)
+    this.setState(state)
+    clearTimeout(this.resetTimer)
+
+    this.resetTimer = window.setTimeout(() => {
+      this.labelTarget.textContent = this.defaultLabel
+      this.el.setAttribute("title", this.defaultLabel)
+      this.el.setAttribute("aria-label", this.defaultLabel)
+      this.setState("idle")
+    }, 1400)
+  },
+
+  setState(state) {
+    this.el.dataset.copyState = state
+  }
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement("textarea")
+  textarea.value = text
+  textarea.setAttribute("readonly", "")
+  textarea.style.position = "absolute"
+  textarea.style.left = "-9999px"
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand("copy")
+  textarea.remove()
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, ...BackpexHooks},
+  hooks: {ClipboardButton, ...colocatedHooks, ...BackpexHooks},
 })
 
 // Show progress bar on live navigation and form submits

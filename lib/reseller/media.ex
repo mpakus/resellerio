@@ -11,10 +11,12 @@ defmodule Reseller.Media do
   alias Reseller.Repo
 
   @processable_image_statuses ~w(uploaded processing ready)
-  @variant_profiles [
-    %{kind: "background_removed", background_style: "transparent"},
-    %{kind: "white_background", background_style: "white"}
-  ]
+  @variant_profiles [%{kind: "background_removed", background_style: "transparent"}]
+  @lifestyle_input_priority %{
+    "background_removed" => 1,
+    "white_background" => 2,
+    "original" => 3
+  }
 
   @spec prepare_product_uploads(module(), Product.t(), [map()], keyword()) ::
           {:ok, %{images: [ProductImage.t()], upload_instructions: [map()]}}
@@ -99,6 +101,32 @@ defmodule Reseller.Media do
     end
   end
 
+  @spec lifestyle_generation_inputs_for_product(Product.t(), keyword()) ::
+          {:ok, %{inputs: [map()], source_images: [ProductImage.t()]}} | {:error, term()}
+  def lifestyle_generation_inputs_for_product(%Product{} = product, opts \\ []) do
+    source_images =
+      product
+      |> Repo.preload(:images, force: true)
+      |> Map.fetch!(:images)
+      |> select_lifestyle_generation_source_images()
+
+    if source_images == [] do
+      {:error, :no_lifestyle_images}
+    else
+      source_images
+      |> Enum.reduce_while({:ok, []}, fn image, {:ok, inputs} ->
+        case recognition_input(image, opts) do
+          {:ok, input} -> {:cont, {:ok, inputs ++ [input]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+      |> case do
+        {:ok, inputs} -> {:ok, %{inputs: inputs, source_images: source_images}}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
   @spec public_url_for_image(ProductImage.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def public_url_for_image(%ProductImage{} = image, opts \\ []) do
     with {:ok, base_url} <- public_base_url(opts) do
@@ -162,6 +190,86 @@ defmodule Reseller.Media do
       |> Repo.update_all(set: [processing_status: "uploaded"])
 
     {:ok, count}
+  end
+
+  @spec create_lifestyle_generated_image(Product.t(), map()) ::
+          {:ok, ProductImage.t()} | {:error, Ecto.Changeset.t()}
+  def create_lifestyle_generated_image(%Product{} = product, attrs) when is_map(attrs) do
+    product = Repo.preload(product, :images, force: true)
+
+    product
+    |> lifestyle_generated_image_attrs(attrs)
+    |> then(fn image_attrs ->
+      %ProductImage{}
+      |> ProductImage.create_changeset(image_attrs)
+      |> Ecto.Changeset.put_assoc(:product, product)
+      |> Repo.insert()
+    end)
+  end
+
+  @spec get_lifestyle_generated_image(Product.t(), pos_integer()) :: ProductImage.t() | nil
+  def get_lifestyle_generated_image(%Product{id: product_id}, image_id)
+      when is_integer(image_id) do
+    ProductImage
+    |> where(
+      [image],
+      image.product_id == ^product_id and image.id == ^image_id and
+        image.kind == "lifestyle_generated"
+    )
+    |> Repo.one()
+  end
+
+  @spec approve_lifestyle_generated_image(Product.t(), pos_integer()) ::
+          {:ok, ProductImage.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def approve_lifestyle_generated_image(%Product{} = product, image_id)
+      when is_integer(image_id) do
+    case get_lifestyle_generated_image(product, image_id) do
+      nil ->
+        {:error, :not_found}
+
+      image ->
+        image
+        |> ProductImage.create_changeset(%{
+          "seller_approved" => true,
+          "approved_at" => DateTime.utc_now() |> DateTime.truncate(:second)
+        })
+        |> Repo.update()
+    end
+  end
+
+  @spec delete_lifestyle_generated_image(Product.t(), pos_integer()) ::
+          {:ok, ProductImage.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def delete_lifestyle_generated_image(%Product{} = product, image_id)
+      when is_integer(image_id) do
+    case get_lifestyle_generated_image(product, image_id) do
+      nil -> {:error, :not_found}
+      image -> Repo.delete(image)
+    end
+  end
+
+  @spec delete_product_image(Product.t(), pos_integer()) ::
+          {:ok, %{deleted_image_ids: [pos_integer()]}} | {:error, :not_found}
+  def delete_product_image(%Product{} = product, image_id) when is_integer(image_id) do
+    product = Repo.preload(product, :images, force: true)
+
+    case Enum.find(product.images, &(&1.id == image_id)) do
+      nil ->
+        {:error, :not_found}
+
+      image ->
+        deleted_image_ids = image_ids_for_deletion(product.images, image)
+
+        Multi.new()
+        |> Multi.delete_all(
+          :deleted_images,
+          from(product_image in ProductImage, where: product_image.id in ^deleted_image_ids)
+        )
+        |> Repo.transaction()
+        |> case do
+          {:ok, _changes} -> {:ok, %{deleted_image_ids: deleted_image_ids}}
+          {:error, _step, reason, _changes} -> {:error, reason}
+        end
+    end
   end
 
   @spec generate_product_variants(Product.t(), keyword()) ::
@@ -245,7 +353,10 @@ defmodule Reseller.Media do
   end
 
   defp product_image_attrs(product, upload_spec, index) do
-    position = upload_spec.position || index
+    position =
+      product
+      |> next_product_image_position()
+      |> Kernel.+(index - 1)
 
     %{
       kind: "original",
@@ -262,6 +373,17 @@ defmodule Reseller.Media do
   end
 
   defp upload_filename(upload_spec), do: upload_spec.filename || "upload"
+
+  defp lifestyle_generated_image_attrs(%Product{} = product, attrs) do
+    attrs
+    |> stringify_keys()
+    |> Map.put("kind", "lifestyle_generated")
+    |> Map.put_new("position", next_product_image_position(product))
+    |> Map.put_new("processing_status", "ready")
+    |> Map.put_new("background_style", "lifestyle")
+    |> Map.put_new("seller_approved", false)
+    |> Map.update("source_image_ids", [], &normalize_image_ids/1)
+  end
 
   defp validate_finalize_uploads(uploads) do
     changeset =
@@ -466,6 +588,67 @@ defmodule Reseller.Media do
     Enum.find(product.images || [], &(&1.kind == kind and &1.position == position))
   end
 
+  defp image_ids_for_deletion(images, %ProductImage{kind: "original"} = image) do
+    variant_image_ids =
+      images
+      |> Enum.filter(
+        &(&1.position == image.position and &1.kind in ~w(background_removed white_background))
+      )
+      |> Enum.map(& &1.id)
+
+    dependent_preview_ids =
+      images
+      |> Enum.filter(
+        &(&1.kind == "lifestyle_generated" and image.id in List.wrap(&1.source_image_ids))
+      )
+      |> Enum.map(& &1.id)
+
+    ([image.id] ++ variant_image_ids ++ dependent_preview_ids)
+    |> Enum.uniq()
+  end
+
+  defp image_ids_for_deletion(_images, %ProductImage{} = image), do: [image.id]
+
+  defp select_lifestyle_generation_source_images(images) do
+    images
+    |> Enum.filter(&lifestyle_generation_source_image?/1)
+    |> Enum.sort_by(fn image ->
+      {
+        Map.get(@lifestyle_input_priority, image.kind, 99),
+        image.position || 0,
+        image.id || 0
+      }
+    end)
+    |> Enum.reduce({[], MapSet.new()}, fn image, {selected, seen_kinds} ->
+      if MapSet.member?(seen_kinds, image.kind) do
+        {selected, seen_kinds}
+      else
+        {[image | selected], MapSet.put(seen_kinds, image.kind)}
+      end
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+    |> Enum.take(3)
+  end
+
+  defp lifestyle_generation_source_image?(%ProductImage{} = image) do
+    image.kind in Map.keys(@lifestyle_input_priority) and
+      image.processing_status in @processable_image_statuses
+  end
+
+  defp next_product_image_position(%Product{} = product) do
+    images =
+      case product.images do
+        images when is_list(images) -> images
+        _other -> []
+      end
+
+    images
+    |> Enum.map(&(&1.position || 0))
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
+  end
+
   defp variant_source_image?(%ProductImage{} = image) do
     image.kind == "original" and image.processing_status in @processable_image_statuses
   end
@@ -553,5 +736,35 @@ defmodule Reseller.Media do
 
   defp normalize_path(path) do
     if String.starts_with?(path, "/"), do: path, else: "/" <> path
+  end
+
+  defp normalize_image_ids(nil), do: []
+
+  defp normalize_image_ids(image_ids) when is_list(image_ids) do
+    image_ids
+    |> Enum.map(fn
+      value when is_integer(value) ->
+        value
+
+      value when is_binary(value) ->
+        case Integer.parse(value) do
+          {integer, ""} -> integer
+          _other -> value
+        end
+
+      value ->
+        value
+    end)
+    |> Enum.filter(&is_integer/1)
+    |> Enum.uniq()
+  end
+
+  defp normalize_image_ids(_image_ids), do: []
+
+  defp stringify_keys(map) do
+    Map.new(map, fn
+      {key, value} when is_atom(key) -> {Atom.to_string(key), value}
+      {key, value} -> {key, value}
+    end)
   end
 end

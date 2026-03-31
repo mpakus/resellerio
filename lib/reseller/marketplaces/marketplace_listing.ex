@@ -2,6 +2,8 @@ defmodule Reseller.Marketplaces.MarketplaceListing do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Reseller.Marketplaces
+
   schema "marketplace_listings" do
     field :marketplace, :string
     field :status, :string, default: "generated"
@@ -34,7 +36,7 @@ defmodule Reseller.Marketplaces.MarketplaceListing do
       :last_generated_at
     ])
     |> validate_required([:marketplace, :status, :generated_title, :generated_description])
-    |> validate_inclusion(:marketplace, ~w(ebay depop poshmark))
+    |> validate_inclusion(:marketplace, Marketplaces.supported_marketplaces())
     |> validate_inclusion(:status, ~w(generated review failed))
     |> validate_length(:generated_title, max: 160)
     |> validate_number(:generated_price_suggestion, greater_than_or_equal_to: 0)

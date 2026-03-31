@@ -14,6 +14,7 @@ defmodule Reseller.AccountsTest do
 
       assert user.email == "seller@example.com"
       refute user.is_admin
+      assert user.selected_marketplaces == ["ebay", "depop", "poshmark"]
       assert user.hashed_password != "very-secure-password"
       assert is_binary(user.hashed_password)
     end
@@ -149,6 +150,43 @@ defmodule Reseller.AccountsTest do
       refute Accounts.admin?(nil)
       refute Accounts.admin?(user_fixture())
       assert Accounts.admin?(admin_user_fixture())
+    end
+  end
+
+  describe "update_user_marketplace_settings/2" do
+    test "stores a supported marketplace subset for the user" do
+      user = user_fixture()
+
+      assert {:ok, updated_user} =
+               Accounts.update_user_marketplace_settings(user, %{
+                 "selected_marketplaces" => ["mercari", "ebay", "etsy"]
+               })
+
+      assert updated_user.selected_marketplaces == ["ebay", "mercari", "etsy"]
+      assert Accounts.selected_marketplaces(updated_user) == ["ebay", "mercari", "etsy"]
+    end
+
+    test "allows clearing the selected marketplace list" do
+      user = user_fixture()
+
+      assert {:ok, updated_user} =
+               Accounts.update_user_marketplace_settings(user, %{
+                 "selected_marketplaces" => []
+               })
+
+      assert updated_user.selected_marketplaces == []
+      assert Accounts.selected_marketplaces(updated_user) == []
+    end
+
+    test "rejects unsupported marketplaces" do
+      user = user_fixture()
+
+      assert {:error, changeset} =
+               Accounts.update_user_marketplace_settings(user, %{
+                 "selected_marketplaces" => ["mercari", "unknown_market"]
+               })
+
+      assert "contains unsupported marketplaces: unknown_market" in errors_on(changeset).selected_marketplaces
     end
   end
 end

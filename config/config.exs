@@ -13,7 +13,9 @@ config :reseller,
   password_hash_iterations: 100_000,
   api_token_ttl_days: 30
 
-config :reseller, Reseller.AI, provider: Reseller.AI.Providers.Gemini
+config :reseller, Reseller.AI,
+  provider: Reseller.AI.Providers.Gemini,
+  lifestyle_generation_enabled: false
 
 config :reseller, Reseller.AI.Providers.Gemini,
   base_url: "https://generativelanguage.googleapis.com/v1beta",
@@ -25,7 +27,8 @@ config :reseller, Reseller.AI.Providers.Gemini,
     description: "gemini-2.5-flash",
     marketplace_listing: "gemini-2.5-flash",
     price_research: "gemini-2.5-flash",
-    reconciliation: "gemini-2.5-flash"
+    reconciliation: "gemini-2.5-flash",
+    lifestyle_image: "gemini-2.5-flash-image"
   }
 
 config :reseller, Reseller.Search, provider: Reseller.Search.Providers.SerpApi
@@ -61,7 +64,22 @@ config :reseller, Reseller.Workers,
   processing_mode: :async,
   product_processor: Reseller.Workers.AIProductProcessor
 
-config :reseller, Reseller.Marketplaces, marketplaces: ~w(ebay depop poshmark)
+config :reseller, Reseller.Marketplaces,
+  supported_marketplaces: ~w(
+      ebay
+      depop
+      poshmark
+      mercari
+      facebook_marketplace
+      offerup
+      whatnot
+      grailed
+      therealreal
+      vestiaire_collective
+      thredup
+      etsy
+    ),
+  default_marketplaces: ~w(ebay depop poshmark)
 
 config :reseller, Reseller.Exports,
   processing_mode: :async,

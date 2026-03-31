@@ -12,8 +12,9 @@
 
 ## Latest AI Planning Status
 
-- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds storage-backed image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, generates marketplace listings, creates Photoroom-backed processed variants, and marks image states `ready` or `failed`.
-- Current limitation: recognition still uses finalized original uploads as the AI input source; the new Photoroom variants are generated for listing quality and future workflows rather than feeding a second-pass recognition loop yet.
+- Current status: finalized product uploads now flow through `Reseller.Workers.AIProductProcessor`, which builds storage-backed image inputs, runs `Reseller.AI.RecognitionPipeline`, persists normalized fields onto `products`, generates a base description draft, runs grounded price research, generates marketplace listings, creates Photoroom-backed processed variants, marks image states `ready`, and can optionally trigger Gemini lifestyle-image generation as the final step.
+- Marketplace routing status: each user now owns a `selected_marketplaces` list, so marketplace-copy generation targets are configurable per account instead of being globally hardcoded.
+- Current limitation: lifestyle generation is still disabled by default until seller review/regeneration controls and stronger rollout guardrails land; recognition also still uses finalized originals as the primary AI input source instead of looping back through cleaned variants.
 - Next implementation target: Step AI6 admin observability, retries, and cost controls.
 
 ## 1. Goal
@@ -24,7 +25,7 @@ Add Gemini-powered AI workflows to the backend so a reseller can upload product 
 - extract structured product attributes
 - draft a clean product title and base description
 - research likely resale pricing from current web results
-- generate marketplace-specific copy for eBay, Depop, Poshmark, and future channels
+- generate marketplace-specific copy for the user's selected marketplaces from the supported catalog
 
 This plan is for backend integration first. Web and mobile surfaces should consume the resulting structured data and review states.
 
@@ -41,24 +42,30 @@ The repo already has:
 - Req-backed Gemini and SerpApi production clients
 - test-only fake providers for isolated unit tests
 - `Reseller.AI.ImageSelection`, `Reseller.AI.Normalizer`, and `Reseller.AI.RecognitionPipeline`
+- `Reseller.AI.ScenePlanner`
+- `Reseller.AI.LifestylePromptBuilder`
+- `Reseller.AI.GeneratedImage`
 - `Reseller.Catalog.Product` and `Reseller.Media.ProductImage`
 - `Reseller.AI.ProductDescriptionDraft`
+- `Reseller.AI.ProductLifestyleGenerationRun`
 - `Reseller.AI.ProductPriceResearch`
 - `Reseller.Marketplaces.MarketplaceListing`
 - `Reseller.Media.Processor` plus `Reseller.Media.Processors.Photoroom`
 - signed upload intent generation for product images
 - upload finalization and uploaded-image state transitions
 - `Reseller.Workers.ProductProcessingRun` plus lightweight async worker orchestration
-- `Reseller.Workers.AIProductProcessor` for recognition, description, price research, and marketplace generation
+- `Reseller.Workers.AIProductProcessor` for recognition, description, price research, marketplace generation, and the final optional lifestyle-generation step
+- `Reseller.Workers.LifestyleImageGenerator`
 - generated `product_description_drafts` stored separately from editable product fields
 - generated `product_price_researches` stored separately from editable product pricing
-- generated `marketplace_listings` stored separately per marketplace
+- generated `marketplace_listings` stored separately per marketplace and only for the current user's selected targets
 - generated processed image variants stored as additional `product_images`
+- generated lifestyle-image run records plus `lifestyle_generated` product-image outputs
 
 The repo does not yet have:
 
 - admin-facing AI retry/cost observability
-- Photoroom-backed image-processing variants
+- seller-facing review/regenerate controls for generated lifestyle images
 
 So the core recognition, description, price research, and marketplace generation layers now exist, and the next AI milestone is operational hardening.
 
@@ -187,9 +194,13 @@ Recommended adjustments:
 ### D. Marketplace Copy
 
 1. Backend takes the normalized product attributes and base description.
-2. Gemini generates marketplace-specific title/description/tag output per channel.
+2. Gemini generates marketplace-specific title/description/tag output per selected channel.
 3. Backend stores each output in `marketplace_listings`.
 4. User reviews and edits before publishing anywhere.
+
+Reference:
+
+- `docs/MARKETS.md` for current marketplace-specific rule notes and hashtag guidance
 
 ## 6. Output Contracts
 

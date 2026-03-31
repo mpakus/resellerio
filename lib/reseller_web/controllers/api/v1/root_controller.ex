@@ -19,6 +19,26 @@ defmodule ResellerWeb.API.V1.RootController do
             description: "Returns service health and application version information."
           },
           %{
+            method: "POST",
+            path: "/api/v1/auth/register",
+            description: "Creates a user account and returns a bearer token."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/auth/login",
+            description: "Authenticates a user and returns a bearer token."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/me",
+            description: "Returns the authenticated user and marketplace settings."
+          },
+          %{
+            method: "PATCH",
+            path: "/api/v1/me",
+            description: "Updates the authenticated user's marketplace settings."
+          },
+          %{
             method: "GET",
             path: "/api/v1/products",
             description: "Lists products for the authenticated user."
@@ -48,6 +68,31 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "POST",
             path: "/api/v1/products/:id/finalize_uploads",
             description: "Marks uploaded product images as ready for processing."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/reprocess",
+            description: "Restarts the core AI pipeline for one product."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/generate_lifestyle_images",
+            description: "Starts manual lifestyle-image generation for a review-ready product."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/products/:id/lifestyle_generation_runs",
+            description: "Lists dedicated lifestyle-image generation runs for one product."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/products/:id/generated_images/:image_id/approve",
+            description: "Marks one generated lifestyle preview as seller-approved."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/products/:id/generated_images/:image_id",
+            description: "Deletes one generated lifestyle preview."
           },
           %{
             method: "POST",

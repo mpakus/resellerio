@@ -49,7 +49,8 @@ config :reseller, Reseller.AI.Providers.Gemini,
     description: "gemini-test-description",
     marketplace_listing: "gemini-test-marketplace",
     price_research: "gemini-test-pricing",
-    reconciliation: "gemini-test-reconciliation"
+    reconciliation: "gemini-test-reconciliation",
+    lifestyle_image: "gemini-test-lifestyle-image"
   }
 
 config :reseller, Reseller.Search, provider: Reseller.Support.Fakes.SearchProvider

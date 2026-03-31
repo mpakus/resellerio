@@ -162,6 +162,7 @@ defmodule ResellerWeb.CoreComponents do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
   attr :class, :string, default: nil, doc: "the input class to use over defaults"
   attr :error_class, :string, default: nil, doc: "the input error class to use over defaults"
+  attr :copyable, :boolean, default: false, doc: "renders an inline copy-to-clipboard action"
 
   attr :rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
@@ -229,18 +230,40 @@ defmodule ResellerWeb.CoreComponents do
   def input(%{type: "textarea"} = assigns) do
     ~H"""
     <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+      <label :if={@label} for={@id} class="label mb-1">{@label}</label>
+      <div class="relative">
         <textarea
           id={@id}
           name={@name}
           class={[
             @class || "w-full textarea",
+            @copyable && "pr-11",
             @errors != [] && (@error_class || "textarea-error")
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
-      </label>
+        <button
+          :if={@copyable}
+          id={"#{@id}-copy"}
+          type="button"
+          phx-hook="ClipboardButton"
+          data-copy-target={"##{@id}"}
+          data-copy-default-label={copy_button_label(@label)}
+          data-copy-success-label={copy_button_success_label(@label)}
+          class="reseller-copy-button absolute right-2 top-2 inline-flex size-8 items-center justify-center rounded-full border border-base-300 bg-base-100 text-base-content/55 transition hover:border-base-400 hover:bg-base-100 hover:text-base-content"
+          title={copy_button_label(@label)}
+          aria-label={copy_button_label(@label)}
+        >
+          <span class="reseller-copy-icon-stack" aria-hidden="true">
+            <.icon
+              name="hero-document-duplicate"
+              class="reseller-copy-icon reseller-copy-icon-default size-4"
+            />
+            <.icon name="hero-check" class="reseller-copy-icon reseller-copy-icon-success size-4" />
+          </span>
+          <span class="sr-only" data-copy-label>{copy_button_label(@label)}</span>
+        </button>
+      </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -250,8 +273,8 @@ defmodule ResellerWeb.CoreComponents do
   def input(assigns) do
     ~H"""
     <div class="fieldset mb-2">
-      <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+      <label :if={@label} for={@id} class="label mb-1">{@label}</label>
+      <div class="relative">
         <input
           type={@type}
           name={@name}
@@ -259,11 +282,33 @@ defmodule ResellerWeb.CoreComponents do
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
             @class || "w-full input",
+            @copyable && "pr-11",
             @errors != [] && (@error_class || "input-error")
           ]}
           {@rest}
         />
-      </label>
+        <button
+          :if={@copyable}
+          id={"#{@id}-copy"}
+          type="button"
+          phx-hook="ClipboardButton"
+          data-copy-target={"##{@id}"}
+          data-copy-default-label={copy_button_label(@label)}
+          data-copy-success-label={copy_button_success_label(@label)}
+          class="reseller-copy-button absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-base-300 bg-base-100 text-base-content/55 transition hover:border-base-400 hover:bg-base-100 hover:text-base-content"
+          title={copy_button_label(@label)}
+          aria-label={copy_button_label(@label)}
+        >
+          <span class="reseller-copy-icon-stack" aria-hidden="true">
+            <.icon
+              name="hero-document-duplicate"
+              class="reseller-copy-icon reseller-copy-icon-default size-4"
+            />
+            <.icon name="hero-check" class="reseller-copy-icon reseller-copy-icon-success size-4" />
+          </span>
+          <span class="sr-only" data-copy-label>{copy_button_label(@label)}</span>
+        </button>
+      </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
     """
@@ -278,6 +323,18 @@ defmodule ResellerWeb.CoreComponents do
     </p>
     """
   end
+
+  defp copy_button_label(label) when is_binary(label) and label != "" do
+    "Copy " <> String.downcase(label)
+  end
+
+  defp copy_button_label(_label), do: "Copy value"
+
+  defp copy_button_success_label(label) when is_binary(label) and label != "" do
+    label <> " copied"
+  end
+
+  defp copy_button_success_label(_label), do: "Copied"
 
   @doc """
   Renders a header with title.

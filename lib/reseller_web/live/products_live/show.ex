@@ -4,15 +4,24 @@ defmodule ResellerWeb.ProductsLive.Show do
   alias Ecto.Changeset
   alias Reseller.Catalog
   alias Reseller.Catalog.Product
+  alias Reseller.Marketplaces
+  alias Reseller.Media.Storage
   alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
 
   @refresh_interval_ms 1_500
+  @image_upload_accept ~w(.jpg .jpeg .png .webp)
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket,
+     socket
+     |> allow_upload(:product_images,
+       accept: @image_upload_accept,
+       max_entries: 5,
+       max_file_size: 25_000_000
+     )
+     |> assign(
        page_title: ResellerWeb.PageTitle.build("Product Review", "Workspace / Inventory"),
        workspace_nav: WorkspaceNavigation.items(:products),
        refresh_interval_ms: @refresh_interval_ms,
@@ -78,7 +87,7 @@ defmodule ResellerWeb.ProductsLive.Show do
       {:ok, updated_product} ->
         {:noreply,
          socket
-         |> assign_product(updated_product, rebuild_form: true)
+         |> assign_product(updated_product, rebuild_form: true, use_suggested_tags?: false)
          |> put_flash(:info, "Product details updated.")}
 
       {:error, %Changeset{} = changeset} ->
@@ -108,6 +117,93 @@ defmodule ResellerWeb.ProductsLive.Show do
     end
   end
 
+  def handle_event("sync_product_uploads", _params, socket) do
+    {:noreply, clear_flash(socket, :error)}
+  end
+
+  def handle_event("cancel-product-image", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :product_images, ref)}
+  end
+
+  def handle_event("upload_product_images", _params, socket) do
+    upload_entries = socket.assigns.uploads.product_images.entries
+
+    if upload_entries == [] do
+      {:noreply, put_flash(socket, :error, "Choose at least one image to upload.")}
+    else
+      upload_specs = build_upload_specs(upload_entries)
+
+      case Catalog.prepare_product_uploads_for_user(
+             socket.assigns.current_user,
+             socket.assigns.product.id,
+             upload_specs
+           ) do
+        {:ok, %{upload_bundle: upload_bundle}} ->
+          case upload_and_finalize_product(
+                 socket,
+                 socket.assigns.product.id,
+                 upload_bundle.images
+               ) do
+            {:ok, finalized_product} ->
+              {:noreply,
+               socket
+               |> assign_product(finalized_product, rebuild_form: false)
+               |> put_flash(:info, "Images uploaded. AI processing restarted.")}
+
+            {:error, reason} ->
+              {:noreply, put_flash(socket, :error, "Uploads failed: #{format_reason(reason)}")}
+          end
+
+        {:error, :invalid_product_state} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "Images can be changed only while the product is in draft, review, or ready."
+           )}
+
+        {:error, reason} ->
+          {:noreply,
+           put_flash(socket, :error, "Could not prepare uploads: #{format_reason(reason)}")}
+      end
+    end
+  end
+
+  def handle_event("delete_product_image", %{"image-id" => image_id}, socket) do
+    case parse_integer(image_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Uploaded image not found.")}
+
+      parsed_image_id ->
+        case Catalog.delete_product_image_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            {:noreply,
+             socket
+             |> assign_product(product, rebuild_form: false)
+             |> put_flash(:info, "Image deleted.")}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "Uploaded image not found.")}
+
+          {:error, :invalid_product_state} ->
+            {:noreply,
+             put_flash(
+               socket,
+               :error,
+               "Images can be changed only while the product is in draft, review, or ready."
+             )}
+
+          {:error, reason} ->
+            {:noreply,
+             put_flash(socket, :error, "Could not delete the image: #{format_reason(reason)}")}
+        end
+    end
+  end
+
   def handle_event("retry_processing", _params, socket) do
     case Catalog.retry_product_processing_for_user(
            socket.assigns.current_user,
@@ -125,6 +221,121 @@ defmodule ResellerWeb.ProductsLive.Show do
       {:error, reason} ->
         {:noreply,
          put_flash(socket, :error, "Could not restart AI processing: #{format_reason(reason)}")}
+    end
+  end
+
+  def handle_event("generate_lifestyle_images", params, socket) do
+    generation_opts =
+      case params["scene_key"] do
+        scene_key when is_binary(scene_key) and scene_key != "" -> [scene_key: scene_key]
+        _other -> []
+      end
+
+    case Catalog.generate_lifestyle_images_for_user(
+           socket.assigns.current_user,
+           socket.assigns.product.id,
+           generation_opts
+         ) do
+      {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
+        if connected?(socket) do
+          Process.send_after(self(), :refresh_product, 150)
+        end
+
+        message =
+          case params["scene_key"] do
+            scene_key when is_binary(scene_key) and scene_key != "" ->
+              "Lifestyle preview regeneration started for #{Helpers.humanize_scene_key(scene_key)}."
+
+            _other ->
+              "Lifestyle preview generation started#{run_suffix(lifestyle_generation_run)}."
+          end
+
+        {:noreply,
+         socket
+         |> assign_product(product, rebuild_form: false)
+         |> put_flash(:info, message)}
+
+      {:error, :no_product_images} ->
+        {:noreply,
+         put_flash(socket, :error, "This product has no images available for previews.")}
+
+      {:error, :invalid_product_state} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Lifestyle preview generation unlocks after image processing finishes."
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Could not start lifestyle generation: #{format_reason(reason)}"
+         )}
+    end
+  end
+
+  def handle_event("approve_lifestyle_image", %{"image-id" => image_id}, socket) do
+    case parse_integer(image_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Generated image not found.")}
+
+      parsed_image_id ->
+        case Catalog.approve_lifestyle_image_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            {:noreply,
+             socket
+             |> assign_product(product, rebuild_form: false)
+             |> put_flash(:info, "Lifestyle preview approved for listing use.")}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "Generated image not found.")}
+
+          {:error, reason} ->
+            {:noreply,
+             put_flash(
+               socket,
+               :error,
+               "Could not approve the lifestyle preview: #{format_reason(reason)}"
+             )}
+        end
+    end
+  end
+
+  def handle_event("delete_lifestyle_image", %{"image-id" => image_id}, socket) do
+    case parse_integer(image_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Generated image not found.")}
+
+      parsed_image_id ->
+        case Catalog.delete_lifestyle_image_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            {:noreply,
+             socket
+             |> assign_product(product, rebuild_form: false)
+             |> put_flash(:info, "Lifestyle preview deleted.")}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "Generated image not found.")}
+
+          {:error, reason} ->
+            {:noreply,
+             put_flash(
+               socket,
+               :error,
+               "Could not delete the lifestyle preview: #{format_reason(reason)}"
+             )}
+        end
     end
   end
 
@@ -194,7 +405,7 @@ defmodule ResellerWeb.ProductsLive.Show do
           <div>
             <p class="font-semibold">AI processing is still running.</p>
             <p class="text-sm">
-              This page refreshes every #{@refresh_interval_ms}ms while title, brand, price research, and listing drafts arrive.
+              This page refreshes every #{@refresh_interval_ms}ms while title, brand, price research, listing drafts, and real-life previews arrive.
             </p>
           </div>
           <button
@@ -236,6 +447,15 @@ defmodule ResellerWeb.ProductsLive.Show do
 
           <div class="mt-6 h-2 overflow-hidden rounded-full bg-base-200">
             <div
+              id="pipeline-progressbar"
+              role="progressbar"
+              aria-label="Product processing progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={@pipeline_progress.percent}
+              aria-valuetext={
+                "#{@pipeline_progress.completed_count} of #{@pipeline_progress.total_count} steps complete"
+              }
               class={pipeline_progress_bar_classes(@pipeline_progress.state)}
               style={"width: #{@pipeline_progress.percent}%"}
             >
@@ -301,31 +521,34 @@ defmodule ResellerWeb.ProductsLive.Show do
                     options={@manual_product_status_options}
                     disabled={status_locked?(@product)}
                   />
-                  <.input field={@review_form[:title]} label="Title" />
-                  <.input field={@review_form[:brand]} label="Brand" />
-                  <.input field={@review_form[:category]} label="Category" />
-                  <.input field={@review_form[:condition]} label="Condition" />
-                  <.input field={@review_form[:color]} label="Color" />
-                  <.input field={@review_form[:size]} label="Size" />
-                  <.input field={@review_form[:material]} label="Material" />
-                  <.input field={@review_form[:sku]} label="SKU" />
+                  <.input field={@review_form[:title]} label="Title" copyable />
+                  <.input field={@review_form[:brand]} label="Brand" copyable />
+                  <.input field={@review_form[:category]} label="Category" copyable />
+                  <.input field={@review_form[:condition]} label="Condition" copyable />
+                  <.input field={@review_form[:color]} label="Color" copyable />
+                  <.input field={@review_form[:size]} label="Size" copyable />
+                  <.input field={@review_form[:material]} label="Material" copyable />
+                  <.input field={@review_form[:sku]} label="SKU" copyable />
                   <.input
                     field={@review_form[:tags]}
                     label="Tags"
                     placeholder="denim, vintage, outerwear"
                     value={Helpers.tag_input_value(@review_form[:tags].value)}
+                    copyable
                   />
                   <.input
                     field={@review_form[:price]}
                     type="number"
                     step="0.01"
                     label="Price"
+                    copyable
                   />
                   <.input
                     field={@review_form[:cost]}
                     type="number"
                     step="0.01"
                     label="Cost"
+                    copyable
                   />
                 </div>
 
@@ -365,6 +588,7 @@ defmodule ResellerWeb.ProductsLive.Show do
                   rows="4"
                   label="Notes"
                   placeholder="Fit notes, defects, or seller-only reminders"
+                  copyable
                 />
 
                 <div class="flex flex-wrap gap-2">
@@ -414,34 +638,294 @@ defmodule ResellerWeb.ProductsLive.Show do
               </.form>
             </.surface>
 
-            <.surface
-              :if={@product.images != []}
-              id="product-review-images"
-              tag="article"
-            >
+            <.surface id="product-review-images" tag="article">
               <.header>
                 Images
                 <:subtitle>
-                  Original uploads and any generated variants stay attached as separate product images.
+                  Each uploaded photo keeps its original plus one background-removed processing variant, and you can swap photos before the product is sold or archived.
                 </:subtitle>
               </.header>
 
-              <div class="grid gap-3 sm:grid-cols-2">
-                <div
-                  :for={image <- @product.images}
-                  class="overflow-hidden rounded-3xl border border-base-300 bg-base-50"
-                >
-                  <img
-                    :if={image_url = Helpers.public_image_url(image)}
-                    src={image_url}
-                    alt={image.original_filename || image.kind}
-                    class="aspect-square w-full object-cover"
-                  />
-                  <div class="p-3 text-sm">
-                    <p class="font-semibold">{Helpers.humanize_kind(image.kind)}</p>
-                    <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
-                      {image.processing_status}
+              <div>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.22em] text-base-content/50">
+                      Uploaded and processed images
                     </p>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
+                      Review each uploaded source photo alongside its cleaned background-removed version, delete outdated shots, and upload replacements without leaving this page.
+                    </p>
+                  </div>
+                  <span class="badge rounded-full border border-base-300 bg-base-100 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60">
+                    {length(Helpers.product_image_groups(@product))} uploaded
+                  </span>
+                </div>
+
+                <div
+                  :if={Helpers.product_image_groups(@product) == []}
+                  id="product-image-gallery-empty"
+                  class="mt-4 rounded-[1.75rem] border border-dashed border-base-300 bg-base-50 px-5 py-5 text-sm leading-6 text-base-content/68"
+                >
+                  No uploaded product photos are attached right now. Add new images below to
+                  restart the review pipeline.
+                </div>
+
+                <div
+                  :if={Helpers.product_image_groups(@product) != []}
+                  id="product-image-gallery"
+                  class="mt-4 grid gap-4 xl:grid-cols-2"
+                >
+                  <div
+                    :for={group <- Helpers.product_image_groups(@product)}
+                    id={"product-image-group-#{group.original.id}"}
+                    class="overflow-hidden rounded-[1.75rem] border border-base-300 bg-base-50"
+                  >
+                    <div class="border-b border-base-300/80 px-4 py-4">
+                      <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p class="text-xs uppercase tracking-[0.22em] text-base-content/50">
+                            Upload {group.original.position}
+                          </p>
+                          <p class="mt-2 text-base font-semibold leading-6 text-base-content">
+                            {group.original.original_filename || "Original photo"}
+                          </p>
+                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
+                            {group.original.processing_status}
+                          </p>
+                        </div>
+                        <button
+                          :if={Helpers.product_image_management_available?(@product)}
+                          id={"delete-product-image-#{group.original.id}"}
+                          type="button"
+                          phx-click="delete_product_image"
+                          phx-value-image-id={group.original.id}
+                          data-confirm="Delete this uploaded image and its processed variants?"
+                          class="btn btn-ghost btn-xs rounded-full text-error"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="grid gap-3 p-4 md:grid-cols-2">
+                      <div class="overflow-hidden rounded-3xl border border-base-300 bg-base-100">
+                        <img
+                          :if={image_url = Helpers.public_image_url(group.original)}
+                          id={"product-image-original-#{group.original.id}"}
+                          src={image_url}
+                          alt={group.original.original_filename || group.original.kind}
+                          class="aspect-square w-full object-cover"
+                        />
+                        <div class="p-3 text-sm">
+                          <p class="font-semibold">Original</p>
+                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
+                            {group.original.processing_status}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="overflow-hidden rounded-3xl border border-base-300 bg-base-100">
+                        <img
+                          :if={image_url = Helpers.public_image_url(group.background_removed)}
+                          id={"product-image-background-#{group.original.id}"}
+                          src={image_url}
+                          alt={
+                            (group.background_removed &&
+                               (group.background_removed.original_filename ||
+                                  group.background_removed.kind)) ||
+                              "Background removed image"
+                          }
+                          class="aspect-square w-full object-cover"
+                        />
+                        <div class="p-3 text-sm">
+                          <p class="font-semibold">Background removed</p>
+                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
+                            {if(group.background_removed,
+                              do: group.background_removed.processing_status,
+                              else: "pending"
+                            )}
+                          </p>
+                          <p
+                            :if={!group.background_removed}
+                            class="mt-2 text-xs leading-5 text-base-content/65"
+                          >
+                            This processed variant appears after image processing finishes.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-8 border-t border-base-300/80 pt-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.22em] text-base-content/50">
+                      Manage photos
+                    </p>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
+                      Add fresh photos here when you want the AI to rerun on a better image set.
+                    </p>
+                  </div>
+                  <span
+                    :if={!Helpers.product_image_management_available?(@product)}
+                    class="badge rounded-full border border-base-300 bg-base-100 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60"
+                  >
+                    Locked while {@product.status}
+                  </span>
+                </div>
+
+                <.form
+                  :if={Helpers.product_image_management_available?(@product)}
+                  for={to_form(%{}, as: :product_images)}
+                  id="product-image-upload-form"
+                  phx-change="sync_product_uploads"
+                  phx-submit="upload_product_images"
+                  class="mt-4"
+                >
+                  <.upload_panel
+                    id="review-product-upload-panel"
+                    title="Add or replace photos"
+                    description="Upload JPG, PNG, or WEBP files. New photos are attached to this product and AI processing restarts automatically."
+                    upload={@uploads.product_images}
+                    cancel_event="cancel-product-image"
+                    errors={Enum.map(upload_errors(@uploads.product_images), &error_to_string/1)}
+                  />
+
+                  <div class="mt-5 flex flex-wrap items-center gap-3">
+                    <.button class="btn btn-primary rounded-full">Upload new images</.button>
+                    <p class="text-sm leading-6 text-base-content/60">
+                      Delete outdated photos above first if you are replacing the whole set.
+                    </p>
+                  </div>
+                </.form>
+
+                <div
+                  :if={!Helpers.product_image_management_available?(@product)}
+                  class="mt-4 rounded-[1.5rem] border border-base-300 bg-base-50 px-4 py-4 text-sm leading-6 text-base-content/68"
+                >
+                  Image edits are available only while the product is in draft, review, or ready.
+                </div>
+              </div>
+
+              <div class="mt-8 border-t border-base-300/80 pt-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.22em] text-base-content/50">
+                      Step 8 · Real-life previews
+                    </p>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
+                      {Helpers.lifestyle_preview_headline(@product)}
+                    </p>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-end gap-2">
+                    <span class="badge rounded-full border border-info/20 bg-info/10 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-info">
+                      {Helpers.lifestyle_preview_badge(@product)}
+                    </span>
+                    <span
+                      :if={Helpers.approved_lifestyle_preview_count(@product) > 0}
+                      class="badge rounded-full border border-success/20 bg-success/10 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-success"
+                    >
+                      {Helpers.approved_lifestyle_preview_count(@product)} approved
+                    </span>
+                    <button
+                      :if={Helpers.lifestyle_generation_available?(@product)}
+                      id="generate-lifestyle-images-button"
+                      type="button"
+                      phx-click="generate_lifestyle_images"
+                      class="btn btn-outline btn-sm rounded-full"
+                    >
+                      {if(
+                        Helpers.lifestyle_preview_images(@product) == [],
+                        do: "Generate previews",
+                        else: "Regenerate all"
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  :if={Helpers.lifestyle_preview_images(@product) == []}
+                  id="product-lifestyle-preview-empty"
+                  class="mt-4 rounded-[1.75rem] border border-dashed border-base-300 bg-base-50 px-5 py-5 text-sm leading-6 text-base-content/68"
+                >
+                  This optional final step runs after image processing and uses the uploaded product
+                  images to generate 2-3 AI real-life previews.
+                </div>
+
+                <div
+                  :if={Helpers.lifestyle_preview_images(@product) != []}
+                  id="product-lifestyle-preview-gallery"
+                  class="mt-4 grid gap-3 sm:grid-cols-2"
+                >
+                  <div
+                    :for={image <- Helpers.lifestyle_preview_images(@product)}
+                    id={"lifestyle-preview-image-#{image.id}"}
+                    class="overflow-hidden rounded-3xl border border-info/20 bg-info/5"
+                  >
+                    <img
+                      :if={image_url = Helpers.public_image_url(image)}
+                      src={image_url}
+                      alt={image.original_filename || image.kind}
+                      class="aspect-square w-full object-cover"
+                    />
+                    <div class="p-3 text-sm">
+                      <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p class="font-semibold">AI-generated real-life preview</p>
+                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
+                            {image.processing_status}
+                          </p>
+                        </div>
+                        <span class={[
+                          "inline-flex items-center rounded-full border px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.16em]",
+                          Helpers.lifestyle_preview_status_badge_classes(image)
+                        ]}>
+                          {Helpers.lifestyle_preview_status_label(image)}
+                        </span>
+                      </div>
+                      <p class="mt-2 text-xs leading-5 text-base-content/70">
+                        Uses uploaded product images
+                        <span :if={image.scene_key}>
+                          · {Helpers.humanize_scene_key(image.scene_key)}
+                        </span>
+                      </p>
+                      <p :if={image.approved_at} class="mt-2 text-xs leading-5 text-base-content/60">
+                        Approved {Helpers.format_datetime(image.approved_at)}
+                      </p>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <button
+                          :if={!image.seller_approved}
+                          id={"approve-lifestyle-image-#{image.id}"}
+                          type="button"
+                          phx-click="approve_lifestyle_image"
+                          phx-value-image-id={image.id}
+                          class="btn btn-primary btn-xs rounded-full"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          id={"regenerate-lifestyle-scene-#{image.id}"}
+                          type="button"
+                          phx-click="generate_lifestyle_images"
+                          phx-value-scene_key={image.scene_key}
+                          class="btn btn-outline btn-xs rounded-full"
+                        >
+                          Regenerate scene
+                        </button>
+                        <button
+                          id={"delete-lifestyle-image-#{image.id}"}
+                          type="button"
+                          phx-click="delete_lifestyle_image"
+                          phx-value-image-id={image.id}
+                          data-confirm="Delete this lifestyle preview?"
+                          class="btn btn-ghost btn-xs rounded-full text-error"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -515,13 +999,98 @@ defmodule ResellerWeb.ProductsLive.Show do
               <div class="mt-4 space-y-3">
                 <div
                   :for={listing <- @product.marketplace_listings}
+                  class="rounded-[1.75rem] border border-base-300 bg-base-100 px-4 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+                >
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-[11px] uppercase tracking-[0.26em] text-base-content/45">
+                        Marketplace
+                      </p>
+                      <p class="mt-2 text-lg font-semibold tracking-[-0.02em] text-base-content">
+                        {Marketplaces.marketplace_label(listing.marketplace)}
+                      </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                      <button
+                        id={"copy-marketplace-title-#{listing.id}"}
+                        type="button"
+                        phx-hook="ClipboardButton"
+                        data-copy-text={listing.generated_title || ""}
+                        data-copy-default-label="Copy title"
+                        data-copy-success-label="Title copied"
+                        class="btn btn-ghost btn-xs rounded-full border border-base-300 bg-base-50/90 px-3 normal-case text-base-content/70 hover:border-base-400 hover:bg-base-100"
+                      >
+                        <.icon name="hero-document-duplicate" class="size-3.5" />
+                        <span data-copy-label>Copy title</span>
+                      </button>
+
+                      <button
+                        id={"copy-marketplace-description-#{listing.id}"}
+                        type="button"
+                        phx-hook="ClipboardButton"
+                        data-copy-text={Helpers.listing_description_copy_text(listing)}
+                        data-copy-default-label="Copy description"
+                        data-copy-success-label="Description copied"
+                        class="btn btn-ghost btn-xs rounded-full border border-base-300 bg-base-50/90 px-3 normal-case text-base-content/70 hover:border-base-400 hover:bg-base-100"
+                      >
+                        <.icon name="hero-document-text" class="size-3.5" />
+                        <span data-copy-label>Copy description</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 space-y-3">
+                    <div class="rounded-2xl border border-base-300/80 bg-base-50 px-4 py-3">
+                      <p class="text-[11px] uppercase tracking-[0.22em] text-base-content/45">
+                        Title
+                      </p>
+                      <p
+                        id={"marketplace-title-#{listing.id}"}
+                        class="mt-2 text-sm font-semibold leading-6 text-base-content"
+                      >
+                        {listing.generated_title}
+                      </p>
+                    </div>
+
+                    <div class="rounded-2xl border border-base-300/80 bg-base-50 px-4 py-3">
+                      <p class="text-[11px] uppercase tracking-[0.22em] text-base-content/45">
+                        Description
+                      </p>
+                      <p
+                        id={"marketplace-description-#{listing.id}"}
+                        class="mt-2 whitespace-pre-line text-sm leading-6 text-base-content/75"
+                      >
+                        {Helpers.listing_description_text(listing)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </.surface>
+
+            <.surface
+              :if={@product.lifestyle_generation_runs != []}
+              id="product-lifestyle-generation-runs"
+              tag="article"
+              variant="soft"
+            >
+              <p class="text-xs uppercase tracking-[0.24em] text-base-content/50">
+                Lifestyle image runs
+              </p>
+              <div class="mt-4 space-y-3 text-sm">
+                <div
+                  :for={run <- Enum.take(@product.lifestyle_generation_runs, 5)}
                   class="rounded-2xl border border-base-300 bg-base-100 px-4 py-4"
                 >
-                  <p class="text-sm font-semibold">
-                    {String.upcase(listing.marketplace)} · {listing.generated_title}
-                  </p>
-                  <p class="mt-2 text-sm leading-6 text-base-content/75">
-                    {listing.generated_description}
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <p class="font-semibold">{run.status} · {run.step}</p>
+                    <p class="text-xs uppercase tracking-[0.16em] text-base-content/45">
+                      {Helpers.format_datetime(run.inserted_at)}
+                    </p>
+                  </div>
+                  <p class="mt-2 leading-6 text-base-content/70">
+                    {Helpers.lifestyle_generation_run_detail(run)}
                   </p>
                 </div>
               </div>
@@ -568,6 +1137,7 @@ defmodule ResellerWeb.ProductsLive.Show do
 
   defp assign_product(socket, %Product{} = product, opts) do
     rebuild_form? = Keyword.get(opts, :rebuild_form, !socket.assigns.review_form_dirty?)
+    use_suggested_tags? = Keyword.get(opts, :use_suggested_tags?, true)
 
     socket =
       assign(socket,
@@ -580,20 +1150,23 @@ defmodule ResellerWeb.ProductsLive.Show do
         product: product,
         product_id: product.id,
         review_form:
-          if(rebuild_form?, do: build_review_form(product), else: socket.assigns.review_form),
+          if(rebuild_form?,
+            do: build_review_form(product, use_suggested_tags?: use_suggested_tags?),
+            else: socket.assigns.review_form
+          ),
         review_form_dirty?: if(rebuild_form?, do: false, else: socket.assigns.review_form_dirty?)
       )
 
-    if product.status in ["uploading", "processing"] and connected?(socket) do
+    if refresh_needed?(product) and connected?(socket) do
       Process.send_after(self(), :refresh_product, @refresh_interval_ms)
     end
 
     socket
   end
 
-  defp build_review_form(%Product{} = product) do
+  defp build_review_form(%Product{} = product, opts) do
     product
-    |> build_review_changeset(review_seed_attrs(product))
+    |> build_review_changeset(review_seed_attrs(product, opts))
     |> to_form(as: :product)
   end
 
@@ -601,7 +1174,9 @@ defmodule ResellerWeb.ProductsLive.Show do
     Product.update_changeset(product, attrs)
   end
 
-  defp review_seed_attrs(%Product{} = product) do
+  defp review_seed_attrs(%Product{} = product, opts) do
+    seed_tags? = Keyword.get(opts, :use_suggested_tags?, true)
+
     %{
       "status" => review_status(product),
       "title" => product.title,
@@ -614,7 +1189,11 @@ defmodule ResellerWeb.ProductsLive.Show do
       "price" => Helpers.suggested_price(product),
       "cost" => Helpers.suggested_cost(product),
       "sku" => product.sku,
-      "tags" => product.tags,
+      "tags" =>
+        if(seed_tags? and List.wrap(product.tags) == [],
+          do: Helpers.suggested_product_tags(product),
+          else: product.tags
+        ),
       "notes" => product.notes
     }
   end
@@ -651,6 +1230,86 @@ defmodule ResellerWeb.ProductsLive.Show do
 
   defp parse_integer(_value), do: nil
 
+  defp build_upload_specs(entries) do
+    entries
+    |> Enum.with_index(1)
+    |> Enum.map(fn {entry, index} ->
+      %{
+        "filename" => entry.client_name,
+        "content_type" => entry.client_type,
+        "byte_size" => entry.client_size,
+        "position" => index
+      }
+    end)
+  end
+
+  defp upload_and_finalize_product(socket, product_id, images) do
+    case upload_product_entries(socket, images) do
+      {:ok, []} ->
+        {:ok, socket.assigns.product}
+
+      {:ok, uploaded_entries} ->
+        case Catalog.finalize_product_uploads_for_user(
+               socket.assigns.current_user,
+               product_id,
+               uploaded_entries
+             ) do
+          {:ok, %{product: finalized_product}} -> {:ok, finalized_product}
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp upload_product_entries(_socket, []), do: {:ok, []}
+
+  defp upload_product_entries(socket, images) do
+    image_by_ref =
+      socket.assigns.uploads.product_images.entries
+      |> Enum.zip(images)
+      |> Map.new(fn {entry, image} -> {entry.ref, image} end)
+
+    results =
+      consume_uploaded_entries(socket, :product_images, fn %{path: path}, entry ->
+        image = Map.fetch!(image_by_ref, entry.ref)
+
+        case File.read(path) do
+          {:ok, body} ->
+            case Storage.upload_object(image.storage_key, body, content_type: image.content_type) do
+              {:ok, _upload} ->
+                {:ok,
+                 {:ok,
+                  %{
+                    "id" => image.id,
+                    "byte_size" => byte_size(body),
+                    "checksum" => checksum(body)
+                  }}}
+
+              {:error, reason} ->
+                {:ok, {:error, reason}}
+            end
+
+          {:error, reason} ->
+            {:ok, {:error, reason}}
+        end
+      end)
+
+    case Enum.find(results, &match?({:error, _reason}, &1)) do
+      nil ->
+        {:ok, Enum.map(results, fn {:ok, uploaded_entry} -> uploaded_entry end)}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp checksum(binary), do: Base.encode16(:crypto.hash(:sha256, binary), case: :lower)
+
+  defp run_suffix(nil), do: ""
+  defp run_suffix(run), do: " with run ##{run.id}"
+
   defp format_reason({:missing_config, config_key}) do
     "missing configuration: #{humanize_config_key(config_key)}. Add it to your .env or shell and restart Phoenix."
   end
@@ -658,16 +1317,27 @@ defmodule ResellerWeb.ProductsLive.Show do
   defp format_reason(%Changeset{} = changeset), do: inspect(changeset.errors)
   defp format_reason(reason), do: inspect(reason)
 
+  defp error_to_string(:too_large), do: "File is too large"
+  defp error_to_string(:too_many_files), do: "Too many files selected"
+  defp error_to_string(:not_accepted), do: "File type is not accepted"
+  defp error_to_string(other), do: inspect(other)
+
   defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
   defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
   defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: inspect(config_key)
 
+  defp refresh_needed?(%Product{} = product) do
+    product.status in ["uploading", "processing"] or
+      Helpers.lifestyle_generation_inflight?(product)
+  end
+
   defp pipeline_state_label(:completed), do: "Done"
   defp pipeline_state_label(:active), do: "In progress"
   defp pipeline_state_label(:warning), do: "Warning"
   defp pipeline_state_label(:failed), do: "Failed"
+  defp pipeline_state_label(:optional), do: "Optional"
   defp pipeline_state_label(:pending), do: "Pending"
 
   defp pipeline_overall_badge_classes(state) do
@@ -678,6 +1348,7 @@ defmodule ResellerWeb.ProductsLive.Show do
         :active -> "border-info/25 bg-info/15 text-info"
         :warning -> "border-warning/25 bg-warning/20 text-warning"
         :failed -> "border-error/25 bg-error/15 text-error"
+        :optional -> "border-base-300 bg-base-100 text-base-content/60"
         _other -> "border-base-300 bg-base-200 text-base-content/60"
       end
     ]
@@ -688,9 +1359,10 @@ defmodule ResellerWeb.ProductsLive.Show do
       "h-full rounded-full transition-all duration-500",
       case state do
         :completed -> "bg-success"
-        :active -> "bg-info"
+        :active -> "bg-info reseller-progress-bar-active"
         :warning -> "bg-warning"
         :failed -> "bg-error"
+        :optional -> "bg-base-300"
         _other -> "bg-base-300"
       end
     ]
@@ -704,6 +1376,7 @@ defmodule ResellerWeb.ProductsLive.Show do
         :active -> "border-info/30 bg-info/10 shadow-[0_18px_50px_rgba(30,136,229,0.12)]"
         :warning -> "border-warning/30 bg-warning/10"
         :failed -> "border-error/30 bg-error/10"
+        :optional -> "border-base-300 bg-base-100/80"
         _other -> "border-base-300 bg-base-50"
       end
     ]
@@ -717,6 +1390,7 @@ defmodule ResellerWeb.ProductsLive.Show do
         :active -> "border-info/25 bg-info text-info-content"
         :warning -> "border-warning/25 bg-warning text-warning-content"
         :failed -> "border-error/25 bg-error text-error-content"
+        :optional -> "border-base-300 bg-base-100 text-base-content/60"
         _other -> "border-base-300 bg-base-100 text-base-content/55"
       end
     ]
@@ -730,6 +1404,7 @@ defmodule ResellerWeb.ProductsLive.Show do
         :active -> "border-info/20 bg-info/15 text-info"
         :warning -> "border-warning/20 bg-warning/20 text-warning"
         :failed -> "border-error/20 bg-error/15 text-error"
+        :optional -> "border-base-300 bg-base-100 text-base-content/60"
         _other -> "border-base-300 bg-base-200 text-base-content/55"
       end
     ]

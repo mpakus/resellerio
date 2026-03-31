@@ -17,26 +17,33 @@
 - [x] Step 9: Product lifecycle endpoints for edit, delete, sold, archive, and restore flows.
 - [x] Step 10: Production Docker packaging with release-based container startup.
  - [x] Step 11: Product tags plus seller-managed status changes in API and web workspace.
+- [x] Step 11.1: Per-user marketplace defaults plus expanded marketplace catalog.
 
 ## Latest Progress
 
-- Completed: Step 11 product tags plus seller-managed status changes.
-- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, `DELETE /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, `POST /api/v1/products/:id/unarchive`, `POST /api/v1/exports`, `GET /api/v1/exports/:id`, `POST /api/v1/imports`, and `GET /api/v1/imports/:id`
+- Completed: Step 11.1 per-user marketplace defaults plus expanded marketplace catalog.
+- Lifestyle-image foundation: `product_lifestyle_generation_runs` now track dedicated AI lifestyle-image lifecycle data, and `product_images` can persist `lifestyle_generated` outputs with scene/run/source-image metadata.
+- Lifestyle-image generation: Gemini-backed scene generation, category-aware prompt planning, and final-step worker orchestration now exist behind an opt-in rollout flag.
+- Lifestyle-image controls: seller review, manual generate/regenerate, approve, and delete actions now exist in both the product LiveView and `/api/v1/products/:id/...` surfaces.
+- Current API endpoints: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/me`, `PATCH /api/v1/me`, `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, `DELETE /api/v1/products/:id`, `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/reprocess`, `POST /api/v1/products/:id/generate_lifestyle_images`, `GET /api/v1/products/:id/lifestyle_generation_runs`, `POST /api/v1/products/:id/generated_images/:image_id/approve`, `DELETE /api/v1/products/:id/generated_images/:image_id`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, `POST /api/v1/products/:id/unarchive`, `POST /api/v1/exports`, `GET /api/v1/exports/:id`, `POST /api/v1/imports`, and `GET /api/v1/imports/:id`
 - API reference: `docs/API.md`
 - AI foundation: `Reseller.AI` and `Reseller.Search` now exist with Gemini and SerpApi clients, documented in `docs/PLAN-AI.md`
 - AI orchestration: image selection, confidence-based Lens fallback, and reconciliation now exist in `Reseller.AI.RecognitionPipeline`
 - Product processing: `Reseller.Workers.AIProductProcessor` now turns finalized uploads into persisted product AI fields and closes image states to `ready` or `failed`
 - Generated copy: `product_description_drafts` now store AI-authored base copy separately from editable product fields
 - Pricing: `product_price_researches` now store grounded price suggestions and comparable evidence separately from editable product fields
-- Marketplace output: `marketplace_listings` now store generated eBay, Depop, and Poshmark copy per product
-- Media variants: processed `background_removed` and `white_background` images can now be generated and stored per original image
+- Marketplace settings: users now store a per-account `selected_marketplaces` list, editable in `/app/settings` and via `PATCH /api/v1/me`
+- Marketplace output: `marketplace_listings` now store generated copy per selected marketplace, and the supported catalog now includes eBay, Depop, Poshmark, Mercari, Facebook Marketplace, OfferUp, Whatnot, Grailed, The RealReal, Vestiaire Collective, thredUp, and Etsy
+- Marketplace rule notes: `docs/MARKETS.md`
+- Media variants: a processed `background_removed` image is now generated per original upload, and the review page supports deleting stale photos and uploading replacements
 - Lifestyle-image planning for Gemini-backed "real life" scene generation is tracked in `docs/PLAN-GENERATE-IMAGE.md`
 - Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
 - Imports: `Reseller.Imports` now stores source ZIP archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
 - Product lifecycle: editable product fields can now be updated, products can be deleted, and explicit sold/archive/unarchive flows now exist
 - Product metadata: products now support seller-managed `tags`, and seller edits can directly move products between manual statuses like `draft`, `review`, `ready`, `sold`, and `archived`
 - Deployment: the repo now includes a production-focused `Dockerfile`, `.dockerignore`, and `docker-compose.yml` with release migrations on boot
-- Next target: add passkey authentication and device-friendly browser/API flows.
+- Parallel next target: `docs/PLAN-GENERATE-IMAGE.md` Step GI7 cost controls and rollout guardrails for lifestyle images.
+- Broader platform next target: add passkey authentication and device-friendly browser/API flows.
 
 ## Working Rules
 
@@ -70,7 +77,8 @@ Build a mobile-app backend for resellers that can:
 - Store original and processed images in Tigris S3-compatible storage.
 - Recognize what is in the photos using an AI API.
 - Generate product metadata and listing descriptions automatically.
-- Generate marketplace-specific content for eBay, Depop, Poshmark, and future channels.
+- Generate marketplace-specific content for supported marketplaces and future channels.
+- Let each user choose which supported marketplaces should receive generated listing copy.
 - Let users manage product lifecycle states such as draft, ready, sold, and archived.
 - Export products and images as a ZIP archive containing `index.json` and `images/*`.
 - Import the same archive format back into the system.
@@ -105,6 +113,7 @@ Recommended infrastructure additions:
   - email
   - hashed_password
   - confirmed_at
+  - selected_marketplaces
   - default_background_style
   - onboarding_state
 
@@ -456,7 +465,7 @@ Job requirements:
 ### Phase 4: Marketplace Listings
 
 - Add marketplace listing records.
-- Generate eBay, Depop, and Poshmark-specific copy.
+- Generate marketplace-specific copy for the user's selected marketplaces.
 - Add regeneration and manual editing support.
 
 ### Phase 5: Import / Export

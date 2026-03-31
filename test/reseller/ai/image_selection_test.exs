@@ -18,10 +18,10 @@ defmodule Reseller.AI.ImageSelectionTest do
         uri: "https://cdn.example.com/1-crop.jpg"
       },
       %{
-        kind: "white_background",
+        kind: "background_removed",
         position: 2,
         mime_type: "image/jpeg",
-        uri: "https://cdn.example.com/2-white.jpg"
+        uri: "https://cdn.example.com/2-background-removed.jpg"
       },
       %{
         kind: "normalized",

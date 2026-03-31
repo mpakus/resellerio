@@ -36,6 +36,9 @@ defmodule Reseller.Catalog.Product do
     has_many :processing_runs, Reseller.Workers.ProductProcessingRun,
       preload_order: [desc: :inserted_at, desc: :id]
 
+    has_many :lifestyle_generation_runs, Reseller.AI.ProductLifestyleGenerationRun,
+      preload_order: [desc: :inserted_at, desc: :id]
+
     timestamps(type: :utc_datetime)
   end
 

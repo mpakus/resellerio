@@ -5,6 +5,8 @@ defmodule Reseller.AI.Providers.Gemini do
 
   @behaviour Reseller.AI.Provider
 
+  alias Reseller.AI.GeneratedImage
+
   @type request_data :: %{
           method: :post,
           url: String.t(),
@@ -60,6 +62,15 @@ defmodule Reseller.AI.Providers.Gemini do
            build_generate_content_request(:marketplace_listing, [], attrs, opts),
          {:ok, response} <- execute_request(request, opts) do
       parse_structured_response(:marketplace_listing, response, request.model)
+    end
+  end
+
+  @impl true
+  def generate_lifestyle_image(attrs, images, opts \\ []) do
+    with {:ok, prepared_images} <- prepare_recognition_images(images, opts),
+         {:ok, request} <- build_image_generation_request(attrs, prepared_images, opts),
+         {:ok, response} <- execute_request(request, opts) do
+      parse_generated_image_response(:lifestyle_image, response, request.model, attrs)
     end
   end
 
@@ -203,6 +214,45 @@ defmodule Reseller.AI.Providers.Gemini do
     end
   end
 
+  defp parse_generated_image_response(operation, response, model, attrs) do
+    status = response_field(response, :status) || 200
+    body = response_field(response, :body) || %{}
+
+    if status in 200..299 do
+      generated_images =
+        body
+        |> extract_candidate_parts()
+        |> Enum.map(&GeneratedImage.from_part/1)
+        |> Enum.reject(&is_nil/1)
+
+      if generated_images == [] do
+        {:error, {:no_generated_images, body}}
+      else
+        {:ok,
+         %{
+           provider: :gemini,
+           operation: operation,
+           model: model,
+           output: %{
+             "scene_key" => Map.get(attrs, "scene_key") || Map.get(attrs, :scene_key),
+             "scene_family" => Map.get(attrs, "scene_family") || Map.get(attrs, :scene_family),
+             "image_count" => length(generated_images),
+             "text_responses" => extract_candidate_text_parts(body)
+           },
+           generated_images:
+             Enum.map(generated_images, fn image ->
+               %{mime_type: image.mime_type, data_base64: image.data_base64}
+             end),
+           usage: Map.get(body, "usageMetadata"),
+           raw_response: body,
+           request_id: response_header(response, "x-request-id")
+         }}
+      end
+    else
+      {:error, {:http_error, status, body}}
+    end
+  end
+
   defp parse_text_response(response) do
     status = response_field(response, :status) || 200
     body = response_field(response, :body) || %{}
@@ -245,15 +295,29 @@ defmodule Reseller.AI.Providers.Gemini do
     round(base_backoff_ms * :math.pow(2, attempt))
   end
 
-  defp extract_candidate_text(%{"candidates" => [%{"content" => %{"parts" => parts}} | _]}) do
-    parts
+  defp extract_candidate_text(body) do
+    body
+    |> extract_candidate_parts()
     |> Enum.find_value("", fn
       %{"text" => text} when is_binary(text) -> text
       _ -> nil
     end)
   end
 
-  defp extract_candidate_text(_body), do: ""
+  defp extract_candidate_text_parts(body) do
+    body
+    |> extract_candidate_parts()
+    |> Enum.flat_map(fn
+      %{"text" => text} when is_binary(text) -> [text]
+      _ -> []
+    end)
+  end
+
+  defp extract_candidate_parts(%{"candidates" => [%{"content" => %{"parts" => parts}} | _]})
+       when is_list(parts),
+       do: parts
+
+  defp extract_candidate_parts(_body), do: []
 
   defp response_field(%Req.Response{} = response, field), do: Map.get(response, field)
   defp response_field(response, field) when is_map(response), do: Map.get(response, field)
@@ -418,6 +482,41 @@ defmodule Reseller.AI.Providers.Gemini do
     end)
   end
 
+  defp build_image_generation_request(attrs, images, opts)
+       when is_map(attrs) and is_list(images) do
+    with {:ok, api_key} <- fetch_api_key(opts),
+         {:ok, model} <- fetch_model(:lifestyle_image, opts),
+         {:ok, image_parts} <- build_image_parts(images) do
+      config = config(opts)
+      prompt = lifestyle_prompt(attrs)
+
+      {:ok,
+       %{
+         method: :post,
+         operation: :lifestyle_image,
+         model: model,
+         url: "#{String.trim_trailing(config[:base_url], "/")}/models/#{model}:generateContent",
+         headers: [{"x-goog-api-key", api_key}],
+         body: %{
+           "contents" => [
+             %{
+               "role" => "user",
+               "parts" => [%{"text" => prompt} | image_parts]
+             }
+           ],
+           "generationConfig" => %{
+             "responseModalities" => ["Image"],
+             "imageConfig" => %{
+               "aspectRatio" =>
+                 Map.get(attrs, "aspect_ratio") || Map.get(attrs, :aspect_ratio) || "4:5"
+             }
+           }
+         },
+         receive_timeout: config[:timeout]
+       }}
+    end
+  end
+
   defp image_part(%{"inline_data" => %{"mime_type" => _mime_type, "data" => _data} = inline_data}) do
     {:ok, %{"inline_data" => inline_data}}
   end
@@ -567,6 +666,18 @@ defmodule Reseller.AI.Providers.Gemini do
     Product and external evidence: #{Jason.encode!(attrs)}
     """
   end
+
+  defp default_lifestyle_prompt(attrs) do
+    """
+    Create one photorealistic lifestyle product preview image.
+    Respect the uploaded item as the source of truth and return image output only.
+    Input: #{Jason.encode!(attrs)}
+    """
+  end
+
+  defp lifestyle_prompt(%{"prompt" => prompt}) when is_binary(prompt) and prompt != "", do: prompt
+  defp lifestyle_prompt(%{prompt: prompt}) when is_binary(prompt) and prompt != "", do: prompt
+  defp lifestyle_prompt(attrs), do: default_lifestyle_prompt(attrs)
 
   defp response_schema(:recognition) do
     %{

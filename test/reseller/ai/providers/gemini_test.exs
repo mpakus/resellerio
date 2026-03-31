@@ -12,7 +12,8 @@ defmodule Reseller.AI.Providers.GeminiTest do
       description: "gemini-description",
       marketplace_listing: "gemini-marketplace",
       price_research: "gemini-pricing",
-      reconciliation: "gemini-reconciliation"
+      reconciliation: "gemini-reconciliation",
+      lifestyle_image: "gemini-lifestyle-image"
     }
   ]
 
@@ -285,6 +286,71 @@ defmodule Reseller.AI.Providers.GeminiTest do
 
     assert result.operation == :marketplace_listing
     assert result.output["generated_title"] == "Nike Air Max 90 Sneakers"
+  end
+
+  test "generate_lifestyle_image/3 builds an image-only generation request and parses image parts" do
+    request_fun = fn request ->
+      assert request.url ==
+               "https://gemini.example.test/v1beta/models/gemini-lifestyle-image:generateContent"
+
+      assert get_in(request.body, ["generationConfig", "responseModalities"]) == ["Image"]
+
+      assert get_in(request.body, ["generationConfig", "imageConfig", "aspectRatio"]) == "4:5"
+
+      parts = get_in(request.body, ["contents", Access.at(0), "parts"])
+
+      assert [
+               %{"text" => prompt},
+               %{"inline_data" => %{"mime_type" => "image/png", "data" => "base64-image"}}
+             ] = parts
+
+      assert prompt =~ "Create one photorealistic lifestyle preview image."
+
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "candidates" => [
+             %{
+               "content" => %{
+                 "parts" => [
+                   %{"text" => "Generated image"},
+                   %{
+                     "inline_data" => %{
+                       "mime_type" => "image/png",
+                       "data" => Base.encode64("png-bytes")
+                     }
+                   }
+                 ]
+               }
+             }
+           ],
+           "usageMetadata" => %{"promptTokenCount" => 77}
+         }
+       }}
+    end
+
+    assert {:ok, result} =
+             Gemini.generate_lifestyle_image(
+               %{
+                 "scene_key" => "model_studio",
+                 "scene_family" => "apparel",
+                 "aspect_ratio" => "4:5",
+                 "prompt" => "Create one photorealistic lifestyle preview image."
+               },
+               [%{mime_type: "image/png", data_base64: "base64-image"}],
+               config: @config,
+               request_fun: request_fun
+             )
+
+    assert result.operation == :lifestyle_image
+    assert result.model == "gemini-lifestyle-image"
+    assert result.output["scene_key"] == "model_studio"
+    assert result.output["image_count"] == 1
+
+    assert result.generated_images == [
+             %{mime_type: "image/png", data_base64: Base.encode64("png-bytes")}
+           ]
   end
 
   test "returns an error when structured output is not valid JSON" do

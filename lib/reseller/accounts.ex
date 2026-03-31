@@ -4,6 +4,7 @@ defmodule Reseller.Accounts do
   alias Reseller.Accounts.ApiToken
   alias Reseller.Accounts.Password
   alias Reseller.Accounts.User
+  alias Reseller.Marketplaces
   alias Reseller.Repo
 
   def register_user(attrs) do
@@ -77,6 +78,23 @@ defmodule Reseller.Accounts do
 
   def get_user_by_email(_), do: nil
 
+  def selected_marketplaces(%User{} = user) do
+    Marketplaces.selected_marketplaces(selected_marketplaces: user.selected_marketplaces)
+  end
+
+  def selected_marketplaces(_user), do: Marketplaces.default_marketplaces()
+
+  def change_user_marketplace_settings(%User{} = user, attrs \\ %{}) do
+    user
+    |> User.marketplace_settings_changeset(normalize_marketplace_settings_attrs(attrs))
+  end
+
+  def update_user_marketplace_settings(%User{} = user, attrs) when is_map(attrs) do
+    user
+    |> change_user_marketplace_settings(attrs)
+    |> Repo.update()
+  end
+
   def admin?(%User{is_admin: is_admin}), do: is_admin
   def admin?(_), do: false
 
@@ -114,5 +132,18 @@ defmodule Reseller.Accounts do
 
   defp api_token_ttl_days do
     Application.get_env(:reseller, :api_token_ttl_days, 30)
+  end
+
+  defp normalize_marketplace_settings_attrs(attrs) do
+    cond do
+      Map.has_key?(attrs, "selected_marketplaces") ->
+        attrs
+
+      Map.has_key?(attrs, :selected_marketplaces) ->
+        attrs
+
+      true ->
+        Map.put(attrs, "selected_marketplaces", [])
+    end
   end
 end

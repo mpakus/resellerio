@@ -177,6 +177,112 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def generate_lifestyle_images(conn, %{"id" => product_id} = params) do
+    generation_opts =
+      case Map.get(params, "scene_key") do
+        scene_key when is_binary(scene_key) and scene_key != "" -> [scene_key: scene_key]
+        _other -> []
+      end
+
+    case Catalog.generate_lifestyle_images_for_user(
+           conn.assigns.current_user,
+           product_id,
+           generation_opts
+         ) do
+      {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
+        conn
+        |> put_status(:accepted)
+        |> json(%{
+          data: %{
+            product: product_json(product),
+            lifestyle_generation_run:
+              lifestyle_generation_run &&
+                lifestyle_generation_run_json(lifestyle_generation_run)
+          }
+        })
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, :no_product_images} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_product_state",
+          "Product has no images available for lifestyle generation"
+        )
+
+      {:error, :invalid_product_state} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "invalid_product_state",
+          "Lifestyle generation is only available after image processing has finished"
+        )
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "lifestyle_generation_failed",
+          "Could not start lifestyle generation: #{inspect(reason)}"
+        )
+    end
+  end
+
+  def lifestyle_generation_runs(conn, %{"id" => product_id}) do
+    case Catalog.list_lifestyle_generation_runs_for_user(conn.assigns.current_user, product_id) do
+      {:ok, runs} ->
+        json(conn, %{data: %{runs: Enum.map(runs, &lifestyle_generation_run_json/1)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+    end
+  end
+
+  def approve_generated_image(conn, %{"id" => product_id, "image_id" => image_id}) do
+    case parse_integer(image_id) do
+      nil ->
+        APIError.render(conn, :not_found, "not_found", "Generated image not found")
+
+      parsed_image_id ->
+        case Catalog.approve_lifestyle_image_for_user(
+               conn.assigns.current_user,
+               product_id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            json(conn, %{data: %{product: product_json(product)}})
+
+          {:error, :not_found} ->
+            APIError.render(conn, :not_found, "not_found", "Generated image not found")
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            APIError.validation(conn, changeset)
+        end
+    end
+  end
+
+  def delete_generated_image(conn, %{"id" => product_id, "image_id" => image_id}) do
+    case parse_integer(image_id) do
+      nil ->
+        APIError.render(conn, :not_found, "not_found", "Generated image not found")
+
+      parsed_image_id ->
+        case Catalog.delete_lifestyle_image_for_user(
+               conn.assigns.current_user,
+               product_id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            json(conn, %{data: %{product: product_json(product), deleted: true}})
+
+          {:error, :not_found} ->
+            APIError.render(conn, :not_found, "not_found", "Generated image not found")
+        end
+    end
+  end
+
   def archive(conn, %{"id" => product_id}) do
     case Catalog.archive_product_for_user(conn.assigns.current_user, product_id) do
       {:ok, product} ->
@@ -233,6 +339,13 @@ defmodule ResellerWeb.API.V1.ProductController do
           nil -> nil
           run -> processing_run_json(run)
         end,
+      latest_lifestyle_generation_run:
+        product.lifestyle_generation_runs
+        |> List.first()
+        |> case do
+          nil -> nil
+          run -> lifestyle_generation_run_json(run)
+        end,
       description_draft: description_draft_json(product.description_draft),
       price_research: price_research_json(product.price_research),
       marketplace_listings:
@@ -255,6 +368,12 @@ defmodule ResellerWeb.API.V1.ProductController do
       background_style: image.background_style,
       processing_status: image.processing_status,
       original_filename: image.original_filename,
+      lifestyle_generation_run_id: image.lifestyle_generation_run_id,
+      scene_key: image.scene_key,
+      variant_index: image.variant_index,
+      source_image_ids: image.source_image_ids || [],
+      seller_approved: image.seller_approved,
+      approved_at: datetime_to_iso8601(image.approved_at),
       inserted_at: datetime_to_iso8601(image.inserted_at),
       updated_at: datetime_to_iso8601(image.updated_at)
     }
@@ -338,9 +457,39 @@ defmodule ResellerWeb.API.V1.ProductController do
     }
   end
 
+  defp lifestyle_generation_run_json(run) do
+    %{
+      id: run.id,
+      status: run.status,
+      step: run.step,
+      scene_family: run.scene_family,
+      model: run.model,
+      prompt_version: run.prompt_version,
+      requested_count: run.requested_count,
+      completed_count: run.completed_count,
+      error_code: run.error_code,
+      error_message: run.error_message,
+      started_at: datetime_to_iso8601(run.started_at),
+      finished_at: datetime_to_iso8601(run.finished_at),
+      inserted_at: datetime_to_iso8601(run.inserted_at),
+      updated_at: datetime_to_iso8601(run.updated_at),
+      payload: run.payload
+    }
+  end
+
   defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
   defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
   defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: to_string(config_key)
+
+  defp parse_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _other -> nil
+    end
+  end
+
+  defp parse_integer(value) when is_integer(value), do: value
+  defp parse_integer(_value), do: nil
 end

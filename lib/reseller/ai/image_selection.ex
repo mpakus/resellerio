@@ -5,9 +5,10 @@ defmodule Reseller.AI.ImageSelection do
 
   @kind_priority %{
     "object_crop" => 0,
-    "white_background" => 1,
-    "normalized" => 2,
-    "original" => 3
+    "background_removed" => 1,
+    "white_background" => 2,
+    "normalized" => 3,
+    "original" => 4
   }
 
   @spec select_inputs([map()], keyword()) :: [map()]

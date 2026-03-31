@@ -20,11 +20,77 @@ defmodule ResellerWeb.API.V1.MeControllerTest do
 
     assert json_response(conn, 200) == %{
              "data" => %{
+               "supported_marketplaces" => [
+                 %{"id" => "ebay", "label" => "eBay"},
+                 %{"id" => "depop", "label" => "Depop"},
+                 %{"id" => "poshmark", "label" => "Poshmark"},
+                 %{"id" => "mercari", "label" => "Mercari"},
+                 %{"id" => "facebook_marketplace", "label" => "Facebook Marketplace"},
+                 %{"id" => "offerup", "label" => "OfferUp"},
+                 %{"id" => "whatnot", "label" => "Whatnot"},
+                 %{"id" => "grailed", "label" => "Grailed"},
+                 %{"id" => "therealreal", "label" => "The RealReal"},
+                 %{"id" => "vestiaire_collective", "label" => "Vestiaire Collective"},
+                 %{"id" => "thredup", "label" => "thredUp"},
+                 %{"id" => "etsy", "label" => "Etsy"}
+               ],
                "user" => %{
                  "confirmed_at" => nil,
                  "email" => "seller@example.com",
-                 "id" => user.id
+                 "id" => user.id,
+                 "selected_marketplaces" => ["ebay", "depop", "poshmark"]
                }
+             }
+           }
+  end
+
+  test "updates the authenticated user's selected marketplaces", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    {:ok, raw_token, _api_token} = Accounts.issue_api_token(user, %{"device_name" => "iPhone"})
+
+    conn =
+      conn
+      |> put_req_header("authorization", "Bearer #{raw_token}")
+      |> patch("/api/v1/me", %{
+        "user" => %{
+          "selected_marketplaces" => ["mercari", "etsy", "ebay"]
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "user" => %{
+                 "selected_marketplaces" => ["ebay", "mercari", "etsy"]
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert Accounts.get_user!(user.id).selected_marketplaces == ["ebay", "mercari", "etsy"]
+  end
+
+  test "returns validation errors for unsupported marketplaces", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    {:ok, raw_token, _api_token} = Accounts.issue_api_token(user, %{"device_name" => "iPhone"})
+
+    conn =
+      conn
+      |> put_req_header("authorization", "Bearer #{raw_token}")
+      |> patch("/api/v1/me", %{
+        "user" => %{
+          "selected_marketplaces" => ["mercari", "unknown_market"]
+        }
+      })
+
+    assert json_response(conn, 422) == %{
+             "error" => %{
+               "code" => "validation_failed",
+               "detail" => "Validation failed",
+               "fields" => %{
+                 "selected_marketplaces" => [
+                   "contains unsupported marketplaces: unknown_market"
+                 ]
+               },
+               "status" => 422
              }
            }
   end

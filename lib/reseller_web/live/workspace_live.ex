@@ -2,9 +2,11 @@ defmodule ResellerWeb.WorkspaceLive do
   use ResellerWeb, :live_view
 
   alias Ecto.Changeset
+  alias Reseller.Accounts
   alias Reseller.Catalog
   alias Reseller.Exports
   alias Reseller.Imports
+  alias Reseller.Marketplaces
   alias Reseller.Media
   alias ResellerWeb.WorkspaceNavigation
 
@@ -29,6 +31,9 @@ defmodule ResellerWeb.WorkspaceLive do
        listing_rows: [],
        exports: [],
        imports: [],
+       marketplace_form: to_form(%{}, as: :settings),
+       supported_marketplaces: [],
+       selected_marketplaces: [],
        current_params: %{},
        current_url: nil
      )}
@@ -88,6 +93,31 @@ defmodule ResellerWeb.WorkspaceLive do
 
   def handle_event("cancel-import-archive", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :import_archive, ref)}
+  end
+
+  def handle_event("save_marketplaces", params, socket) do
+    marketplace_params =
+      params
+      |> Map.get("settings", %{})
+      |> ensure_selected_marketplaces_param()
+
+    case Accounts.update_user_marketplace_settings(
+           socket.assigns.current_user,
+           marketplace_params
+         ) do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> assign(:current_user, user)
+         |> refresh_workspace()
+         |> put_flash(:info, "Marketplace defaults updated for future processing runs.")}
+
+      {:error, %Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           marketplace_form: to_form(%{changeset | action: :validate}, as: :settings)
+         )}
+    end
   end
 
   @impl true
@@ -349,22 +379,80 @@ defmodule ResellerWeb.WorkspaceLive do
           <% :settings -> %>
             <section id="workspace-settings" class="grid gap-4 lg:grid-cols-[1fr_1fr]">
               <.surface tag="article">
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Account</p>
-                <p class="mt-3 text-2xl font-semibold tracking-[-0.03em]">{@current_user.email}</p>
-                <p class="mt-3 text-sm leading-6 text-base-content/70">
-                  Browser account settings and passkey setup will live here next.
-                </p>
+                <.header>
+                  Marketplace defaults
+                  <:subtitle>
+                    Choose which supported marketplaces should receive AI-generated listing drafts on future processing and reprocessing runs.
+                  </:subtitle>
+                </.header>
+
+                <.form
+                  for={@marketplace_form}
+                  id="marketplace-settings-form"
+                  phx-submit="save_marketplaces"
+                >
+                  <input type="hidden" name="settings[selected_marketplaces][]" value="" />
+
+                  <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                    <label
+                      :for={marketplace <- @supported_marketplaces}
+                      for={"marketplace-#{marketplace.id}"}
+                      class={[
+                        "grid grid-cols-[auto,minmax(0,1fr)] items-start gap-3 rounded-2xl border px-4 py-4 transition",
+                        marketplace.id in @selected_marketplaces &&
+                          "border-primary bg-primary/6 shadow-[0_12px_30px_rgba(216,123,56,0.12)]",
+                        marketplace.id not in @selected_marketplaces &&
+                          "border-base-300 bg-base-50 hover:border-base-400"
+                      ]}
+                    >
+                      <input
+                        id={"marketplace-#{marketplace.id}"}
+                        type="checkbox"
+                        name="settings[selected_marketplaces][]"
+                        value={marketplace.id}
+                        checked={marketplace.id in @selected_marketplaces}
+                        class="checkbox checkbox-sm mt-1 rounded-md border-base-400 text-primary"
+                      />
+                      <div class="min-w-0">
+                        <p class="text-sm font-semibold leading-5 text-base-content text-balance">
+                          {marketplace.label}
+                        </p>
+                        <p class="mt-1 break-all text-[11px] leading-5 text-base-content/45">
+                          {marketplace.id}
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+                    <p id="selected-marketplace-count" class="text-sm text-base-content/65">
+                      {length(@selected_marketplaces)} selected
+                    </p>
+                    <.button class="btn btn-primary rounded-full">Save marketplaces</.button>
+                  </div>
+                </.form>
               </.surface>
 
               <.surface tag="article">
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Workspace</p>
-                <ul class="mt-4 space-y-3 text-sm leading-6 text-base-content/70">
-                  <li>Theme switcher is already available in the header.</li>
-                  <li>Admin users can jump into Backpex from the sidebar footer.</li>
-                  <li>
-                    The products and exports screens now cover the main backend workflows on the web.
-                  </li>
-                </ul>
+                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Account</p>
+                <p class="mt-3 text-2xl font-semibold tracking-[-0.03em]">{@current_user.email}</p>
+                <p class="mt-3 text-sm leading-6 text-base-content/70">
+                  These marketplace defaults affect future listing generation. Existing stored listing drafts stay attached to their products until you reprocess or remove them later.
+                </p>
+                <div class="mt-5 flex flex-wrap gap-2">
+                  <span
+                    :for={marketplace <- @supported_marketplaces}
+                    class={[
+                      "badge rounded-full px-3 py-3 text-xs uppercase tracking-[0.16em]",
+                      marketplace.id in @selected_marketplaces &&
+                        "badge-primary badge-outline",
+                      marketplace.id not in @selected_marketplaces &&
+                        "badge-ghost border border-base-300 text-base-content/55"
+                    ]}
+                  >
+                    {marketplace.label}
+                  </span>
+                </div>
               </.surface>
             </section>
         <% end %>
@@ -379,6 +467,7 @@ defmodule ResellerWeb.WorkspaceLive do
     products = Catalog.list_products_for_user(current_user)
     exports = Exports.list_exports_for_user(current_user)
     imports = Imports.list_imports_for_user(current_user)
+    selected_marketplaces = Accounts.selected_marketplaces(current_user)
 
     assign(socket,
       section_key: section_key,
@@ -392,6 +481,9 @@ defmodule ResellerWeb.WorkspaceLive do
       listing_rows: listing_rows(products),
       exports: exports,
       imports: imports,
+      marketplace_form: build_marketplace_form(current_user, selected_marketplaces),
+      supported_marketplaces: Marketplaces.catalog(),
+      selected_marketplaces: selected_marketplaces,
       stats: dashboard_stats(products, exports, imports),
       current_params: params,
       current_url: uri
@@ -503,7 +595,7 @@ defmodule ResellerWeb.WorkspaceLive do
     |> Enum.flat_map(fn product ->
       Enum.map(product.marketplace_listings || [], fn listing ->
         %{
-          marketplace: String.upcase(listing.marketplace),
+          marketplace: Marketplaces.marketplace_label(listing.marketplace),
           title: listing.generated_title || "Untitled listing",
           product_title: product.title || "Untitled product",
           description: listing.generated_description || "No generated description yet."
@@ -541,4 +633,25 @@ defmodule ResellerWeb.WorkspaceLive do
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
   defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: inspect(config_key)
+
+  defp build_marketplace_form(current_user, selected_marketplaces) do
+    current_user
+    |> Accounts.change_user_marketplace_settings(%{
+      "selected_marketplaces" => selected_marketplaces
+    })
+    |> to_form(as: :settings)
+  end
+
+  defp ensure_selected_marketplaces_param(params) do
+    cond do
+      Map.has_key?(params, "selected_marketplaces") ->
+        params
+
+      Map.has_key?(params, :selected_marketplaces) ->
+        params
+
+      true ->
+        Map.put(params, "selected_marketplaces", [])
+    end
+  end
 end

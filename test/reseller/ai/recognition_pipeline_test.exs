@@ -49,10 +49,10 @@ defmodule Reseller.AI.RecognitionPipelineTest do
   test "uses Lens and reconciliation when recognition confidence is low" do
     images = [
       %{
-        kind: "white_background",
+        kind: "background_removed",
         mime_type: "image/jpeg",
-        uri: "https://cdn.example.com/item-2-white.jpg",
-        external_url: "https://cdn.example.com/item-2-white.jpg"
+        uri: "https://cdn.example.com/item-2-background-removed.jpg",
+        external_url: "https://cdn.example.com/item-2-background-removed.jpg"
       },
       %{
         kind: "original",
@@ -111,7 +111,7 @@ defmodule Reseller.AI.RecognitionPipelineTest do
     assert result.final["external_match_count"] == 1
 
     assert_received {:search_provider_called, :lens_matches,
-                     "https://cdn.example.com/item-2-white.jpg", _opts}
+                     "https://cdn.example.com/item-2-background-removed.jpg", _opts}
 
     assert_received {:ai_provider_called, :reconcile_product, recognition_output, search_output,
                      _opts}

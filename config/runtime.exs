@@ -47,7 +47,8 @@ config :reseller, Reseller.AI.Providers.Gemini,
     description: System.get_env("GEMINI_MODEL_DESCRIPTION") || "gemini-2.5-flash",
     marketplace_listing: System.get_env("GEMINI_MODEL_MARKETPLACE_LISTING") || "gemini-2.5-flash",
     price_research: System.get_env("GEMINI_MODEL_PRICE_RESEARCH") || "gemini-2.5-flash",
-    reconciliation: System.get_env("GEMINI_MODEL_RECONCILIATION") || "gemini-2.5-flash"
+    reconciliation: System.get_env("GEMINI_MODEL_RECONCILIATION") || "gemini-2.5-flash",
+    lifestyle_image: System.get_env("GEMINI_MODEL_LIFESTYLE_IMAGE") || "gemini-2.5-flash-image"
   }
 
 config :reseller, Reseller.Search.Providers.SerpApi, api_key: System.get_env("SERPAPI_API_KEY")
