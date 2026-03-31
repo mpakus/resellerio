@@ -100,6 +100,7 @@ defmodule ResellerWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, required: true, doc: "the current signed in user"
   attr :workspace_nav, :list, default: [], doc: "workspace navigation items"
+  attr :nav_mode, :atom, default: :navigate, values: [:navigate, :patch]
   slot :inner_block, required: true
 
   def app_shell(assigns) do
@@ -114,15 +115,27 @@ defmodule ResellerWeb.Layouts do
         <nav class="flex-1 px-4 py-6">
           <ul class="menu gap-2 rounded-box bg-base-100 p-0">
             <li :for={item <- @workspace_nav}>
-              <.link
-                patch={item.path}
-                class={[
-                  "rounded-2xl transition-colors",
-                  item.active && "active bg-base-200 font-medium"
-                ]}
-              >
-                {item.label}
-              </.link>
+              <%= if (item[:mode] || @nav_mode) == :patch do %>
+                <.link
+                  patch={item.path}
+                  class={[
+                    "rounded-2xl transition-colors",
+                    item.active && "active bg-base-200 font-medium"
+                  ]}
+                >
+                  {item.label}
+                </.link>
+              <% else %>
+                <.link
+                  navigate={item.path}
+                  class={[
+                    "rounded-2xl transition-colors",
+                    item.active && "active bg-base-200 font-medium"
+                  ]}
+                >
+                  {item.label}
+                </.link>
+              <% end %>
             </li>
           </ul>
         </nav>

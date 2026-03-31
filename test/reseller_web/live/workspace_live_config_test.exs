@@ -10,7 +10,7 @@ defmodule ResellerWeb.WorkspaceLiveConfigTest do
     conn = init_test_session(conn, %{user_id: user.id})
 
     with_tigris_storage_missing!(:access_key_id, fn ->
-      {:ok, view, _html} = live(conn, "/app/products")
+      {:ok, view, _html} = live(conn, "/app/products/new")
 
       upload =
         file_input(view, "#new-product-form", :product_images, [
@@ -24,13 +24,7 @@ defmodule ResellerWeb.WorkspaceLiveConfigTest do
       assert render_upload(upload, "jacket.jpg") =~ "jacket.jpg"
 
       view
-      |> form("#new-product-form",
-        product: %{
-          title: "Web Jacket",
-          brand: "Levi's",
-          category: "Outerwear"
-        }
-      )
+      |> form("#new-product-form")
       |> render_submit()
 
       assert has_element?(
@@ -46,7 +40,7 @@ defmodule ResellerWeb.WorkspaceLiveConfigTest do
     conn = init_test_session(conn, %{user_id: user.id})
 
     with_tigris_storage_missing!(:bucket_name, fn ->
-      {:ok, view, _html} = live(conn, "/app/products")
+      {:ok, view, _html} = live(conn, "/app/products/new")
 
       upload =
         file_input(view, "#new-product-form", :product_images, [
@@ -60,13 +54,7 @@ defmodule ResellerWeb.WorkspaceLiveConfigTest do
       assert render_upload(upload, "jacket.jpg") =~ "jacket.jpg"
 
       view
-      |> form("#new-product-form",
-        product: %{
-          title: "Web Jacket",
-          brand: "Levi's",
-          category: "Outerwear"
-        }
-      )
+      |> form("#new-product-form")
       |> render_submit()
 
       assert has_element?(

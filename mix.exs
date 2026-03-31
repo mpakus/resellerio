@@ -59,6 +59,7 @@ defmodule Reseller.MixProject do
        app: false,
        compile: false,
        depth: 1},
+      {:tidewave, "~> 0.5", only: [:dev]},
       {:swoosh, "~> 1.16"},
       {:nvir, "~> 0.16"},
       {:ex_aws, "~> 2.5"},

@@ -515,7 +515,7 @@ Current behavior notes:
 
 - the finalize endpoint immediately creates a `product_processing_run`
 - in production-style async execution, the returned run is typically still `queued` or `running`
-- the worker uses finalized original uploads as Gemini and SerpApi inputs, using `TIGRIS_BUCKET_URL` as the public image base
+- the worker uses finalized original uploads as Gemini and SerpApi inputs; Gemini downloads image bytes from storage-backed URLs and sends them inline, while SerpApi Lens still uses an external image URL
 - when recognition finishes, the product moves to `ready` or `review`
 - when description generation finishes, the product may also include a `description_draft` object with AI-authored base copy
 - when price research finishes, the product may also include a `price_research` object with grounded price ranges and comparables

@@ -30,6 +30,7 @@
 - Pricing: `product_price_researches` now store grounded price suggestions and comparable evidence separately from editable product fields
 - Marketplace output: `marketplace_listings` now store generated eBay, Depop, and Poshmark copy per product
 - Media variants: processed `background_removed` and `white_background` images can now be generated and stored per original image
+- Lifestyle-image planning for Gemini-backed "real life" scene generation is tracked in `docs/PLAN-GENERATE-IMAGE.md`
 - Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
 - Imports: `Reseller.Imports` now stores source ZIP archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
 - Product lifecycle: editable product fields can now be updated, products can be deleted, and explicit sold/archive/unarchive flows now exist

@@ -8,12 +8,57 @@ defmodule Reseller.Catalog do
   alias Reseller.Repo
   alias Reseller.Workers
 
+  @product_index_page_size 15
+
   def list_products_for_user(%User{id: user_id}) do
     Product
     |> where([product], product.user_id == ^user_id)
     |> order_by([product], desc: product.inserted_at)
     |> preload(^product_preload())
     |> Repo.all()
+  end
+
+  def paginate_products_for_user(%User{id: user_id}, opts \\ []) do
+    page_size = normalize_page_size(Keyword.get(opts, :page_size, @product_index_page_size))
+    page = normalize_page(Keyword.get(opts, :page, 1))
+    status = normalize_product_status(Keyword.get(opts, :status, "all"))
+    updated_from = Keyword.get(opts, :updated_from)
+    updated_to = Keyword.get(opts, :updated_to)
+    sort = normalize_product_sort(Keyword.get(opts, :sort, :updated_at))
+    sort_dir = normalize_product_sort_dir(Keyword.get(opts, :sort_dir, :desc))
+
+    base_query =
+      Product
+      |> where([product], product.user_id == ^user_id)
+      |> maybe_filter_status(status)
+      |> maybe_filter_updated_from(updated_from)
+      |> maybe_filter_updated_to(updated_to)
+
+    total_count = Repo.aggregate(base_query, :count)
+    total_pages = total_pages(total_count, page_size)
+    page = min(page, total_pages)
+    offset = (page - 1) * page_size
+
+    entries =
+      base_query
+      |> order_product_index(sort, sort_dir)
+      |> limit(^page_size)
+      |> offset(^offset)
+      |> preload(^product_preload())
+      |> Repo.all()
+
+    %{
+      entries: entries,
+      page: page,
+      page_size: page_size,
+      total_count: total_count,
+      total_pages: total_pages,
+      status: status,
+      updated_from: updated_from,
+      updated_to: updated_to,
+      sort: sort,
+      sort_dir: sort_dir
+    }
   end
 
   def get_product_for_user(%User{id: user_id}, id) do
@@ -353,6 +398,126 @@ defmodule Reseller.Catalog do
 
   defp normalized_confidence(value) when is_number(value), do: value * 1.0
   defp normalized_confidence(_value), do: nil
+
+  defp maybe_filter_status(query, "all"), do: query
+  defp maybe_filter_status(query, status), do: where(query, [product], product.status == ^status)
+
+  defp maybe_filter_updated_from(query, %Date{} = updated_from) do
+    {:ok, starts_at} = DateTime.new(updated_from, ~T[00:00:00], "Etc/UTC")
+    where(query, [product], product.updated_at >= ^starts_at)
+  end
+
+  defp maybe_filter_updated_from(query, _updated_from), do: query
+
+  defp maybe_filter_updated_to(query, %Date{} = updated_to) do
+    exclusive_end =
+      updated_to
+      |> Date.add(1)
+      |> then(&DateTime.new(&1, ~T[00:00:00], "Etc/UTC"))
+      |> case do
+        {:ok, datetime} -> datetime
+        _other -> nil
+      end
+
+    if exclusive_end do
+      where(query, [product], product.updated_at < ^exclusive_end)
+    else
+      query
+    end
+  end
+
+  defp maybe_filter_updated_to(query, _updated_to), do: query
+
+  defp order_product_index(query, :title, :asc) do
+    order_by(query, [product],
+      asc: fragment("lower(coalesce(?, ''))", product.title),
+      asc: product.id
+    )
+  end
+
+  defp order_product_index(query, :title, :desc) do
+    order_by(query, [product],
+      desc: fragment("lower(coalesce(?, ''))", product.title),
+      desc: product.id
+    )
+  end
+
+  defp order_product_index(query, :status, :asc) do
+    order_by(query, [product], asc: product.status, asc: product.id)
+  end
+
+  defp order_product_index(query, :status, :desc) do
+    order_by(query, [product], desc: product.status, desc: product.id)
+  end
+
+  defp order_product_index(query, :price, :asc) do
+    order_by(query, [product], asc_nulls_last: product.price, asc: product.id)
+  end
+
+  defp order_product_index(query, :price, :desc) do
+    order_by(query, [product], desc_nulls_last: product.price, desc: product.id)
+  end
+
+  defp order_product_index(query, :inserted_at, :asc) do
+    order_by(query, [product], asc: product.inserted_at, asc: product.id)
+  end
+
+  defp order_product_index(query, :inserted_at, :desc) do
+    order_by(query, [product], desc: product.inserted_at, desc: product.id)
+  end
+
+  defp order_product_index(query, :updated_at, :asc) do
+    order_by(query, [product], asc: product.updated_at, asc: product.id)
+  end
+
+  defp order_product_index(query, :updated_at, :desc) do
+    order_by(query, [product], desc: product.updated_at, desc: product.id)
+  end
+
+  defp normalize_page(page) when is_integer(page) and page > 0, do: page
+
+  defp normalize_page(page) when is_binary(page) do
+    case Integer.parse(page) do
+      {value, ""} when value > 0 -> value
+      _other -> 1
+    end
+  end
+
+  defp normalize_page(_page), do: 1
+
+  defp normalize_page_size(page_size) when is_integer(page_size) and page_size > 0, do: page_size
+  defp normalize_page_size(_page_size), do: @product_index_page_size
+
+  defp normalize_product_status(status)
+       when status in ~w(all draft uploading processing review ready sold archived),
+       do: status
+
+  defp normalize_product_status(_status), do: "all"
+
+  defp normalize_product_sort(sort)
+       when sort in [:title, :status, :price, :updated_at, :inserted_at],
+       do: sort
+
+  defp normalize_product_sort(sort) when is_binary(sort) do
+    case sort do
+      "title" -> :title
+      "status" -> :status
+      "price" -> :price
+      "inserted_at" -> :inserted_at
+      "updated_at" -> :updated_at
+      _other -> :updated_at
+    end
+  end
+
+  defp normalize_product_sort(_sort), do: :updated_at
+
+  defp normalize_product_sort_dir(sort_dir) when sort_dir in [:asc, :desc], do: sort_dir
+  defp normalize_product_sort_dir("asc"), do: :asc
+  defp normalize_product_sort_dir("desc"), do: :desc
+  defp normalize_product_sort_dir(_sort_dir), do: :desc
+
+  defp total_pages(total_count, page_size) when total_count <= 0 or page_size <= 0, do: 1
+  defp total_pages(total_count, page_size), do: div(total_count - 1, page_size) + 1
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false

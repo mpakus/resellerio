@@ -66,4 +66,25 @@ defmodule Reseller.Media.Processors.PhotoroomTest do
     assert result.background_style == "white"
     assert result.byte_size == 8
   end
+
+  test "normalizes Req list-style content-type response headers" do
+    request_fun = fn _request ->
+      {:ok,
+       %{
+         status: 200,
+         headers: [{"content-type", ["image/png"]}],
+         body: "png-body"
+       }}
+    end
+
+    assert {:ok, result} =
+             Photoroom.process_image(
+               "https://cdn.example.com/source.jpg",
+               %{kind: "background_removed", background_style: "transparent"},
+               config: @config,
+               request_fun: request_fun
+             )
+
+    assert result.content_type == "image/png"
+  end
 end

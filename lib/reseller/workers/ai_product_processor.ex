@@ -311,6 +311,53 @@ defmodule Reseller.Workers.AIProductProcessor do
     }
   end
 
+  defp format_error({:image_download_failed, {:http_error, status, body}}) do
+    %{
+      code: "media_unavailable",
+      message:
+        "The worker could not download the product image bytes for Gemini (HTTP #{status}). Check storage access and retry processing.",
+      payload: %{
+        "provider" => "storage",
+        "status" => Integer.to_string(status),
+        "retryable" => true,
+        "reason" => inspect({:image_download_failed, {:http_error, status, body}})
+      }
+    }
+  end
+
+  defp format_error(
+         {:image_download_failed, {:request_failed, %Req.TransportError{reason: reason}}}
+       )
+       when reason in [:timeout, :connect_timeout, :closed] do
+    %{
+      code: "media_unavailable",
+      message:
+        "The worker timed out while downloading the product image bytes for Gemini. Retry processing.",
+      payload: %{
+        "provider" => "storage",
+        "transport_reason" => to_string(reason),
+        "retryable" => true,
+        "reason" =>
+          inspect(
+            {:image_download_failed, {:request_failed, %Req.TransportError{reason: reason}}}
+          )
+      }
+    }
+  end
+
+  defp format_error({:image_download_failed, reason}) do
+    %{
+      code: "media_unavailable",
+      message:
+        "The worker could not download the product image bytes for Gemini. Check storage access and retry processing.",
+      payload: %{
+        "provider" => "storage",
+        "retryable" => true,
+        "reason" => inspect({:image_download_failed, reason})
+      }
+    }
+  end
+
   defp format_error({:shopping_search_failed, reason}) do
     %{
       code: "shopping_search_failed",

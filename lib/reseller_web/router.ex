@@ -39,7 +39,9 @@ defmodule ResellerWeb.Router do
 
     live_session :authenticated, on_mount: [{ResellerWeb.LiveUserAuth, :ensure_authenticated}] do
       live "/app", WorkspaceLive, :dashboard
-      live "/app/products", WorkspaceLive, :products
+      live "/app/products", ProductsLive.Index, :index
+      live "/app/products/new", ProductsLive.New, :new
+      live "/app/products/:id", ProductsLive.Show, :show
       live "/app/listings", WorkspaceLive, :listings
       live "/app/exports", WorkspaceLive, :exports
       live "/app/settings", WorkspaceLive, :settings

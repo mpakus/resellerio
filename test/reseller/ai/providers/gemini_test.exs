@@ -78,6 +78,88 @@ defmodule Reseller.AI.Providers.GeminiTest do
     assert result.request_id == "gemini-request-1"
   end
 
+  test "recognize_images/3 downloads external image URLs and sends inline image bytes" do
+    images = [%{mime_type: "image/jpeg", external_url: "https://cdn.example.test/images/1.jpg"}]
+    attrs = %{"brand_hint" => "Nike"}
+
+    download_request_fun = fn url ->
+      assert url == "https://cdn.example.test/images/1.jpg"
+
+      {:ok,
+       %{
+         status: 200,
+         body: "jpeg-binary"
+       }}
+    end
+
+    request_fun = fn request ->
+      parts = get_in(request.body, ["contents", Access.at(0), "parts"])
+
+      assert [
+               %{"text" => _prompt},
+               %{
+                 "inline_data" => %{
+                   "mime_type" => "image/jpeg",
+                   "data" => encoded_image
+                 }
+               }
+             ] = parts
+
+      assert Base.decode64!(encoded_image) == "jpeg-binary"
+
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "candidates" => [
+             %{
+               "content" => %{
+                 "parts" => [
+                   %{
+                     "text" =>
+                       Jason.encode!(%{
+                         "brand" => "Nike",
+                         "category" => "Sneakers",
+                         "confidence_score" => 0.93,
+                         "needs_review" => false
+                       })
+                   }
+                 ]
+               }
+             }
+           ]
+         }
+       }}
+    end
+
+    assert {:ok, result} =
+             Gemini.recognize_images(images, attrs,
+               config: @config,
+               download_request_fun: download_request_fun,
+               request_fun: request_fun
+             )
+
+    assert result.output["brand"] == "Nike"
+  end
+
+  test "recognize_images/3 returns a storage download error when an external image fetch fails" do
+    images = [%{mime_type: "image/jpeg", external_url: "https://cdn.example.test/images/1.jpg"}]
+
+    download_request_fun = fn _url ->
+      {:ok,
+       %{
+         status: 403,
+         body: %{"error" => "access denied"}
+       }}
+    end
+
+    assert {:error, {:image_download_failed, {:http_error, 403, %{"error" => "access denied"}}}} =
+             Gemini.recognize_images(images, %{},
+               config: @config,
+               download_request_fun: download_request_fun
+             )
+  end
+
   test "research_price/3 separates grounded search from structured output" do
     request_fun = fn request ->
       attempt = Process.get(:price_research_request_attempt, 0) + 1

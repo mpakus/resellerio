@@ -544,6 +544,32 @@ defmodule Reseller.Workers.AIProductProcessorTest do
     assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
   end
 
+  test "classifies storage download failures before Gemini as retryable media issues" do
+    user = user_fixture()
+    product = finalized_product_fixture(user)
+
+    assert {:ok, _run} =
+             Workers.start_product_processing(
+               product,
+               processor: AIProductProcessor,
+               ai_provider: Reseller.Support.Fakes.AIProvider,
+               recognize_result:
+                 {:error,
+                  {:image_download_failed,
+                   {:request_failed, %Req.TransportError{reason: :timeout}}}}
+             )
+
+    failed_run = Workers.latest_product_processing_run(product.id)
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+
+    assert failed_run.error_code == "media_unavailable"
+    assert failed_run.error_message =~ "timed out while downloading the product image bytes"
+    assert failed_run.payload["retryable"] == true
+    assert failed_run.payload["provider"] == "storage"
+    assert refreshed_product.status == "review"
+    assert Enum.all?(refreshed_product.images, &(&1.processing_status == "uploaded"))
+  end
+
   test "classifies grounded JSON/tool incompatibility errors explicitly" do
     user = user_fixture()
     product = finalized_product_fixture(user)

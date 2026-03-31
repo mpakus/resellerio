@@ -1,0 +1,401 @@
+defmodule ResellerWeb.ProductsLiveTest do
+  use ResellerWeb.ConnCase, async: true
+
+  import Ecto.Query
+  import Phoenix.LiveViewTest
+
+  alias Reseller.Catalog
+  alias Reseller.Repo
+
+  test "products index filters by status and updated date", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    ready_product = product_fixture(user, %{"title" => "Ready coat", "status" => "ready"})
+    sold_product = product_fixture(user, %{"title" => "Sold shoes", "status" => "sold"})
+
+    stale_product =
+      product_fixture(user, %{"title" => "Old sweater", "status" => "ready"})
+      |> set_product_updated_at!(~U[2024-01-10 12:00:00Z])
+
+    other_user = user_fixture(%{"email" => "other@example.com"})
+
+    _other_product =
+      product_fixture(other_user, %{"title" => "Other user item", "status" => "ready"})
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products?status=ready")
+
+    assert has_element?(view, "#workspace-products-table", ready_product.title)
+    assert has_element?(view, "#workspace-products-table", stale_product.title)
+    refute has_element?(view, "#workspace-products-table", sold_product.title)
+    refute render(view) =~ "Other user item"
+
+    today = Date.utc_today() |> Date.to_iso8601()
+
+    view
+    |> form("#product-date-range-form",
+      filters: %{"updated_from" => today, "updated_to" => today}
+    )
+    |> render_change()
+
+    assert has_element?(view, "#workspace-products-table", ready_product.title)
+    refute has_element?(view, "#workspace-products-table", stale_product.title)
+    refute render(view) =~ "Other user item"
+  end
+
+  test "products index route renders its section", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+    assert has_element?(view, "#workspace-products")
+  end
+
+  test "products index paginates rows", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+
+    for index <- 1..16 do
+      product_fixture(user, %{
+        "title" => "Paged item #{String.pad_leading(Integer.to_string(index), 2, "0")}"
+      })
+    end
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+
+    assert has_element?(view, "#workspace-products-table", "Paged item 16")
+    refute has_element?(view, "#workspace-products-table", "Paged item 01")
+
+    view
+    |> element("#products-page-next")
+    |> render_click()
+
+    assert has_element?(view, "#workspace-products-table", "Paged item 01")
+  end
+
+  test "products index sorts by title", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product_fixture(user, %{"title" => "Zulu cap"})
+    product_fixture(user, %{"title" => "Alpha cap"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+
+    view
+    |> element("#product-sort-title")
+    |> render_click()
+
+    sorted_html = render(view)
+    assert_in_order(sorted_html, "Alpha cap", "Zulu cap")
+  end
+
+  test "legacy product_id query redirects to the dedicated review route", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = product_fixture(user, %{"title" => "Redirect me"})
+    conn = init_test_session(conn, %{user_id: user.id})
+    expected_path = "/app/products/#{product.id}"
+
+    assert {:error, {:live_redirect, %{to: ^expected_path}}} =
+             live(conn, "/app/products?product_id=#{product.id}")
+  end
+
+  test "new product flow uploads images and redirects to the review page", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, html} = live(conn, "/app/products/new")
+
+    assert html =~ ~s(id="new-product-form")
+    assert html =~ ~s(phx-change="sync_product_uploads")
+
+    upload =
+      file_input(view, "#new-product-form", :product_images, [
+        %{
+          name: "jacket.jpg",
+          content: "fake-image-binary",
+          type: "image/jpeg"
+        }
+      ])
+
+    assert render_upload(upload, "jacket.jpg") =~ "jacket.jpg"
+
+    view
+    |> form("#new-product-form")
+    |> render_submit()
+
+    [product] = Catalog.list_products_for_user(user)
+
+    assert_redirect(view, "/app/products/#{product.id}")
+
+    {:ok, review_view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(review_view, "#product-review-form")
+    assert length(product.images) == 1
+    assert hd(product.images).original_filename == "jacket.jpg"
+  end
+
+  test "review page updates product details and lifecycle actions", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = product_fixture(user, %{"title" => "Original product"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    view
+    |> form("#product-review-form",
+      product: %{
+        status: "review",
+        title: "Updated product",
+        brand: "Nike",
+        category: "Sneakers",
+        tags: "running, retro",
+        price: "125.00",
+        cost: "85.00",
+        notes: "Updated in browser"
+      }
+    )
+    |> render_submit()
+
+    updated_product = Catalog.get_product_for_user(user, product.id)
+    assert updated_product.title == "Updated product"
+    assert updated_product.brand == "Nike"
+    assert updated_product.status == "review"
+    assert updated_product.tags == ["running", "retro"]
+    assert Decimal.equal?(updated_product.price, Decimal.new("125.00"))
+    assert Decimal.equal?(updated_product.cost, Decimal.new("85.00"))
+
+    view
+    |> element(~s(button[phx-click="mark_sold"]))
+    |> render_click()
+
+    sold_product = Catalog.get_product_for_user(user, product.id)
+    assert sold_product.status == "sold"
+
+    view
+    |> element(~s(button[phx-click="archive_product"]))
+    |> render_click()
+
+    archived_product = Catalog.get_product_for_user(user, product.id)
+    assert archived_product.status == "archived"
+
+    view
+    |> element(~s(button[phx-click="restore_product"]))
+    |> render_click()
+
+    restored_product = Catalog.get_product_for_user(user, product.id)
+    assert restored_product.status == "sold"
+  end
+
+  test "review page retries failed AI processing", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = retryable_failed_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#retry-processing-button")
+    assert has_element?(view, "#product-processing-runs", "Gemini quota is exhausted right now.")
+
+    view
+    |> element("#retry-processing-button")
+    |> render_click()
+
+    assert has_element?(view, "#flash-info", "AI processing restarted with run #")
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+    assert List.first(refreshed_product.processing_runs).status == "completed"
+  end
+
+  test "review page shows a visual pipeline tracker while processing", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = processing_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product-pipeline-progress")
+    assert has_element?(view, "#pipeline-step-uploads-state", "Done")
+    assert has_element?(view, "#pipeline-step-ai_extraction-state", "In progress")
+    assert has_element?(view, "#pipeline-step-price_search-state", "Pending")
+  end
+
+  test "review page shows variant generation errors from processing runs", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product = variant_failure_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product-processing-runs")
+    assert has_element?(view, "#product-pipeline-progress")
+    assert has_element?(view, "#pipeline-step-marketplace_texts-state", "Done")
+    assert has_element?(view, "#pipeline-step-image_processing-state", "Warning")
+    assert has_element?(view, "#pipeline-step-review-state", "Done")
+    assert render(view) =~ "variants_failed"
+  end
+
+  defp assert_in_order(html, first, second) do
+    {first_index, _first_length} = :binary.match(html, first)
+    {second_index, _second_length} = :binary.match(html, second)
+
+    assert first_index < second_index
+  end
+
+  defp set_product_updated_at!(product, datetime) do
+    from(p in Reseller.Catalog.Product, where: p.id == ^product.id)
+    |> Repo.update_all(set: [updated_at: datetime])
+
+    Repo.get!(Reseller.Catalog.Product, product.id)
+  end
+
+  defp retryable_failed_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Quota limited jacket"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    {:ok, _failed_run} =
+      Reseller.Workers.start_product_processing(finalized_product,
+        processor: Reseller.Support.Fakes.ProductProcessor,
+        processor_result:
+          {:error,
+           %{
+             code: "ai_quota_exhausted",
+             message: "Gemini quota is exhausted right now.",
+             payload: %{"retryable" => true, "provider" => "gemini"}
+           }}
+      )
+
+    Catalog.get_product_for_user(user, product.id)
+  end
+
+  defp processing_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Processing product"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^product.id)
+    |> Repo.update_all(set: [status: "processing"])
+
+    from(i in Reseller.Media.ProductImage, where: i.id == ^image.id)
+    |> Repo.update_all(set: [processing_status: "processing"])
+
+    Catalog.get_product_for_user(user, product.id)
+  end
+
+  defp variant_failure_product_fixture(user) do
+    {:ok, %{product: product}} =
+      Catalog.create_product_for_user(
+        user,
+        %{"title" => "Variant failure item"},
+        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
+        storage: Reseller.Support.Fakes.MediaStorage
+      )
+
+    [image] = product.images
+
+    {:ok, %{product: finalized_product}} =
+      Catalog.finalize_product_uploads_for_user(user, product.id, [
+        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
+      ])
+
+    {:ok, _run} =
+      Reseller.Workers.start_product_processing(finalized_product,
+        processor: Reseller.Workers.AIProductProcessor,
+        public_base_url: "https://cdn.example.com/catalog",
+        ai_provider: Reseller.Support.Fakes.AIProvider,
+        search_provider: Reseller.Support.Fakes.SearchProvider,
+        media_processor: Reseller.Support.Fakes.MediaProcessor,
+        storage: Reseller.Support.Fakes.MediaStorage,
+        recognize_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             output: %{
+               "brand" => "Nike",
+               "category" => "Sneakers",
+               "possible_model" => "Air Max 90",
+               "confidence_score" => 0.91,
+               "needs_review" => false
+             }
+           }},
+        description_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             model: "gemini-description",
+             output: %{
+               "suggested_title" => "Nike Air Max 90",
+               "short_description" => "Short copy"
+             }
+           }},
+        shopping_result: {:ok, %{provider: :serp_api, matches: []}},
+        price_result:
+          {:ok,
+           %{
+             provider: :gemini,
+             model: "gemini-pricing",
+             output: %{
+               "currency" => "USD",
+               "suggested_target_price" => 125,
+               "pricing_confidence" => 0.8
+             }
+           }},
+        marketplace_listing_results: %{
+          "ebay" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "eBay title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 125
+               }
+             }},
+          "depop" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Depop title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 124
+               }
+             }},
+          "poshmark" =>
+            {:ok,
+             %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Poshmark title",
+                 "generated_description" => "desc",
+                 "generated_price_suggestion" => 126
+               }
+             }}
+        },
+        variant_result: {:error, {:missing_api_key, :photoroom}}
+      )
+
+    Catalog.get_product_for_user(user, product.id)
+  end
+end

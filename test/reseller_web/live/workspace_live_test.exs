@@ -28,7 +28,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert html =~ "Dashboard - Workspace - Resellio - AI Inventory for Resellers"
   end
 
-  test "sidebar menu patches between workspace sections", %{conn: conn} do
+  test "sidebar menu switches between workspace sections and products index", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
 
@@ -40,16 +40,22 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     |> element(~s(aside a[href="/app/products"]))
     |> render_click()
 
-    assert_patch(view, "/app/products")
-    assert has_element?(view, "#workspace-products")
-    assert has_element?(view, "#new-product-form")
-    assert has_element?(view, "#product-images-upload-panel")
+    assert_redirect(view, "/app/products")
 
-    view
+    {:ok, products_view, _html} = live(conn, "/app/products")
+
+    assert has_element?(products_view, "#workspace-products")
+    assert has_element?(products_view, "#workspace-products-table")
+    assert has_element?(products_view, ~s(a[href="/app/products/new"]))
+
+    products_view
     |> element(~s(aside a[href="/app/listings"]))
     |> render_click()
 
-    assert_patch(view, "/app/listings")
+    assert_redirect(products_view, "/app/listings")
+
+    {:ok, view, _html} = live(conn, "/app/listings")
+
     assert has_element?(view, "#workspace-listings")
 
     view
@@ -76,151 +82,16 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#workspace-dashboard")
   end
 
-  test "creates a product with uploaded photos from the web UI", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products")
-
-    upload =
-      file_input(view, "#new-product-form", :product_images, [
-        %{
-          name: "jacket.jpg",
-          content: "fake-image-binary",
-          type: "image/jpeg"
-        }
-      ])
-
-    assert render_upload(upload, "jacket.jpg") =~ "jacket.jpg"
-
-    view
-    |> form("#new-product-form",
-      product: %{
-        title: "Web Jacket",
-        brand: "Levi's",
-        category: "Outerwear",
-        tags: "denim, vintage",
-        price: "79.00",
-        notes: "Created from LiveView"
-      }
-    )
-    |> render_submit()
-
-    [product] = Catalog.list_products_for_user(user)
-
-    assert_patch(view, "/app/products?product_id=#{product.id}")
-    assert product.title == "Web Jacket"
-    assert product.tags == ["denim", "vintage"]
-    assert length(product.images) == 1
-    assert has_element?(view, "#selected-product-card")
-    assert has_element?(view, "#product-images-upload-panel")
-    assert render(view) =~ "Web Jacket"
-    assert hd(product.images).original_filename == "jacket.jpg"
-  end
-
-  test "edits and updates product lifecycle from the web UI", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    product = product_fixture(user, %{"title" => "Original product"})
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
-
-    view
-    |> form("#product-edit-form",
-      product_update: %{
-        status: "review",
-        title: "Updated product",
-        brand: "Nike",
-        category: "Sneakers",
-        tags: "running, retro",
-        notes: "Updated in browser"
-      }
-    )
-    |> render_submit()
-
-    updated_product = Catalog.get_product_for_user(user, product.id)
-    assert updated_product.title == "Updated product"
-    assert updated_product.brand == "Nike"
-    assert updated_product.status == "review"
-    assert updated_product.tags == ["running", "retro"]
-
-    view
-    |> element(~s(button[phx-click="mark_sold"]))
-    |> render_click()
-
-    sold_product = Catalog.get_product_for_user(user, product.id)
-    assert sold_product.status == "sold"
-
-    view
-    |> element(~s(button[phx-click="archive_product"]))
-    |> render_click()
-
-    archived_product = Catalog.get_product_for_user(user, product.id)
-    assert archived_product.status == "archived"
-
-    view
-    |> element(~s(button[phx-click="restore_product"]))
-    |> render_click()
-
-    restored_product = Catalog.get_product_for_user(user, product.id)
-    assert restored_product.status == "sold"
-  end
-
-  test "filters products by status and ignores another user's product selection", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    ready_product = product_fixture(user, %{"title" => "Ready coat", "status" => "ready"})
-    _sold_product = product_fixture(user, %{"title" => "Sold shoes", "status" => "sold"})
-    other_user = user_fixture(%{"email" => "other@example.com"})
-
-    other_product =
-      product_fixture(other_user, %{"title" => "Other user item", "status" => "ready"})
-
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products?status=ready&product_id=#{other_product.id}")
-
-    assert has_element?(view, "#workspace-products-table", "Ready coat")
-    refute has_element?(view, "#workspace-products-table", "Sold shoes")
-    refute render(view) =~ "Other user item"
-    assert render(view) =~ "Ready coat"
-
-    view
-    |> element("#product-filters a", "Sold")
-    |> render_click()
-
-    assert_patch(view, "/app/products?product_id=#{ready_product.id}&status=sold")
-    assert has_element?(view, "#workspace-products-table", "Sold shoes")
-    refute has_element?(view, "#workspace-products-table", "Ready coat")
-    refute render(view) =~ "Other user item"
-    assert ready_product.id != other_product.id
-  end
-
-  test "deletes the selected product from the web UI", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    product = product_fixture(user, %{"title" => "Delete me"})
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
-
-    assert has_element?(view, "#selected-product-card", "Delete me")
-
-    view
-    |> element(~s(button[phx-click="delete_product"]))
-    |> render_click()
-
-    assert Catalog.get_product_for_user(user, product.id) == nil
-    refute has_element?(view, "#workspace-products-table", "Delete me")
-    assert has_element?(view, "#selected-product-card", "Pick a product from the list")
-  end
-
   test "requests exports and uploads imports from the web UI", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     product_fixture(user, %{"title" => "Export candidate"})
     conn = init_test_session(conn, %{user_id: user.id})
 
-    {:ok, view, _html} = live(conn, "/app/exports")
+    {:ok, view, html} = live(conn, "/app/exports")
 
     assert has_element?(view, "#import-archive-upload-panel")
+    assert html =~ ~s(id="import-archive-form")
+    assert html =~ ~s(phx-change="sync_import_upload")
 
     view
     |> element("#request-export-button")
@@ -266,45 +137,10 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#flash-error", "Choose a ZIP archive before starting an import.")
   end
 
-  test "retries failed AI processing from the web UI", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    product = retryable_failed_product_fixture(user)
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
-
-    assert has_element?(view, "#retry-processing-button")
-    assert has_element?(view, "#selected-product-card", "Gemini quota is exhausted right now.")
-
-    view
-    |> element("#retry-processing-button")
-    |> render_click()
-
-    assert has_element?(view, "#flash-info", "AI processing restarted with run #")
-
-    refreshed_product = Catalog.get_product_for_user(user, product.id)
-    assert List.first(refreshed_product.processing_runs).status == "completed"
-  end
-
-  test "shows variant generation errors from processing runs in the web UI", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-    product = variant_failure_product_fixture(user)
-    conn = init_test_session(conn, %{user_id: user.id})
-
-    {:ok, view, _html} = live(conn, "/app/products?product_id=#{product.id}")
-
-    assert has_element?(
-             view,
-             "#selected-product-card",
-             "Photoroom API key is missing. Add PHOTOROOM_API_KEY and retry processing."
-           )
-  end
-
   test "direct workspace routes render their matching sections", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
 
-    assert_route_section(conn, "/app/products", "#workspace-products")
     assert_route_section(conn, "/app/listings", "#workspace-listings")
     assert_route_section(conn, "/app/exports", "#workspace-exports")
     assert_route_section(conn, "/app/settings", "#workspace-settings")
@@ -333,137 +169,5 @@ defmodule ResellerWeb.WorkspaceLiveTest do
       :zip.create(~c"catalog-import.zip", [{~c"index.json", index_json}], [:memory])
 
     zip_binary
-  end
-
-  defp retryable_failed_product_fixture(user) do
-    {:ok, %{product: product}} =
-      Catalog.create_product_for_user(
-        user,
-        %{"title" => "Quota limited jacket"},
-        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
-        storage: Reseller.Support.Fakes.MediaStorage
-      )
-
-    [image] = product.images
-
-    {:ok, %{product: finalized_product}} =
-      Catalog.finalize_product_uploads_for_user(user, product.id, [
-        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
-      ])
-
-    {:ok, _failed_run} =
-      Reseller.Workers.start_product_processing(finalized_product,
-        processor: Reseller.Support.Fakes.ProductProcessor,
-        processor_result:
-          {:error,
-           %{
-             code: "ai_quota_exhausted",
-             message: "Gemini quota is exhausted right now.",
-             payload: %{"retryable" => true, "provider" => "gemini"}
-           }}
-      )
-
-    Catalog.get_product_for_user(user, product.id)
-  end
-
-  defp variant_failure_product_fixture(user) do
-    {:ok, %{product: product}} =
-      Catalog.create_product_for_user(
-        user,
-        %{"title" => "Variant failure item"},
-        [%{"filename" => "item-1.jpg", "content_type" => "image/jpeg", "byte_size" => 123_000}],
-        storage: Reseller.Support.Fakes.MediaStorage
-      )
-
-    [image] = product.images
-
-    {:ok, %{product: finalized_product}} =
-      Catalog.finalize_product_uploads_for_user(user, product.id, [
-        %{"id" => image.id, "checksum" => "abc123", "width" => 1200, "height" => 1600}
-      ])
-
-    {:ok, _run} =
-      Reseller.Workers.start_product_processing(finalized_product,
-        processor: Reseller.Workers.AIProductProcessor,
-        public_base_url: "https://cdn.example.com/catalog",
-        ai_provider: Reseller.Support.Fakes.AIProvider,
-        search_provider: Reseller.Support.Fakes.SearchProvider,
-        media_processor: Reseller.Support.Fakes.MediaProcessor,
-        storage: Reseller.Support.Fakes.MediaStorage,
-        recognize_result:
-          {:ok,
-           %{
-             provider: :gemini,
-             output: %{
-               "brand" => "Nike",
-               "category" => "Sneakers",
-               "possible_model" => "Air Max 90",
-               "confidence_score" => 0.91,
-               "needs_review" => false
-             }
-           }},
-        description_result:
-          {:ok,
-           %{
-             provider: :gemini,
-             model: "gemini-description",
-             output: %{
-               "suggested_title" => "Nike Air Max 90",
-               "short_description" => "Short copy"
-             }
-           }},
-        shopping_result: {:ok, %{provider: :serp_api, matches: []}},
-        price_result:
-          {:ok,
-           %{
-             provider: :gemini,
-             model: "gemini-pricing",
-             output: %{
-               "currency" => "USD",
-               "suggested_target_price" => 125,
-               "pricing_confidence" => 0.8
-             }
-           }},
-        marketplace_listing_results: %{
-          "ebay" =>
-            {:ok,
-             %{
-               provider: :gemini,
-               model: "gemini-marketplace",
-               output: %{
-                 "generated_title" => "eBay title",
-                 "generated_description" => "desc",
-                 "generated_price_suggestion" => 125
-               }
-             }},
-          "depop" =>
-            {:ok,
-             %{
-               provider: :gemini,
-               model: "gemini-marketplace",
-               output: %{
-                 "generated_title" => "Depop title",
-                 "generated_description" => "desc",
-                 "generated_price_suggestion" => 124
-               }
-             }},
-          "poshmark" =>
-            {:ok,
-             %{
-               provider: :gemini,
-               model: "gemini-marketplace",
-               output: %{
-                 "generated_title" => "Poshmark title",
-                 "generated_description" => "desc",
-                 "generated_price_suggestion" => 126
-               }
-             }}
-        },
-        variant_results: %{
-          "background_removed" => {:error, :missing_api_key}
-        }
-      )
-
-    Catalog.get_product_for_user(user, product.id)
   end
 end

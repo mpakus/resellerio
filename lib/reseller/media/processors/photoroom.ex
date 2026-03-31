@@ -107,11 +107,20 @@ defmodule Reseller.Media.Processors.Photoroom do
       end
 
     Enum.find_value(headers, fn
-      {^header_name, value} -> value
-      {name, value} when is_binary(name) -> if String.downcase(name) == header_name, do: value
-      _ -> nil
+      {^header_name, value} ->
+        normalize_header_value(value)
+
+      {name, value} when is_binary(name) ->
+        if String.downcase(name) == header_name, do: normalize_header_value(value)
+
+      _ ->
+        nil
     end)
   end
+
+  defp normalize_header_value([value | _rest]) when is_binary(value), do: value
+  defp normalize_header_value(value) when is_binary(value), do: value
+  defp normalize_header_value(_value), do: nil
 
   defp fetch_api_key(opts) do
     case config(opts)[:api_key] do
@@ -121,7 +130,17 @@ defmodule Reseller.Media.Processors.Photoroom do
   end
 
   defp config(opts) do
-    app_config = Application.fetch_env!(:reseller, __MODULE__)
-    Keyword.merge(app_config, Keyword.get(opts, :config, []))
+    case Keyword.fetch(opts, :config) do
+      {:ok, override_config} ->
+        Keyword.merge(default_config(), override_config)
+
+      :error ->
+        Application.fetch_env!(:reseller, __MODULE__)
+    end
+  end
+
+  defp default_config do
+    Application.fetch_env!(:reseller, __MODULE__)
+    |> Keyword.take([:base_url, :timeout, :padding, :output_format])
   end
 end

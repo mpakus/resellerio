@@ -709,7 +709,7 @@ flowchart TD
 Detailed steps:
 
 1. `ProductProcessingWorker` marks run `running` and switches uploaded images to `processing`
-2. `AIProductProcessor` collects public image URLs from `Reseller.Media`
+2. `AIProductProcessor` collects storage-backed image inputs from `Reseller.Media`
 3. `Reseller.AI.RecognitionPipeline` runs Gemini extraction
 4. If confidence is weak, pipeline enriches with SerpApi Google Lens / shopping
 5. Reconciled result is normalized and persisted onto `products`

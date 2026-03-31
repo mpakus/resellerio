@@ -15,7 +15,9 @@ defmodule Reseller.AI.Providers.Gemini do
 
   @impl true
   def recognize_images(images, attrs, opts \\ []) do
-    with {:ok, request} <- build_generate_content_request(:recognition, images, attrs, opts),
+    with {:ok, prepared_images} <- prepare_recognition_images(images, opts),
+         {:ok, request} <-
+           build_generate_content_request(:recognition, prepared_images, attrs, opts),
          {:ok, response} <- execute_request(request, opts) do
       parse_structured_response(:recognition, response, request.model)
     end
@@ -295,6 +297,118 @@ defmodule Reseller.AI.Providers.Gemini do
     end
   end
 
+  defp prepare_recognition_images(images, opts) do
+    images
+    |> Enum.reduce_while({:ok, []}, fn image, {:ok, prepared_images} ->
+      case prepare_recognition_image(image, opts) do
+        {:ok, prepared_image} ->
+          {:cont, {:ok, prepared_images ++ [prepared_image]}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp prepare_recognition_image(image, _opts) when not is_map(image) do
+    {:error, {:unsupported_image_input, image}}
+  end
+
+  defp prepare_recognition_image(image, opts) do
+    if direct_recognition_input?(image) do
+      {:ok, image}
+    else
+      with {:ok, mime_type} <- image_mime_type(image),
+           {:ok, image_url} <- image_url(image),
+           {:ok, body} <- download_image(image_url, opts) do
+        {:ok, %{mime_type: mime_type, data_base64: Base.encode64(body)}}
+      end
+    end
+  end
+
+  defp direct_recognition_input?(%{"inline_data" => %{}}), do: true
+  defp direct_recognition_input?(%{"file_data" => %{}}), do: true
+  defp direct_recognition_input?(%{"data" => data}) when is_binary(data), do: true
+  defp direct_recognition_input?(%{"data_base64" => data}) when is_binary(data), do: true
+  defp direct_recognition_input?(%{inline_data: %{}}), do: true
+  defp direct_recognition_input?(%{file_data: %{}}), do: true
+  defp direct_recognition_input?(%{data: data}) when is_binary(data), do: true
+  defp direct_recognition_input?(%{data_base64: data}) when is_binary(data), do: true
+
+  defp direct_recognition_input?(%{"file_uri" => file_uri}) when is_binary(file_uri),
+    do: gemini_file_uri?(file_uri)
+
+  defp direct_recognition_input?(%{"uri" => file_uri}) when is_binary(file_uri),
+    do: gemini_file_uri?(file_uri)
+
+  defp direct_recognition_input?(%{file_uri: file_uri}) when is_binary(file_uri),
+    do: gemini_file_uri?(file_uri)
+
+  defp direct_recognition_input?(%{uri: file_uri}) when is_binary(file_uri),
+    do: gemini_file_uri?(file_uri)
+
+  defp direct_recognition_input?(_image), do: false
+
+  defp gemini_file_uri?(file_uri) do
+    case URI.parse(file_uri) do
+      %URI{scheme: "gs"} ->
+        true
+
+      %URI{host: host, path: path} when is_binary(host) and is_binary(path) ->
+        String.ends_with?(host, ".googleapis.com") and String.contains?(path, "/files/")
+
+      _ ->
+        false
+    end
+  end
+
+  defp image_mime_type(%{"mime_type" => mime_type}) when is_binary(mime_type),
+    do: {:ok, mime_type}
+
+  defp image_mime_type(%{mime_type: mime_type}) when is_binary(mime_type), do: {:ok, mime_type}
+  defp image_mime_type(image), do: {:error, {:unsupported_image_input, image}}
+
+  defp image_url(image) do
+    case Map.get(image, "external_url") || Map.get(image, :external_url) ||
+           Map.get(image, "url") || Map.get(image, :url) ||
+           Map.get(image, "uri") || Map.get(image, :uri) ||
+           Map.get(image, "file_uri") || Map.get(image, :file_uri) do
+      url when is_binary(url) ->
+        {:ok, url}
+
+      _ ->
+        {:error, {:unsupported_image_input, image}}
+    end
+  end
+
+  defp download_image(image_url, opts) do
+    request_fun =
+      Keyword.get_lazy(opts, :download_request_fun, fn ->
+        receive_timeout = config(opts)[:timeout]
+        fn url -> Req.get(url: url, receive_timeout: receive_timeout) end
+      end)
+
+    case request_fun.(image_url) do
+      {:ok, response} ->
+        status = response_field(response, :status) || 200
+        body = response_field(response, :body)
+
+        cond do
+          status not in 200..299 ->
+            {:error, {:image_download_failed, {:http_error, status, body}}}
+
+          is_binary(body) ->
+            {:ok, body}
+
+          true ->
+            {:error, {:image_download_failed, :invalid_body}}
+        end
+
+      {:error, reason} ->
+        {:error, {:image_download_failed, {:request_failed, reason}}}
+    end
+  end
+
   defp build_image_parts(images) do
     images
     |> Enum.map(&image_part/1)
@@ -540,7 +654,17 @@ defmodule Reseller.AI.Providers.Gemini do
   end
 
   defp config(opts) do
-    app_config = Application.fetch_env!(:reseller, __MODULE__)
-    Keyword.merge(app_config, Keyword.get(opts, :config, []))
+    case Keyword.fetch(opts, :config) do
+      {:ok, override_config} ->
+        Keyword.merge(default_config(), override_config)
+
+      :error ->
+        Application.fetch_env!(:reseller, __MODULE__)
+    end
+  end
+
+  defp default_config do
+    Application.fetch_env!(:reseller, __MODULE__)
+    |> Keyword.take([:base_url, :timeout, :max_retries, :retry_backoff_ms, :models])
   end
 end

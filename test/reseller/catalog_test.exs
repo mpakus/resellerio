@@ -1,7 +1,10 @@
 defmodule Reseller.CatalogTest do
   use Reseller.DataCase, async: true
 
+  import Ecto.Query
+
   alias Reseller.Catalog
+  alias Reseller.Repo
 
   test "create_product_for_user/4 creates a draft product without uploads" do
     user = user_fixture()
@@ -60,6 +63,42 @@ defmodule Reseller.CatalogTest do
 
     assert [%{id: id, title: "User product"}] = Catalog.list_products_for_user(user)
     assert id == product.id
+  end
+
+  test "paginate_products_for_user/2 paginates, sorts, and filters by updated_at" do
+    user = user_fixture()
+
+    alpha =
+      product_fixture(user, %{"title" => "Alpha jacket", "status" => "ready", "price" => "55.00"})
+
+    beta =
+      product_fixture(user, %{"title" => "Beta jacket", "status" => "ready", "price" => "75.00"})
+
+    sold =
+      product_fixture(user, %{"title" => "Sold jacket", "status" => "sold", "price" => "25.00"})
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^alpha.id)
+    |> Repo.update_all(set: [updated_at: ~U[2024-01-10 12:00:00Z]])
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^beta.id)
+    |> Repo.update_all(set: [updated_at: ~U[2024-02-10 12:00:00Z]])
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^sold.id)
+    |> Repo.update_all(set: [updated_at: ~U[2024-03-10 12:00:00Z]])
+
+    page =
+      Catalog.paginate_products_for_user(user,
+        status: "ready",
+        updated_from: ~D[2024-02-01],
+        sort: :title,
+        sort_dir: :desc,
+        page_size: 1
+      )
+
+    assert page.total_count == 1
+    assert page.total_pages == 1
+    assert page.page == 1
+    assert [%{title: "Beta jacket"}] = page.entries
   end
 
   test "get_product_for_user/2 returns nil for another user's product" do

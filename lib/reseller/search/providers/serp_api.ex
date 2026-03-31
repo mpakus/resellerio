@@ -201,7 +201,17 @@ defmodule Reseller.Search.Providers.SerpApi do
   defp maybe_put_param(params, key, value), do: Map.put(params, key, value)
 
   defp config(opts) do
-    app_config = Application.fetch_env!(:reseller, __MODULE__)
-    Keyword.merge(app_config, Keyword.get(opts, :config, []))
+    case Keyword.fetch(opts, :config) do
+      {:ok, override_config} ->
+        Keyword.merge(default_config(), override_config)
+
+      :error ->
+        Application.fetch_env!(:reseller, __MODULE__)
+    end
+  end
+
+  defp default_config do
+    Application.fetch_env!(:reseller, __MODULE__)
+    |> Keyword.take([:base_url, :shopping_engine, :default_language, :default_country, :timeout])
   end
 end

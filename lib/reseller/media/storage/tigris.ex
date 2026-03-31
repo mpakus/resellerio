@@ -136,8 +136,18 @@ defmodule Reseller.Media.Storage.Tigris do
   end
 
   defp config(opts) do
-    app_config = Application.fetch_env!(:reseller, __MODULE__)
-    Keyword.merge(app_config, Keyword.get(opts, :config, []))
+    case Keyword.fetch(opts, :config) do
+      {:ok, override_config} ->
+        Keyword.merge(default_config(), override_config)
+
+      :error ->
+        Application.fetch_env!(:reseller, __MODULE__)
+    end
+  end
+
+  defp default_config do
+    Application.fetch_env!(:reseller, __MODULE__)
+    |> Keyword.take([:region, :expires_in])
   end
 
   defp storage_target(config) do
