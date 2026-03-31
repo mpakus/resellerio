@@ -468,7 +468,8 @@ defmodule ResellerWeb.ProductsLive.Index do
                   patch={sort_path(assigns, column.value)}
                   class={[
                     "rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition",
-                    @product_index_sort == column.value && "border-primary bg-primary/10 text-primary",
+                    @product_index_sort == column.value &&
+                      "border-primary bg-primary/10 text-primary",
                     @product_index_sort != column.value &&
                       "border-base-300 bg-base-100 text-base-content/65 hover:border-primary/35"
                   ]}
