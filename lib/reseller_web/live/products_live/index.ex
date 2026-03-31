@@ -124,7 +124,8 @@ defmodule ResellerWeb.ProductsLive.Index do
          active_export: export,
          active_export_download_url: maybe_export_download_url(export),
          show_export_modal?:
-           socket.assigns.show_export_modal? or export.status in ["completed", "failed"]
+           socket.assigns.show_export_modal? or
+             export.status in ["completed", "failed", "stalled"]
        )}
     else
       {:noreply, socket}
@@ -490,8 +491,12 @@ defmodule ResellerWeb.ProductsLive.Index do
                         Open export history
                       </.link>
                     </div>
-                  <% @active_export.status == "failed" -> %>
-                    <p class="text-sm leading-6 text-error">
+                  <% @active_export.status in ["failed", "stalled"] -> %>
+                    <p class={[
+                      "text-sm leading-6",
+                      @active_export.status == "failed" && "text-error",
+                      @active_export.status == "stalled" && "text-warning"
+                    ]}>
                       {@active_export.error_message ||
                         "Export failed. Check the export history and try again."}
                     </p>
@@ -756,6 +761,7 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   defp export_modal_title(nil), do: "Export the current table results"
   defp export_modal_title(%{status: "completed"}), do: "Export is ready"
+  defp export_modal_title(%{status: "stalled"}), do: "Export stalled"
   defp export_modal_title(%{status: "failed"}), do: "Export failed"
   defp export_modal_title(_export), do: "Export is running"
 
@@ -765,6 +771,10 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   defp export_modal_description(%{status: "completed"}, _total_count) do
     "The archive is ready to download now, and the same file remains on the Exports page."
+  end
+
+  defp export_modal_description(%{status: "stalled"}, _total_count) do
+    "The background job stopped making progress and was marked as stalled. Retry with the same filters or narrow the result set first."
   end
 
   defp export_modal_description(%{status: "failed"}, _total_count) do

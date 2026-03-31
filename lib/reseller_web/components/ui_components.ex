@@ -209,6 +209,7 @@ defmodule ResellerWeb.UIComponents do
         "archived" -> "border border-base-300 bg-base-300 text-base-content/70"
         "completed" -> "border border-success/20 bg-success/15 text-success"
         "running" -> "border border-info/20 bg-info/15 text-info"
+        "stalled" -> "border border-warning/25 bg-warning/20 text-warning"
         "failed" -> "border border-error/20 bg-error/15 text-error"
         _other -> "border border-base-300 bg-base-200 text-base-content/75"
       end

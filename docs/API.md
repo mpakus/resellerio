@@ -1106,7 +1106,7 @@ The `export` payload is optional. If omitted, the backend exports the full produ
 
 Response status: `202 Accepted`
 
-The returned export record may be `queued`, `running`, `completed`, or `failed` depending on when the worker updates the record.
+The returned export record may be `queued`, `running`, `completed`, `failed`, or `stalled` depending on when the worker updates the record. `stalled` means a queued/running export sat unchanged past the worker timeout window and needs attention or a retry.
 
 Example response:
 
@@ -1148,6 +1148,7 @@ Authorization: Bearer <token>
 
 Completed exports include a `storage_key`, a `download_url`, and `expires_at`.
 The generated ZIP contains `Products.xls`, `manifest.json`, and product image files under `images/<product_id>/...`.
+Stale in-flight exports are returned as `stalled` with an `error_message` explaining that the background job stopped making progress.
 
 Unknown or unauthorized export IDs return:
 

@@ -1,6 +1,11 @@
 defmodule ResellerWeb.API.V1.ExportControllerTest do
   use ResellerWeb.ConnCase, async: true
 
+  import Ecto.Query
+
+  alias Reseller.Exports.Export
+  alias Reseller.Repo
+
   setup %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     {raw_token, _api_token} = api_token_fixture(user, %{"device_name" => "iPhone"})
@@ -63,5 +68,45 @@ defmodule ResellerWeb.API.V1.ExportControllerTest do
                "status" => 404
              }
            }
+  end
+
+  test "GET /api/v1/exports/:id reclassifies stale running exports as stalled", %{
+    conn: conn,
+    user: user
+  } do
+    stale_time = ~U[2026-03-31 05:00:00Z]
+
+    export =
+      %Export{}
+      |> Export.create_changeset(%{
+        "name" => "Stale export",
+        "file_name" => "stale-export.zip",
+        "filter_params" => %{},
+        "product_count" => 3,
+        "status" => "running",
+        "requested_at" => stale_time
+      })
+      |> Ecto.Changeset.put_assoc(:user, user)
+      |> Repo.insert!()
+
+    from(record in Export, where: record.id == ^export.id)
+    |> Repo.update_all(set: [updated_at: stale_time])
+
+    conn = get(conn, "/api/v1/exports/#{export.id}")
+
+    assert %{
+             "data" => %{
+               "export" => %{
+                 "id" => export_id,
+                 "status" => "stalled",
+                 "error_message" => error_message
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert export_id == export.id
+
+    assert error_message ==
+             "Export has been running for more than 10 minutes without finishing. It was marked as stalled."
   end
 end

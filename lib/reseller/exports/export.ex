@@ -43,7 +43,7 @@ defmodule Reseller.Exports.Export do
     ])
     |> validate_length(:name, max: 160)
     |> validate_length(:file_name, max: 255)
-    |> validate_inclusion(:status, ~w(queued running completed failed))
+    |> validate_inclusion(:status, ~w(queued running completed failed stalled))
     |> validate_number(:product_count, greater_than_or_equal_to: 0)
     |> validate_length(:storage_key, max: 512)
     |> validate_length(:error_message, max: 500)

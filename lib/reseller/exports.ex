@@ -14,11 +14,13 @@ defmodule Reseller.Exports do
   alias Reseller.Repo
 
   @topic_prefix "exports"
+  @active_statuses ~w(queued running)
   @allowed_statuses ~w(all draft uploading processing review ready sold archived)
   @allowed_sorts ~w(title status price updated_at inserted_at)
   @allowed_sort_dirs ~w(asc desc)
   @max_error_message_length 500
   @legacy_db_error_message_length 255
+  @default_stale_after_seconds 600
 
   @spec subscribe(User.t()) :: :ok | {:error, term()}
   def subscribe(%User{id: user_id}) do
@@ -55,21 +57,43 @@ defmodule Reseller.Exports do
     end
   end
 
+  @spec retry_export_for_user(User.t(), term(), keyword()) ::
+          {:ok, Export.t()} | {:error, Ecto.Changeset.t() | term()}
+  def retry_export_for_user(%User{} = user, export_id, opts \\ []) do
+    case get_export_for_user(user, export_id, opts) do
+      nil ->
+        {:error, :not_found}
+
+      %Export{status: "stalled"} = export ->
+        retry_opts =
+          [name: export.name, filters: export.filter_params || %{}] ++
+            Keyword.drop(opts, [:name, :filters])
+
+        request_export_for_user(user, retry_opts)
+
+      %Export{} ->
+        {:error, :not_retryable}
+    end
+  end
+
   @spec get_export(pos_integer()) :: Export.t() | nil
   def get_export(id) when is_integer(id), do: Repo.get(Export, id)
 
   @spec get_export!(pos_integer()) :: Export.t()
   def get_export!(id) when is_integer(id), do: Repo.get!(Export, id)
 
-  @spec get_export_for_user(User.t(), term()) :: Export.t() | nil
-  def get_export_for_user(%User{id: user_id}, id) do
+  @spec get_export_for_user(User.t(), term(), keyword()) :: Export.t() | nil
+  def get_export_for_user(%User{id: user_id}, id, opts \\ []) do
     Export
     |> where([export], export.user_id == ^user_id and export.id == ^id)
     |> Repo.one()
+    |> maybe_mark_stale_export(opts)
   end
 
-  @spec list_exports_for_user(User.t()) :: [Export.t()]
-  def list_exports_for_user(%User{id: user_id}) do
+  @spec list_exports_for_user(User.t(), keyword()) :: [Export.t()]
+  def list_exports_for_user(%User{id: user_id} = user, opts \\ []) do
+    refresh_stale_exports_for_user(user, opts)
+
     Export
     |> where([export], export.user_id == ^user_id)
     |> order_by([export], desc: export.requested_at, desc: export.id)
@@ -116,8 +140,9 @@ defmodule Reseller.Exports do
 
   @spec mark_failed(Export.t(), String.t()) :: {:ok, Export.t()} | {:error, Ecto.Changeset.t()}
   def mark_failed(%Export{} = export, error_message) do
-    persist_failed_export(
+    persist_export_status(
       export,
+      "failed",
       normalize_error_message(error_message, @max_error_message_length)
     )
   end
@@ -439,10 +464,51 @@ defmodule Reseller.Exports do
     end
   end
 
-  defp persist_failed_export(%Export{} = export, error_message) do
+  defp refresh_stale_exports_for_user(%User{id: user_id}, opts) do
+    cutoff =
+      now(Keyword.get(opts, :now))
+      |> DateTime.add(-stale_after_seconds(opts), :second)
+
+    Export
+    |> where(
+      [export],
+      export.user_id == ^user_id and export.status in ^@active_statuses and
+        export.updated_at <= ^cutoff
+    )
+    |> Repo.all()
+    |> Enum.each(fn export ->
+      case mark_stalled(export, stale_error_message(export, opts)) do
+        {:ok, _stalled_export} -> :ok
+        {:error, _changeset} -> :ok
+      end
+    end)
+  end
+
+  defp maybe_mark_stale_export(nil, _opts), do: nil
+
+  defp maybe_mark_stale_export(%Export{} = export, opts) do
+    if stale_export?(export, opts) do
+      case mark_stalled(export, stale_error_message(export, opts)) do
+        {:ok, stalled_export} -> stalled_export
+        {:error, _changeset} -> export
+      end
+    else
+      export
+    end
+  end
+
+  defp mark_stalled(%Export{} = export, error_message) do
+    persist_export_status(
+      export,
+      "stalled",
+      normalize_error_message(error_message, @max_error_message_length)
+    )
+  end
+
+  defp persist_export_status(%Export{} = export, status, error_message) do
     export
     |> Export.update_changeset(%{
-      "status" => "failed",
+      "status" => status,
       "error_message" => error_message
     })
     |> Repo.update()
@@ -452,7 +518,7 @@ defmodule Reseller.Exports do
       if legacy_error_message_overflow?(error, error_message) do
         export
         |> Export.update_changeset(%{
-          "status" => "failed",
+          "status" => status,
           "error_message" =>
             normalize_error_message(error_message, @legacy_db_error_message_length)
         })
@@ -489,6 +555,37 @@ defmodule Reseller.Exports do
   end
 
   defp legacy_error_message_overflow?(_error, _error_message), do: false
+
+  defp stale_export?(%Export{} = export, opts) do
+    export.status in @active_statuses and
+      export.completed_at == nil and
+      DateTime.diff(now(Keyword.get(opts, :now)), export.updated_at, :second) >=
+        stale_after_seconds(opts)
+  end
+
+  defp stale_after_seconds(opts) do
+    Keyword.get(
+      opts,
+      :stale_after_seconds,
+      Application.get_env(:reseller, __MODULE__)[:stale_after_seconds] ||
+        @default_stale_after_seconds
+    )
+  end
+
+  defp stale_error_message(%Export{} = export, opts) do
+    minutes =
+      stale_after_seconds(opts)
+      |> div(60)
+      |> max(1)
+
+    case export.status do
+      "queued" ->
+        "Export has been queued for more than #{minutes} minutes without starting. It was marked as stalled."
+
+      _other ->
+        "Export has been running for more than #{minutes} minutes without finishing. It was marked as stalled."
+    end
+  end
 
   defp parse_optional_datetime(nil), do: nil
 

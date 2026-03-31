@@ -1,12 +1,15 @@
 defmodule ResellerWeb.WorkspaceLiveTest do
   use ResellerWeb.ConnCase, async: true
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Reseller.Catalog
   alias Reseller.Accounts
   alias Reseller.Exports
+  alias Reseller.Exports.Export
   alias Reseller.Imports
+  alias Reseller.Repo
 
   test "redirects unauthenticated users to sign in", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/sign-in"}}} = live(conn, "/app")
@@ -22,7 +25,6 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#workspace-user-email")
     assert has_element?(view, "#workspace-dashboard")
     assert has_element?(view, ~s(a[href="/app/products"]))
-    assert has_element?(view, ~s(a[href="/app/listings"]))
     assert has_element?(view, ~s(a[href="/app/exports"]))
     assert has_element?(view, ~s(a[href="/app/settings"]))
     assert render(view) =~ "seller@example.com"
@@ -50,20 +52,13 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(products_view, ~s(a[href="/app/products/new"]))
 
     products_view
-    |> element(~s(aside a[href="/app/listings"]))
-    |> render_click()
-
-    assert_redirect(products_view, "/app/listings")
-
-    {:ok, view, _html} = live(conn, "/app/listings")
-
-    assert has_element?(view, "#workspace-listings")
-
-    view
     |> element(~s(aside a[href="/app/exports"]))
     |> render_click()
 
-    assert_patch(view, "/app/exports")
+    assert_redirect(products_view, "/app/exports")
+
+    {:ok, view, _html} = live(conn, "/app/exports")
+
     assert has_element?(view, "#workspace-exports")
     assert has_element?(view, "#import-archive-upload-panel")
 
@@ -125,6 +120,80 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert render(view) =~ "catalog-import.zip"
   end
 
+  test "reclassifies stale exports on the workspace exports screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller-stalled@example.com"})
+    stale_time = ~U[2026-03-31 05:00:00Z]
+
+    export =
+      %Export{}
+      |> Export.create_changeset(%{
+        "name" => "Stale export",
+        "file_name" => "stale-export.zip",
+        "filter_params" => %{},
+        "product_count" => 3,
+        "status" => "running",
+        "requested_at" => stale_time
+      })
+      |> Ecto.Changeset.put_assoc(:user, user)
+      |> Repo.insert!()
+
+    from(record in Export, where: record.id == ^export.id)
+    |> Repo.update_all(set: [updated_at: stale_time])
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/exports")
+
+    assert has_element?(view, "#workspace-exports", "stalled")
+
+    assert has_element?(
+             view,
+             "#workspace-exports",
+             "Export has been running for more than 10 minutes without finishing. It was marked as stalled."
+           )
+  end
+
+  test "re-runs stalled exports from the workspace exports screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller-rerun@example.com"})
+    product_fixture(user, %{"title" => "Retryable export product", "status" => "ready"})
+    stale_time = ~U[2026-03-31 05:00:00Z]
+
+    export =
+      %Export{}
+      |> Export.create_changeset(%{
+        "name" => "Retryable export",
+        "file_name" => "retryable-export.zip",
+        "filter_params" => %{"query" => "Retryable"},
+        "product_count" => 1,
+        "status" => "stalled",
+        "requested_at" => stale_time,
+        "error_message" =>
+          "Export has been running for more than 10 minutes without finishing. It was marked as stalled."
+      })
+      |> Ecto.Changeset.put_assoc(:user, user)
+      |> Repo.insert!()
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/exports")
+
+    assert has_element?(view, ~s(button[phx-click="rerun_export"][phx-value-id="#{export.id}"]))
+
+    view
+    |> element(~s(button[phx-click="rerun_export"][phx-value-id="#{export.id}"]))
+    |> render_click()
+
+    assert has_element?(view, "#flash-info", "Export restarted as job #")
+
+    [latest_export, stale_export] = Exports.list_exports_for_user(user)
+    assert latest_export.id != stale_export.id
+    assert latest_export.name == "Retryable export"
+    assert latest_export.filter_params == %{"query" => "Retryable"}
+    assert latest_export.status == "completed"
+    assert stale_export.id == export.id
+    assert stale_export.status == "stalled"
+  end
+
   test "shows an error when import is submitted without an archive", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
@@ -142,9 +211,20 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
 
-    assert_route_section(conn, "/app/listings", "#workspace-listings")
     assert_route_section(conn, "/app/exports", "#workspace-exports")
     assert_route_section(conn, "/app/settings", "#workspace-settings")
+  end
+
+  test "legacy listings route redirects to products", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+
+    conn =
+      conn
+      |> init_test_session(%{user_id: user.id})
+      |> get("/app/listings")
+
+    assert redirected_to(conn) == "/app/products"
+    assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Listings moved to Products."
   end
 
   test "updates marketplace defaults from the settings screen", %{conn: conn} do

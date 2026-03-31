@@ -24,6 +24,10 @@ defmodule ResellerWeb.Router do
     plug ResellerWeb.BrowserAuth, :ensure_admin
   end
 
+  pipeline :browser_authenticated do
+    plug ResellerWeb.BrowserAuth, :ensure_authenticated
+  end
+
   scope "/", ResellerWeb do
     pipe_through :browser
 
@@ -42,9 +46,14 @@ defmodule ResellerWeb.Router do
       live "/app/products", ProductsLive.Index, :index
       live "/app/products/new", ProductsLive.New, :new
       live "/app/products/:id", ProductsLive.Show, :show
-      live "/app/listings", WorkspaceLive, :listings
       live "/app/exports", WorkspaceLive, :exports
       live "/app/settings", WorkspaceLive, :settings
+    end
+
+    scope "/" do
+      pipe_through :browser_authenticated
+
+      get "/app/listings", WorkspaceRedirectController, :listings
     end
 
     post "/sign-up", RegistrationController, :create

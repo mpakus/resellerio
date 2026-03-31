@@ -8,7 +8,6 @@ defmodule ResellerWeb.WorkspaceNavigation do
     [
       nav_item(:dashboard, "Dashboard", "/app", active_section, default_mode, item_modes),
       nav_item(:products, "Products", "/app/products", active_section, default_mode, item_modes),
-      nav_item(:listings, "Listings", "/app/listings", active_section, default_mode, item_modes),
       nav_item(:exports, "Exports", "/app/exports", active_section, default_mode, item_modes),
       nav_item(:settings, "Settings", "/app/settings", active_section, default_mode, item_modes)
     ]

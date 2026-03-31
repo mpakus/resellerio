@@ -26,7 +26,7 @@ Core business goal:
 
 - Public LiveView marketing page at `/`
 - Browser auth at `/sign-up`, `/sign-in`, `DELETE /sign-out`
-- Authenticated Resellerio workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, `/app/settings`
+- Authenticated Resellerio workspace at `/app`, `/app/products`, `/app/exports`, `/app/settings`
 - Admin interface at `/admin/...`
 - Versioned JSON API at `/api/v1/...`
 
@@ -509,7 +509,7 @@ Key fields:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `product_id` | FK -> `products` | required |
-| `status` | `string` | `queued`, `running`, `completed`, `failed` |
+| `status` | `string` | `queued`, `running`, `completed`, `failed`, `stalled` |
 | `step` | `string` | current or terminal stage name |
 | `started_at` / `finished_at` | `utc_datetime` | run timing |
 | `error_code` | `string` | normalized error code |
@@ -627,12 +627,12 @@ Key fields:
 | `file_name` | `string` | ZIP filename used for download |
 | `filter_params` | `map` | normalized search/status/date/sort filters from Products |
 | `product_count` | `integer` | total matching products included in the archive |
-| `status` | `string` | `queued`, `running`, `completed`, `failed` |
+| `status` | `string` | `queued`, `running`, `completed`, `failed`, `stalled` |
 | `storage_key` | `string` | ZIP object key in Tigris |
 | `expires_at` | `utc_datetime` | artifact TTL boundary |
 | `requested_at` | `utc_datetime` | required |
 | `completed_at` | `utc_datetime` | terminal timestamp |
-| `error_message` | `string` | failure detail |
+| `error_message` | `text` | failure detail |
 | `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
 
 Index:
@@ -657,7 +657,7 @@ Key fields:
 | `source_storage_key` | `string` | stored source archive key |
 | `requested_at` / `started_at` / `finished_at` | `utc_datetime` | timing |
 | `total_products` / `imported_products` / `failed_products` | `integer` | counters |
-| `error_message` | `string` | failure summary |
+| `error_message` | `text` | failure summary |
 | `failure_details` | `map` | per-product failure items |
 | `payload` | `map` | extra import metadata |
 | `inserted_at` / `updated_at` | `utc_datetime` | standard timestamps |
@@ -698,6 +698,10 @@ pending_upload -> uploaded -> processing -> failed
 ```text
 queued -> running -> completed
 queued -> running -> failed
+queued -> stalled
+queued -> running -> stalled
+stalled -> completed
+stalled -> failed
 ```
 
 ### Import lifecycle
@@ -812,6 +816,9 @@ Optional lifestyle-generation behavior:
 8. ZIP is uploaded through `Reseller.Media.Storage`
 9. Export is marked `completed`
 10. notifier sends export-ready email and the same finished archive appears on `/app/exports`
+
+If a `queued` or `running` export sits unchanged past the stale timeout window, read surfaces reclassify it to `stalled` with a retry-oriented `error_message`.
+Re-running a stalled export from the workspace creates a fresh export row using the stalled export's saved name and filters.
 
 ## 8.6 ZIP import flow
 

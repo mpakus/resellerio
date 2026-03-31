@@ -1,6 +1,8 @@
 defmodule Reseller.ExportsTest do
   use Reseller.DataCase, async: true
 
+  import Ecto.Query
+
   alias Reseller.Catalog
   alias Reseller.Exports
   alias Reseller.Exports.Export
@@ -211,5 +213,66 @@ defmodule Reseller.ExportsTest do
     assert failed_export.status == "failed"
     assert String.length(failed_export.error_message) == 500
     assert String.ends_with?(failed_export.error_message, "...")
+  end
+
+  test "list_exports_for_user/2 reclassifies stale running exports as stalled" do
+    user = user_fixture(%{"email" => "export-stalled@example.com"})
+    stale_time = ~U[2026-03-31 05:00:00Z]
+
+    export =
+      %Export{}
+      |> Export.create_changeset(%{
+        "name" => "Stale export",
+        "file_name" => "stale-export.zip",
+        "filter_params" => %{},
+        "product_count" => 3,
+        "status" => "running",
+        "requested_at" => stale_time
+      })
+      |> Ecto.Changeset.put_assoc(:user, user)
+      |> Repo.insert!()
+
+    from(record in Export, where: record.id == ^export.id)
+    |> Repo.update_all(set: [updated_at: stale_time])
+
+    [stalled_export] =
+      Exports.list_exports_for_user(user, now: ~U[2026-03-31 05:12:00Z], stale_after_seconds: 600)
+
+    assert stalled_export.id == export.id
+    assert stalled_export.status == "stalled"
+
+    assert stalled_export.error_message ==
+             "Export has been running for more than 10 minutes without finishing. It was marked as stalled."
+  end
+
+  test "retry_export_for_user/3 creates a fresh export from a stalled export's saved filters" do
+    user = user_fixture(%{"email" => "export-rerun@example.com"})
+    product_fixture(user, %{"title" => "Retryable export product", "status" => "ready"})
+    stale_time = ~U[2026-03-31 05:00:00Z]
+
+    export =
+      %Export{}
+      |> Export.create_changeset(%{
+        "name" => "Retryable export",
+        "file_name" => "retryable-export.zip",
+        "filter_params" => %{"query" => "Retryable"},
+        "product_count" => 1,
+        "status" => "stalled",
+        "requested_at" => stale_time,
+        "error_message" =>
+          "Export has been running for more than 10 minutes without finishing. It was marked as stalled."
+      })
+      |> Ecto.Changeset.put_assoc(:user, user)
+      |> Repo.insert!()
+
+    assert {:ok, rerun_export} =
+             Exports.retry_export_for_user(user, export.id,
+               public_base_url: "https://cdn.example.test"
+             )
+
+    assert rerun_export.id != export.id
+    assert rerun_export.name == export.name
+    assert rerun_export.filter_params == export.filter_params
+    assert rerun_export.status == "completed"
   end
 end

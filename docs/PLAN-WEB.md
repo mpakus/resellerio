@@ -17,7 +17,7 @@
 
 - Completed: Step W5.2 filtered export requests from Products plus saved export history metadata.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
-- Current auth routes: `live "/"`, `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/products/new"`, `live "/app/products/:id"`, `live "/app/listings"`, `live "/app/exports"`, `live "/app/settings"`, and protected admin routes under `/admin`
+- Current auth routes: `live "/"`, `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/products/new"`, `live "/app/products/:id"`, `live "/app/exports"`, `live "/app/settings"`, legacy redirect `GET "/app/listings" -> "/app/products"`, and protected admin routes under `/admin`
 - Current workspace features: dashboard summaries, a table-first products index with real-time full-text search plus pagination/sorting/date filters, upload-first product intake, AI-seeded product review/editing, lifecycle actions, marketplace listing review, per-user marketplace defaults in settings, filtered export requests from Products, and archive history/import actions in LiveView.
 - Next target: passkey-focused account settings plus richer AI review controls and regeneration actions.
 
@@ -92,7 +92,7 @@ Recommended main surfaces:
 - Products index
 - Product detail
 - New product upload flow
-- Marketplace listings review
+- Marketplace listing review on product pages
 - Exports
 - Imports
 - Settings
@@ -132,8 +132,7 @@ Recommended LiveViews:
 - `ResellerWeb.ProductsLive.Edit`
   - structured product editing
 
-- `ResellerWeb.ListingsLive`
-  - per-marketplace generated content review and regeneration
+- Marketplace listing review remains on the product screens rather than a dedicated workspace page
 
 - `ResellerWeb.ExportsLive`
   - export request history and download status
@@ -340,6 +339,7 @@ Do not duplicate account rules. Reuse `Reseller.Accounts` for credential validat
 - export history
 - import upload and summaries
 - downloadable export status UI
+- re-run stalled exports from the export history UI
 
 ### Phase W6: Polish
 

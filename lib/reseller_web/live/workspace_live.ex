@@ -31,7 +31,6 @@ defmodule ResellerWeb.WorkspaceLive do
        workspace_nav: [],
        stats: [],
        products: [],
-       listing_rows: [],
        exports: [],
        imports: [],
        marketplace_form: to_form(%{}, as: :settings),
@@ -92,6 +91,39 @@ defmodule ResellerWeb.WorkspaceLive do
 
   def handle_event("cancel-import-archive", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :import_archive, ref)}
+  end
+
+  def handle_event("rerun_export", %{"id" => export_id}, socket) do
+    case Exports.retry_export_for_user(socket.assigns.current_user, export_id) do
+      {:ok, export} ->
+        {:noreply,
+         socket
+         |> refresh_workspace()
+         |> put_flash(:info, "Export restarted as job ##{export.id}.")}
+
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "Export not found.")}
+
+      {:error, :not_retryable} ->
+        {:noreply,
+         put_flash(socket, :error, "Only stalled exports can be re-run from this screen.")}
+
+      {:error, :no_products} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "No matching products are available for that stalled export anymore."
+         )}
+
+      {:error, %Changeset{} = changeset} ->
+        {:noreply,
+         put_flash(socket, :error, "Could not restart export: #{inspect(changeset.errors)}")}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Could not restart export: #{format_reason(reason)}")}
+    end
   end
 
   def handle_event("save_marketplaces", params, socket) do
@@ -238,25 +270,6 @@ defmodule ResellerWeb.WorkspaceLive do
                 </div>
               </.surface>
             </section>
-          <% :listings -> %>
-            <section id="workspace-listings" class="grid gap-4 md:grid-cols-2">
-              <.surface
-                :for={listing <- @listing_rows}
-                tag="article"
-              >
-                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
-                  {listing.marketplace}
-                </p>
-                <p class="mt-3 text-xl font-semibold tracking-[-0.03em]">{listing.title}</p>
-                <p class="mt-2 text-sm text-base-content/60">{listing.product_title}</p>
-                <p class="mt-4 text-sm leading-6 text-base-content/70 line-clamp-3">
-                  {listing.description}
-                </p>
-              </.surface>
-              <p :if={@listing_rows == []} class="text-sm text-base-content/60">
-                No marketplace listings yet.
-              </p>
-            </section>
           <% :exports -> %>
             <section id="workspace-exports" class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
               <div class="grid gap-4">
@@ -328,6 +341,16 @@ defmodule ResellerWeb.WorkspaceLive do
                           <p :if={export.completed_at} class="mt-1 text-sm text-base-content/60">
                             Completed {format_datetime(export.completed_at)}
                           </p>
+                          <p
+                            :if={export.error_message && export.status in ["failed", "stalled"]}
+                            class={[
+                              "mt-2 text-sm leading-6",
+                              export.status == "failed" && "text-error",
+                              export.status == "stalled" && "text-warning"
+                            ]}
+                          >
+                            {export.error_message}
+                          </p>
                           <div class="mt-3 flex flex-wrap gap-2">
                             <span
                               :for={detail <- export_filter_details(export)}
@@ -339,15 +362,24 @@ defmodule ResellerWeb.WorkspaceLive do
                         </div>
                         <div class="flex flex-col items-end gap-2">
                           <.status_badge status={export.status} />
+                          <button
+                            :if={export.status == "stalled"}
+                            type="button"
+                            phx-click="rerun_export"
+                            phx-value-id={export.id}
+                            class="btn btn-outline btn-xs rounded-full"
+                          >
+                            Re-run
+                          </button>
                           <a
                             :if={download_url = export_download_url(export)}
                             href={download_url}
-                            class="btn btn-ghost btn-xs rounded-full"
+                            class="btn btn-outline btn-xs rounded-full"
                             download={export.file_name}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            Download
+                            Download .zip
                           </a>
                         </div>
                       </div>
@@ -485,7 +517,6 @@ defmodule ResellerWeb.WorkspaceLive do
           item_modes: %{products: :navigate}
         ),
       products: products,
-      listing_rows: listing_rows(products),
       exports: exports,
       imports: imports,
       marketplace_form: build_marketplace_form(current_user, selected_marketplaces),
@@ -535,29 +566,22 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   defp page_title(:dashboard), do: ResellerWeb.PageTitle.build("Dashboard", "Workspace")
-  defp page_title(:listings), do: ResellerWeb.PageTitle.build("Listings", "Workspace / Markets")
   defp page_title(:exports), do: ResellerWeb.PageTitle.build("Exports", "Workspace / Transfers")
   defp page_title(:settings), do: ResellerWeb.PageTitle.build("Settings", "Workspace")
   defp page_title(_section), do: ResellerWeb.PageTitle.build("Workspace", nil)
 
   defp section_eyebrow(:dashboard), do: "Dashboard"
-  defp section_eyebrow(:listings), do: "Listings"
   defp section_eyebrow(:exports), do: "Transfers"
   defp section_eyebrow(:settings), do: "Settings"
   defp section_eyebrow(_section), do: "Workspace"
 
   defp section_heading(:dashboard), do: "Your Resellerio workspace is now operational."
-  defp section_heading(:listings), do: "See marketplace-ready copy in one place."
   defp section_heading(:exports), do: "Run archive exports and imports from the web."
   defp section_heading(:settings), do: "Manage your workspace defaults."
   defp section_heading(_section), do: "Your Resellerio workspace is ready."
 
   defp section_description(:dashboard) do
     "The dashboard now links straight into the web workflows for product intake and archive generation."
-  end
-
-  defp section_description(:listings) do
-    "Marketplace listings generated by the AI pipeline are grouped here so you can review marketplace-specific output quickly."
   end
 
   defp section_description(:exports) do
@@ -595,20 +619,6 @@ defmodule ResellerWeb.WorkspaceLive do
         description: "Archive imports processed for this account."
       }
     ]
-  end
-
-  defp listing_rows(products) do
-    products
-    |> Enum.flat_map(fn product ->
-      Enum.map(product.marketplace_listings || [], fn listing ->
-        %{
-          marketplace: Marketplaces.marketplace_label(listing.marketplace),
-          title: listing.generated_title || "Untitled listing",
-          product_title: product.title || "Untitled product",
-          description: listing.generated_description || "No generated description yet."
-        }
-      end)
-    end)
   end
 
   defp format_datetime(nil), do: "—"
