@@ -14,6 +14,7 @@ defmodule ResellerWeb.API.V1.APIAuthTest do
 
   test "representative protected routes reject missing bearer tokens" do
     requests = [
+      {:get, "/api/v1/product_tabs", nil},
       {:get, "/api/v1/products", nil},
       {:post, "/api/v1/exports", %{}},
       {:post, "/api/v1/imports", %{"import" => %{"filename" => "catalog.zip"}}}

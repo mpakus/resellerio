@@ -26,6 +26,7 @@ defmodule ResellerWeb.ProductsLive.Show do
        workspace_nav: WorkspaceNavigation.items(:products),
        refresh_interval_ms: @refresh_interval_ms,
        manual_product_status_options: Helpers.manual_product_status_options(),
+       product_tabs: Catalog.list_product_tabs_for_user(socket.assigns.current_user),
        pipeline_progress: nil,
        product: nil,
        product_id: nil,
@@ -520,6 +521,13 @@ defmodule ResellerWeb.ProductsLive.Show do
                     label="Status"
                     options={@manual_product_status_options}
                     disabled={status_locked?(@product)}
+                  />
+                  <.input
+                    field={@review_form[:product_tab_id]}
+                    type="select"
+                    label="Tab"
+                    prompt="No tab"
+                    options={Helpers.product_tab_options(@product_tabs)}
                   />
                   <.input field={@review_form[:title]} label="Title" copyable />
                   <.input field={@review_form[:brand]} label="Brand" copyable />
@@ -1179,6 +1187,7 @@ defmodule ResellerWeb.ProductsLive.Show do
 
     %{
       "status" => review_status(product),
+      "product_tab_id" => product.product_tab_id,
       "title" => product.title,
       "brand" => product.brand,
       "category" => product.category,

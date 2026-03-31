@@ -4,6 +4,7 @@ defmodule ResellerWeb.ProductsLive.New do
   alias Ecto.Changeset
   alias Reseller.Catalog
   alias Reseller.Media.Storage
+  alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
 
   @image_upload_accept ~w(.jpg .jpeg .png .webp)
@@ -19,12 +20,35 @@ defmodule ResellerWeb.ProductsLive.New do
      )
      |> assign(
        page_title: ResellerWeb.PageTitle.build("New Product", "Workspace / Intake"),
-       workspace_nav: WorkspaceNavigation.items(:products)
+       workspace_nav: WorkspaceNavigation.items(:products),
+       product_tabs: Catalog.list_product_tabs_for_user(socket.assigns.current_user),
+       new_product_form: to_form(%{"product_tab_id" => nil}, as: :product)
      )}
   end
 
   @impl true
-  def handle_event("create_product", _params, socket) do
+  def handle_params(params, _uri, socket) do
+    product_tab_id =
+      case Map.get(params, "tab") do
+        value when is_binary(value) ->
+          if Catalog.get_product_tab_for_user(socket.assigns.current_user, value) do
+            value
+          else
+            nil
+          end
+
+        _other ->
+          nil
+      end
+
+    {:noreply,
+     assign(socket,
+       new_product_form: to_form(%{"product_tab_id" => product_tab_id}, as: :product)
+     )}
+  end
+
+  @impl true
+  def handle_event("create_product", %{"product" => product_params}, socket) do
     upload_entries = socket.assigns.uploads.product_images.entries
 
     if upload_entries == [] do
@@ -32,7 +56,11 @@ defmodule ResellerWeb.ProductsLive.New do
     else
       upload_specs = build_upload_specs(upload_entries)
 
-      case Catalog.create_product_for_user(socket.assigns.current_user, %{}, upload_specs) do
+      case Catalog.create_product_for_user(
+             socket.assigns.current_user,
+             product_params,
+             upload_specs
+           ) do
         {:ok, %{product: product, upload_bundle: upload_bundle}} ->
           case upload_and_finalize_product(socket, product, upload_bundle.images) do
             {:ok, finalized_product} ->
@@ -50,13 +78,22 @@ defmodule ResellerWeb.ProductsLive.New do
 
         {:error, %Changeset{} = changeset} ->
           {:noreply,
-           put_flash(socket, :error, "Product is invalid: #{inspect(changeset.errors)}")}
+           socket
+           |> assign(new_product_form: to_form(%{changeset | action: :validate}, as: :product))
+           |> put_flash(:error, "Product is invalid: #{inspect(changeset.errors)}")}
 
         {:error, reason} ->
           {:noreply,
            put_flash(socket, :error, "Could not create product: #{format_reason(reason)}")}
       end
     end
+  end
+
+  def handle_event("sync_product_uploads", %{"product" => product_params}, socket) do
+    {:noreply,
+     socket
+     |> assign(new_product_form: to_form(product_params, as: :product))
+     |> clear_flash(:error)}
   end
 
   def handle_event("sync_product_uploads", _params, socket) do
@@ -99,11 +136,19 @@ defmodule ResellerWeb.ProductsLive.New do
             </.header>
 
             <.form
-              for={to_form(%{}, as: :product)}
+              for={@new_product_form}
               id="new-product-form"
               phx-change="sync_product_uploads"
               phx-submit="create_product"
             >
+              <.input
+                field={@new_product_form[:product_tab_id]}
+                type="select"
+                label="Tab"
+                prompt="No tab"
+                options={Helpers.product_tab_options(@product_tabs)}
+              />
+
               <.upload_panel
                 id="product-images-upload-panel"
                 title="Product images"
@@ -125,6 +170,12 @@ defmodule ResellerWeb.ProductsLive.New do
           <.surface tag="article" variant="soft">
             <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">What happens next</p>
             <div class="mt-5 space-y-4 text-sm leading-6 text-base-content/75">
+              <div class="rounded-3xl border border-base-300 bg-base-100 px-4 py-4">
+                <p class="font-semibold">Optional tab assignment</p>
+                <p class="mt-1">
+                  Assign this intake to a seller-defined tab now, or leave it unassigned and sort it later from the review page.
+                </p>
+              </div>
               <div class="rounded-3xl border border-base-300 bg-base-100 px-4 py-4">
                 <p class="font-semibold">1. Product and image records are created</p>
                 <p class="mt-1">

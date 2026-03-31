@@ -18,14 +18,22 @@ defmodule ResellerWeb.API.V1.ExportControllerTest do
   end
 
   test "POST /api/v1/exports queues and completes an export", %{conn: conn, user: user} do
-    product_fixture(user, %{"title" => "Fila jacket", "status" => "ready"})
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+    product_tab_id = product_tab.id
+
+    product_fixture(user, %{
+      "title" => "Fila jacket",
+      "status" => "ready",
+      "product_tab_id" => product_tab_id
+    })
+
     product_fixture(user, %{"title" => "Canvas tote", "status" => "ready"})
 
     conn =
       post(conn, "/api/v1/exports", %{
         "export" => %{
           "name" => "Fila export",
-          "filters" => %{"query" => "Fila"}
+          "filters" => %{"query" => "Fila", "product_tab_id" => product_tab_id}
         }
       })
 
@@ -34,7 +42,11 @@ defmodule ResellerWeb.API.V1.ExportControllerTest do
                "export" => %{
                  "name" => "Fila export",
                  "file_name" => file_name,
-                 "filter_params" => %{"query" => "Fila"},
+                 "filter_params" => %{
+                   "query" => "Fila",
+                   "product_tab_id" => ^product_tab_id,
+                   "product_tab_name" => "Outerwear"
+                 },
                  "product_count" => 1,
                  "status" => "completed",
                  "storage_key" => storage_key,

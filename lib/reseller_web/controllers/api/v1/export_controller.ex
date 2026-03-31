@@ -1,6 +1,7 @@
 defmodule ResellerWeb.API.V1.ExportController do
   use ResellerWeb, :controller
 
+  alias Reseller.Catalog
   alias Reseller.Exports
   alias ResellerWeb.APIError
 
@@ -8,7 +9,11 @@ defmodule ResellerWeb.API.V1.ExportController do
     case Exports.request_export_for_user(
            conn.assigns.current_user,
            name: Map.get(export_params, "name"),
-           filters: Map.get(export_params, "filters", %{})
+           filters:
+             normalize_export_filters(
+               conn.assigns.current_user,
+               Map.get(export_params, "filters", %{})
+             )
          ) do
       {:ok, export} ->
         conn
@@ -88,4 +93,24 @@ defmodule ResellerWeb.API.V1.ExportController do
       {:error, _reason} -> nil
     end
   end
+
+  defp normalize_export_filters(current_user, filters) when is_map(filters) do
+    case Map.get(filters, "product_tab_id") || Map.get(filters, :product_tab_id) do
+      nil ->
+        filters
+
+      product_tab_id ->
+        case Catalog.get_product_tab_for_user(current_user, product_tab_id) do
+          nil ->
+            filters
+
+          product_tab ->
+            filters
+            |> Map.put("product_tab_id", product_tab.id)
+            |> Map.put_new("product_tab_name", product_tab.name)
+        end
+    end
+  end
+
+  defp normalize_export_filters(_current_user, filters), do: filters
 end

@@ -4,9 +4,40 @@ defmodule ResellerWeb.API.V1.ProductController do
   alias Reseller.Catalog
   alias ResellerWeb.APIError
 
-  def index(conn, _params) do
-    products = Catalog.list_products_for_user(conn.assigns.current_user)
-    json(conn, %{data: %{products: Enum.map(products, &product_json/1)}})
+  def index(conn, params) do
+    product_page =
+      Catalog.paginate_products_for_user(conn.assigns.current_user,
+        page: Map.get(params, "page"),
+        page_size: normalize_page_size(Map.get(params, "page_size")),
+        status: Map.get(params, "status"),
+        query: Map.get(params, "query"),
+        product_tab_id: Map.get(params, "product_tab_id"),
+        updated_from: parse_date(Map.get(params, "updated_from")),
+        updated_to: parse_date(Map.get(params, "updated_to")),
+        sort: Map.get(params, "sort"),
+        sort_dir: Map.get(params, "dir")
+      )
+
+    json(conn, %{
+      data: %{
+        products: Enum.map(product_page.entries, &product_json/1),
+        pagination: %{
+          page: product_page.page,
+          page_size: product_page.page_size,
+          total_count: product_page.total_count,
+          total_pages: product_page.total_pages
+        },
+        filters: %{
+          status: product_page.status,
+          query: product_page.query,
+          product_tab_id: product_page.product_tab_id,
+          updated_from: date_to_iso8601(product_page.updated_from),
+          updated_to: date_to_iso8601(product_page.updated_to),
+          sort: Atom.to_string(product_page.sort),
+          dir: Atom.to_string(product_page.sort_dir)
+        }
+      }
+    })
   end
 
   def show(conn, %{"id" => id}) do
@@ -323,6 +354,8 @@ defmodule ResellerWeb.API.V1.ProductController do
       material: product.material,
       price: decimal_to_string(product.price),
       cost: decimal_to_string(product.cost),
+      product_tab_id: product.product_tab_id,
+      product_tab: product_tab_json(product.product_tab),
       sku: product.sku,
       tags: product.tags || [],
       notes: product.notes,
@@ -354,6 +387,16 @@ defmodule ResellerWeb.API.V1.ProductController do
     }
   end
 
+  defp product_tab_json(nil), do: nil
+
+  defp product_tab_json(product_tab) do
+    %{
+      id: product_tab.id,
+      name: product_tab.name,
+      position: product_tab.position
+    }
+  end
+
   defp image_json(image) do
     %{
       id: image.id,
@@ -381,8 +424,38 @@ defmodule ResellerWeb.API.V1.ProductController do
 
   defp datetime_to_iso8601(nil), do: nil
   defp datetime_to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+  defp date_to_iso8601(nil), do: nil
+  defp date_to_iso8601(%Date{} = date), do: Date.to_iso8601(date)
   defp decimal_to_string(nil), do: nil
   defp decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)
+
+  defp parse_date(nil), do: nil
+  defp parse_date(""), do: nil
+
+  defp parse_date(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _other -> nil
+    end
+  end
+
+  defp parse_date(_value), do: nil
+
+  defp normalize_page_size(nil), do: nil
+  defp normalize_page_size(""), do: nil
+
+  defp normalize_page_size(value) when is_integer(value) and value > 0 do
+    min(value, 100)
+  end
+
+  defp normalize_page_size(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {page_size, ""} when page_size > 0 -> min(page_size, 100)
+      _other -> nil
+    end
+  end
+
+  defp normalize_page_size(_value), do: nil
 
   defp processing_run_json(run) do
     %{

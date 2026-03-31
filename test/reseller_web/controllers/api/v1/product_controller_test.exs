@@ -24,18 +24,92 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
 
     conn = get(conn, "/api/v1/products")
 
-    assert %{"data" => %{"products" => [%{"title" => "Seller product"}]}} =
+    assert %{
+             "data" => %{
+               "products" => [%{"title" => "Seller product"}],
+               "pagination" => %{
+                 "page" => 1,
+                 "page_size" => 15,
+                 "total_count" => 1,
+                 "total_pages" => 1
+               },
+               "filters" => %{
+                 "status" => "all",
+                 "query" => nil,
+                 "product_tab_id" => nil,
+                 "updated_from" => nil,
+                 "updated_to" => nil,
+                 "sort" => "updated_at",
+                 "dir" => "desc"
+               }
+             }
+           } =
              json_response(conn, 200)
   end
 
-  test "POST /api/v1/products creates a draft product without uploads", %{conn: conn} do
+  test "GET /api/v1/products supports tab, search, sort, and pagination filters", %{
+    conn: conn,
+    user: user
+  } do
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+
+    kept_product =
+      product_fixture(user, %{
+        "title" => "Nike runner",
+        "tags" => "retro, runner",
+        "product_tab_id" => product_tab.id,
+        "status" => "ready"
+      })
+
+    _other_product =
+      product_fixture(user, %{
+        "title" => "Canvas tote",
+        "tags" => "everyday",
+        "status" => "ready"
+      })
+
+    conn =
+      get(
+        conn,
+        "/api/v1/products?status=ready&query=retro&product_tab_id=#{product_tab.id}&sort=title&dir=asc&page=1&page_size=1"
+      )
+
+    assert %{
+             "data" => %{
+               "products" => [%{"id" => product_id, "title" => "Nike runner"}],
+               "pagination" => %{
+                 "page" => 1,
+                 "page_size" => 1,
+                 "total_count" => 1,
+                 "total_pages" => 1
+               },
+               "filters" => %{
+                 "status" => "ready",
+                 "query" => "retro",
+                 "product_tab_id" => product_tab_id,
+                 "updated_from" => nil,
+                 "updated_to" => nil,
+                 "sort" => "title",
+                 "dir" => "asc"
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert product_id == kept_product.id
+    assert product_tab_id == product_tab.id
+  end
+
+  test "POST /api/v1/products creates a draft product without uploads", %{conn: conn, user: user} do
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+
     conn =
       post(conn, "/api/v1/products", %{
         "product" => %{
           "title" => "Vintage blazer",
           "brand" => "Ralph Lauren",
           "category" => "Blazers",
-          "tags" => ["vintage", "wool"]
+          "tags" => ["vintage", "wool"],
+          "product_tab_id" => product_tab.id
         }
       })
 
@@ -44,12 +118,16 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
                "product" => %{
                  "status" => "draft",
                  "title" => "Vintage blazer",
+                 "product_tab_id" => product_tab_id,
+                 "product_tab" => %{"name" => "Outerwear"},
                  "tags" => ["vintage", "wool"],
                  "images" => []
                },
                "upload_instructions" => []
              }
            } = json_response(conn, 201)
+
+    assert product_tab_id == product_tab.id
   end
 
   test "POST /api/v1/products creates upload instructions", %{conn: conn} do
@@ -135,6 +213,8 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
     conn: conn,
     user: user
   } do
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+
     product =
       product_fixture(user, %{"title" => "Before", "status" => "draft", "source" => "manual"})
 
@@ -144,6 +224,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
           "title" => "After",
           "brand" => "Arc'teryx",
           "status" => "sold",
+          "product_tab_id" => product_tab.id,
           "tags" => ["gore-tex", "shell"],
           "source" => "import"
         }
@@ -155,6 +236,8 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
                  "title" => "After",
                  "brand" => "Arc'teryx",
                  "status" => "sold",
+                 "product_tab_id" => product_tab_id,
+                 "product_tab" => %{"name" => "Outerwear"},
                  "tags" => ["gore-tex", "shell"],
                  "sold_at" => sold_at,
                  "source" => "manual"
@@ -163,6 +246,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            } = json_response(conn, 200)
 
     assert is_binary(sold_at)
+    assert product_tab_id == product_tab.id
   end
 
   test "PATCH /api/v1/products/:id rejects system-only statuses", %{conn: conn, user: user} do

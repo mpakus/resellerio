@@ -114,6 +114,7 @@ Primary modules:
 Responsibilities:
 
 - product creation
+- seller-defined product tabs for workspace organization
 - editable product fields, tags, and seller-managed status changes
 - explicit lifecycle transitions
 - ownership-scoped access
@@ -123,6 +124,7 @@ Primary modules:
 
 - `Reseller.Catalog`
 - `Reseller.Catalog.Product`
+- `Reseller.Catalog.ProductTab`
 
 ### `Reseller.Media`
 
@@ -404,6 +406,7 @@ erDiagram
 
     users ||--o{ api_tokens : issues
     users ||--o{ products : owns
+    users ||--o{ product_tabs : owns
     users ||--o{ exports : requests
     users ||--o{ imports : requests
 ```
@@ -416,12 +419,22 @@ erDiagram
     products {
         bigint id PK
         bigint user_id FK
+        bigint product_tab_id FK
         string status
         string source
         string title
         string brand
         string category
         string sku
+    }
+
+    product_tabs {
+        bigint id PK
+        bigint user_id FK
+        string name
+        integer position
+        datetime inserted_at
+        datetime updated_at
     }
 
     product_images {
@@ -535,6 +548,7 @@ erDiagram
         datetime updated_at
     }
 
+    product_tabs ||--o{ products : groups
     products ||--o{ product_images : has
     products ||--o{ product_processing_runs : has
     products ||--o{ product_lifestyle_generation_runs : has
@@ -551,6 +565,7 @@ erDiagram
 | `users` | `Reseller.Accounts.User` | reseller accounts, browser auth principal, admin flag, marketplace defaults |
 | `api_tokens` | `Reseller.Accounts.ApiToken` | mobile/API bearer tokens with expiry and `last_used_at` tracking |
 | `products` | `Reseller.Catalog.Product` | aggregate root for inventory, AI data, media, exports, and lifecycle |
+| `product_tabs` | `Reseller.Catalog.ProductTab` | seller-defined workspace buckets used to group and filter products |
 | `product_images` | `Reseller.Media.ProductImage` | original uploads, processed variants, and lifestyle-generated previews |
 | `product_processing_runs` | `Reseller.Workers.ProductProcessingRun` | async AI pipeline bookkeeping for products |
 | `product_lifestyle_generation_runs` | `Reseller.AI.ProductLifestyleGenerationRun` | dedicated lifestyle-image generation bookkeeping |
@@ -564,8 +579,9 @@ erDiagram
 
 - `users.email` is unique.
 - `api_tokens.token_hash` is unique; `api_tokens.user_id` is indexed.
-- `products` has indexes on `user_id`, `user_id + status`, and a partial unique index on `user_id + sku` when `sku IS NOT NULL`.
+- `products` has indexes on `user_id`, `user_id + status`, `user_id + product_tab_id`, `product_tab_id`, and a partial unique index on `user_id + sku` when `sku IS NOT NULL`.
 - `products.search_document` is a PostgreSQL `tsvector` maintained by the `products_search_document_update` trigger and indexed with `products_search_document_index`.
+- `product_tabs` is indexed on `user_id` and `user_id + position`, and is unique on `user_id + name`.
 - `product_images.storage_key` is unique.
 - `product_images` is unique on `product_id + kind + position`.
 - `product_images` also has a partial unique index on `lifestyle_generation_run_id + scene_key + variant_index`.
@@ -654,11 +670,12 @@ queued -> running -> failed
 ### Web path
 
 1. User opens `/app/products`
-2. `WorkspaceLive` collects product fields and file inputs
-3. `Catalog.create_product_for_user/4` creates product and image records
-4. LiveView reads temporary upload files and calls `Media.Storage.upload_object/3`
-5. LiveView finalizes the uploaded image set through `Catalog.finalize_product_uploads_for_user/3`
-6. Product processing starts the same way as the API/mobile path
+2. `ProductsLive.Index` can filter inventory by seller-defined `product_tabs`
+3. `ProductsLive.New` collects the optional `product_tab_id` and file inputs
+4. `Catalog.create_product_for_user/4` creates product and image records
+5. LiveView reads temporary upload files and calls `Media.Storage.upload_object/3`
+6. LiveView finalizes the uploaded image set through `Catalog.finalize_product_uploads_for_user/3`
+7. Product processing starts the same way as the API/mobile path
 
 ## 8.4 AI processing pipeline
 

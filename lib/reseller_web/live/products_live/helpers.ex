@@ -2,6 +2,7 @@ defmodule ResellerWeb.ProductsLive.Helpers do
   @moduledoc false
 
   alias Reseller.Catalog.Product
+  alias Reseller.Catalog.ProductTab
   alias Reseller.Media
 
   @product_filters [
@@ -99,6 +100,10 @@ defmodule ResellerWeb.ProductsLive.Helpers do
 
   def product_filters, do: @product_filters
   def manual_product_status_options, do: @manual_product_status_options
+
+  def product_tab_options(product_tabs) when is_list(product_tabs) do
+    Enum.map(product_tabs, fn %ProductTab{id: id, name: name} -> {name, id} end)
+  end
 
   def decimal_to_string(nil), do: nil
   def decimal_to_string(%Decimal{} = decimal), do: Decimal.to_string(decimal, :normal)

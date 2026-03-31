@@ -52,6 +52,80 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert has_element?(view, "#workspace-products")
   end
 
+  test "products index filters by product tab and creates tabs from the modal", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    shoes_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    outerwear_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+    shoe_product = product_fixture(user, %{"title" => "Runner", "product_tab_id" => shoes_tab.id})
+
+    _coat_product =
+      product_fixture(user, %{"title" => "Coat", "product_tab_id" => outerwear_tab.id})
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+
+    assert has_element?(view, "#product-tab-filter-#{shoes_tab.id}", "Shoes")
+    assert has_element?(view, "#product-tab-filter-#{outerwear_tab.id}", "Outerwear")
+
+    view
+    |> element("#product-tab-filter-#{shoes_tab.id}")
+    |> render_click()
+
+    assert_patch(view, "/app/products?dir=desc&page=1&sort=updated_at&tab=#{shoes_tab.id}")
+    assert has_element?(view, "#workspace-products-table", shoe_product.title)
+    refute has_element?(view, "#workspace-products-table", "Coat")
+
+    view
+    |> element("#open-product-tab-modal-button")
+    |> render_click()
+
+    assert has_element?(view, "#product-tab-modal", "Add a new tab")
+
+    view
+    |> form("#product-tab-form", product_tab: %{"name" => "Vintage"})
+    |> render_submit()
+
+    created_tab = Catalog.list_product_tabs_for_user(user) |> Enum.find(&(&1.name == "Vintage"))
+
+    assert created_tab
+    assert_patch(view, "/app/products?dir=desc&page=1&sort=updated_at&tab=#{created_tab.id}")
+    assert has_element?(view, "#product-tab-filter-#{created_tab.id}", "Vintage")
+  end
+
+  test "products index edits the active product tab from the modal", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    product_fixture(user, %{"title" => "Runner", "product_tab_id" => product_tab.id})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} =
+      live(conn, "/app/products?dir=desc&page=1&sort=updated_at&tab=#{product_tab.id}")
+
+    assert has_element?(view, "#product-tab-action-#{product_tab.id}", "...")
+    refute has_element?(view, "#open-edit-product-tab-modal-button")
+
+    view
+    |> element("#product-tab-action-#{product_tab.id}")
+    |> render_click()
+
+    assert has_element?(view, "#product-tab-modal", "Edit tab")
+    assert render(view) =~ ~s(value="Shoes")
+
+    view
+    |> form("#product-tab-form", product_tab: %{"name" => "Sneakers"})
+    |> render_submit()
+
+    assert_patch(view, "/app/products?dir=desc&page=1&sort=updated_at&tab=#{product_tab.id}")
+    assert has_element?(view, "#product-tab-filter-#{product_tab.id}", "Sneakers")
+    assert render(view) =~ "Tab: Sneakers"
+
+    assert Enum.any?(
+             Catalog.list_product_tabs_for_user(user),
+             &(&1.id == product_tab.id and &1.name == "Sneakers")
+           )
+  end
+
   test "products index paginates rows", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
 
@@ -95,11 +169,22 @@ defmodule ResellerWeb.ProductsLiveTest do
 
   test "products index exports the current filtered result set", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
-    product_fixture(user, %{"title" => "Fila jacket", "status" => "ready"})
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+
+    product_fixture(user, %{
+      "title" => "Fila jacket",
+      "status" => "ready",
+      "product_tab_id" => product_tab.id
+    })
+
     product_fixture(user, %{"title" => "Canvas tote", "status" => "ready"})
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, _html} = live(conn, "/app/products")
+
+    view
+    |> element("#product-tab-filter-#{product_tab.id}")
+    |> render_click()
 
     view
     |> form("#product-date-range-form", filters: %{"query" => "Fila"})
@@ -120,7 +205,13 @@ defmodule ResellerWeb.ProductsLiveTest do
     [export] = Exports.list_exports_for_user(user)
 
     assert export.name == "Fila filtered export"
-    assert export.filter_params == %{"query" => "Fila"}
+
+    assert export.filter_params == %{
+             "product_tab_id" => product_tab.id,
+             "product_tab_name" => "Outerwear",
+             "query" => "Fila"
+           }
+
     assert export.product_count == 1
 
     assert has_element?(view, "#products-export-modal", "Export is ready")
@@ -155,6 +246,7 @@ defmodule ResellerWeb.ProductsLiveTest do
 
   test "new product flow uploads images and redirects to the review page", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, html} = live(conn, "/app/products/new")
@@ -174,7 +266,7 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert render_upload(upload, "jacket.jpg") =~ "jacket.jpg"
 
     view
-    |> form("#new-product-form")
+    |> form("#new-product-form", product: %{"product_tab_id" => "#{product_tab.id}"})
     |> render_submit()
 
     [product] = Catalog.list_products_for_user(user)
@@ -186,10 +278,12 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert has_element?(review_view, "#product-review-form")
     assert length(product.images) == 1
     assert hd(product.images).original_filename == "jacket.jpg"
+    assert product.product_tab_id == product_tab.id
   end
 
   test "review page updates product details and lifecycle actions", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
     product = product_fixture(user, %{"title" => "Original product"})
     conn = init_test_session(conn, %{user_id: user.id})
 
@@ -199,6 +293,7 @@ defmodule ResellerWeb.ProductsLiveTest do
     |> form("#product-review-form",
       product: %{
         status: "review",
+        product_tab_id: "#{product_tab.id}",
         title: "Updated product",
         brand: "Nike",
         category: "Sneakers",
@@ -214,6 +309,7 @@ defmodule ResellerWeb.ProductsLiveTest do
     assert updated_product.title == "Updated product"
     assert updated_product.brand == "Nike"
     assert updated_product.status == "review"
+    assert updated_product.product_tab_id == product_tab.id
     assert updated_product.tags == ["running", "retro"]
     assert Decimal.equal?(updated_product.price, Decimal.new("125.00"))
     assert Decimal.equal?(updated_product.cost, Decimal.new("85.00"))

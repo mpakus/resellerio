@@ -40,8 +40,24 @@ defmodule ResellerWeb.API.V1.RootController do
           },
           %{
             method: "GET",
+            path: "/api/v1/product_tabs",
+            description: "Lists seller-defined product tabs for the authenticated user."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/product_tabs",
+            description: "Creates one seller-defined product tab."
+          },
+          %{
+            method: "PATCH",
+            path: "/api/v1/product_tabs/:id",
+            description: "Updates one seller-defined product tab."
+          },
+          %{
+            method: "GET",
             path: "/api/v1/products",
-            description: "Lists products for the authenticated user."
+            description:
+              "Lists products for the authenticated user with filtering, sorting, and pagination."
           },
           %{
             method: "POST",

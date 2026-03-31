@@ -165,6 +165,7 @@ defmodule Reseller.Exports do
     [
       status: Map.get(filter_params, "status"),
       query: Map.get(filter_params, "query"),
+      product_tab_id: Map.get(filter_params, "product_tab_id"),
       updated_from: parse_date(Map.get(filter_params, "updated_from")),
       updated_to: parse_date(Map.get(filter_params, "updated_to")),
       sort: Map.get(filter_params, "sort"),
@@ -182,6 +183,11 @@ defmodule Reseller.Exports do
   def normalize_filter_params(filters) when is_map(filters) do
     status = normalize_filter_status(filter_value(filters, "status"))
     query = normalize_filter_query(filter_value(filters, "query"))
+    product_tab_id = normalize_filter_product_tab_id(filter_value(filters, "product_tab_id"))
+
+    product_tab_name =
+      normalize_filter_product_tab_name(filter_value(filters, "product_tab_name"))
+
     updated_from = normalize_filter_date(filter_value(filters, "updated_from"))
     updated_to = normalize_filter_date(filter_value(filters, "updated_to"))
     sort = normalize_filter_sort(filter_value(filters, "sort"))
@@ -190,6 +196,8 @@ defmodule Reseller.Exports do
     %{}
     |> maybe_put_filter("status", status != "all" && status)
     |> maybe_put_filter("query", query)
+    |> maybe_put_filter("product_tab_id", product_tab_id)
+    |> maybe_put_filter("product_tab_name", product_tab_id && product_tab_name)
     |> maybe_put_filter("updated_from", updated_from)
     |> maybe_put_filter("updated_to", updated_to)
     |> maybe_put_filter("sort", sort != "updated_at" && sort)
@@ -202,6 +210,7 @@ defmodule Reseller.Exports do
   def filter_details(filter_params) when is_map(filter_params) do
     []
     |> maybe_add_detail("Search", Map.get(filter_params, "query"))
+    |> maybe_add_detail("Tab", product_tab_label(filter_params))
     |> maybe_add_detail("Status", Map.get(filter_params, "status"))
     |> maybe_add_detail("Updated from", Map.get(filter_params, "updated_from"))
     |> maybe_add_detail("Updated to", Map.get(filter_params, "updated_to"))
@@ -385,6 +394,13 @@ defmodule Reseller.Exports do
 
   defp filter_value(filters, "query"), do: Map.get(filters, "query") || Map.get(filters, :query)
 
+  defp filter_value(filters, "product_tab_id"),
+    do: Map.get(filters, "product_tab_id") || Map.get(filters, :product_tab_id)
+
+  defp filter_value(filters, "product_tab_name") do
+    Map.get(filters, "product_tab_name") || Map.get(filters, :product_tab_name)
+  end
+
   defp filter_value(filters, "updated_from") do
     Map.get(filters, "updated_from") || Map.get(filters, :updated_from)
   end
@@ -407,6 +423,28 @@ defmodule Reseller.Exports do
   end
 
   defp normalize_filter_query(_query), do: nil
+
+  defp normalize_filter_product_tab_id(product_tab_id)
+       when is_integer(product_tab_id) and product_tab_id > 0,
+       do: product_tab_id
+
+  defp normalize_filter_product_tab_id(product_tab_id) when is_binary(product_tab_id) do
+    case Integer.parse(product_tab_id) do
+      {value, ""} when value > 0 -> value
+      _other -> nil
+    end
+  end
+
+  defp normalize_filter_product_tab_id(_product_tab_id), do: nil
+
+  defp normalize_filter_product_tab_name(product_tab_name) when is_binary(product_tab_name) do
+    case String.trim(product_tab_name) do
+      "" -> nil
+      value -> String.slice(value, 0, 80)
+    end
+  end
+
+  defp normalize_filter_product_tab_name(_product_tab_name), do: nil
 
   defp normalize_filter_date(%Date{} = date), do: Date.to_iso8601(date)
 
@@ -436,6 +474,22 @@ defmodule Reseller.Exports do
   end
 
   defp parse_date(_value), do: nil
+
+  defp product_tab_label(filter_params) do
+    case {Map.get(filter_params, "product_tab_name"), Map.get(filter_params, "product_tab_id")} do
+      {name, _product_tab_id} when is_binary(name) and name != "" ->
+        name
+
+      {_name, product_tab_id} when is_integer(product_tab_id) ->
+        "##{product_tab_id}"
+
+      {_name, product_tab_id} when is_binary(product_tab_id) and product_tab_id != "" ->
+        "##{product_tab_id}"
+
+      _other ->
+        nil
+    end
+  end
 
   defp normalize_download_payload(payload) when is_map(payload) do
     download_url = Map.get(payload, :download_url) || Map.get(payload, "download_url")

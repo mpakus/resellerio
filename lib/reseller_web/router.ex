@@ -92,6 +92,9 @@ defmodule ResellerWeb.Router do
 
       get "/me", MeController, :show
       patch "/me", MeController, :update
+      get "/product_tabs", ProductTabController, :index
+      post "/product_tabs", ProductTabController, :create
+      patch "/product_tabs/:id", ProductTabController, :update
       get "/products", ProductController, :index
       post "/products", ProductController, :create
       get "/products/:id", ProductController, :show

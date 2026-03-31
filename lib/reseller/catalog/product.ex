@@ -26,6 +26,7 @@ defmodule Reseller.Catalog.Product do
     field :archived_at, :utc_datetime
 
     belongs_to :user, Reseller.Accounts.User
+    belongs_to :product_tab, Reseller.Catalog.ProductTab
     has_many :images, Reseller.Media.ProductImage, preload_order: [asc: :position, asc: :id]
     has_one :description_draft, Reseller.AI.ProductDescriptionDraft
     has_one :price_research, Reseller.AI.ProductPriceResearch
@@ -67,7 +68,8 @@ defmodule Reseller.Catalog.Product do
       :ai_summary,
       :ai_confidence,
       :sold_at,
-      :archived_at
+      :archived_at,
+      :product_tab_id
     ])
     |> validate_required([:status, :source])
     |> validate_inclusion(:status, @statuses)
@@ -84,6 +86,7 @@ defmodule Reseller.Catalog.Product do
     |> validate_number(:price, greater_than_or_equal_to: 0)
     |> validate_number(:cost, greater_than_or_equal_to: 0)
     |> validate_number(:ai_confidence, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
+    |> assoc_constraint(:product_tab)
     |> unique_constraint(:sku)
   end
 

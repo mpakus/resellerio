@@ -6,6 +6,39 @@ defmodule Reseller.CatalogTest do
   alias Reseller.Catalog
   alias Reseller.Repo
 
+  test "create_product_tab_for_user/2 creates ordered seller-owned tabs" do
+    user = user_fixture()
+    other_user = user_fixture()
+
+    first_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    second_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+    _other_tab = product_tab_fixture(other_user, %{"name" => "Other"})
+
+    assert [%{id: first_id, name: "Shoes"}, %{id: second_id, name: "Outerwear"}] =
+             Catalog.list_product_tabs_for_user(user)
+
+    assert first_id == first_tab.id
+    assert second_id == second_tab.id
+    assert first_tab.position == 1
+    assert second_tab.position == 2
+  end
+
+  test "update_product_tab_for_user/3 renames a seller-owned tab" do
+    user = user_fixture()
+    other_user = user_fixture()
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    other_product_tab = product_tab_fixture(other_user, %{"name" => "Other"})
+
+    assert {:ok, updated_product_tab} =
+             Catalog.update_product_tab_for_user(user, product_tab.id, %{"name" => "Sneakers"})
+
+    assert updated_product_tab.name == "Sneakers"
+    assert updated_product_tab.position == product_tab.position
+
+    assert {:error, :not_found} =
+             Catalog.update_product_tab_for_user(user, other_product_tab.id, %{"name" => "Nope"})
+  end
+
   test "create_product_for_user/4 creates a draft product without uploads" do
     user = user_fixture()
 
@@ -22,6 +55,30 @@ defmodule Reseller.CatalogTest do
     assert product.tags == ["vintage", "blazer", "wool"]
     assert upload_bundle.images == []
     assert upload_bundle.upload_instructions == []
+  end
+
+  test "create_product_for_user/4 assigns a valid product tab and rejects another user's tab" do
+    user = user_fixture()
+    other_user = user_fixture()
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    other_product_tab = product_tab_fixture(other_user, %{"name" => "Other"})
+
+    assert {:ok, %{product: product}} =
+             Catalog.create_product_for_user(user, %{
+               "title" => "Vintage blazer",
+               "product_tab_id" => product_tab.id
+             })
+
+    assert product.product_tab_id == product_tab.id
+    assert product.product_tab.name == "Shoes"
+
+    assert {:error, changeset} =
+             Catalog.create_product_for_user(user, %{
+               "title" => "Invalid tab",
+               "product_tab_id" => other_product_tab.id
+             })
+
+    assert %{product_tab_id: ["is invalid"]} = errors_on(changeset)
   end
 
   test "create_product_for_user/4 creates upload placeholders and instructions" do
@@ -128,6 +185,25 @@ defmodule Reseller.CatalogTest do
     assert id == tagged_match.id
   end
 
+  test "paginate_products_for_user/2 filters products by product tab" do
+    user = user_fixture()
+    shoes_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+    outerwear_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
+
+    kept_product =
+      product_fixture(user, %{"title" => "Runner", "product_tab_id" => shoes_tab.id})
+
+    _other_product =
+      product_fixture(user, %{"title" => "Coat", "product_tab_id" => outerwear_tab.id})
+
+    page = Catalog.paginate_products_for_user(user, product_tab_id: shoes_tab.id)
+
+    assert page.total_count == 1
+    assert page.product_tab_id == shoes_tab.id
+    assert [%{id: id, title: "Runner"}] = page.entries
+    assert id == kept_product.id
+  end
+
   test "get_product_for_user/2 returns nil for another user's product" do
     user = user_fixture()
     other_user = user_fixture()
@@ -138,6 +214,7 @@ defmodule Reseller.CatalogTest do
 
   test "update_product_for_user/3 updates editable fields and allows seller-managed status changes" do
     user = user_fixture()
+    product_tab = product_tab_fixture(user, %{"name" => "Outerwear"})
 
     product =
       product_fixture(user, %{"title" => "Before", "status" => "draft", "source" => "manual"})
@@ -149,6 +226,7 @@ defmodule Reseller.CatalogTest do
                "price" => "99.00",
                "status" => "sold",
                "tags" => "technical, shell, winter",
+               "product_tab_id" => product_tab.id,
                "source" => "import"
              })
 
@@ -157,6 +235,7 @@ defmodule Reseller.CatalogTest do
     assert Decimal.equal?(updated_product.price, Decimal.new("99.00"))
     assert updated_product.status == "sold"
     assert updated_product.tags == ["technical", "shell", "winter"]
+    assert updated_product.product_tab_id == product_tab.id
     assert updated_product.sold_at
     assert updated_product.source == "manual"
   end

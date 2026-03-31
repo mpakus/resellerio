@@ -178,6 +178,8 @@ It standardizes:
 - all main work should happen inside standard surfaces
 - nested AI details should use `soft` surfaces
 - filters and tables stay practical and compact
+- seller-managed product tabs should sit above the table filters as a single horizontal strip, with `+ Add tab` living in the same cluster
+- lightweight create flows like the product-tab modal should reuse the standard fixed-overlay modal treatment already used for exports
 - status should always go through `<.status_badge>`
 
 ## Interaction rules

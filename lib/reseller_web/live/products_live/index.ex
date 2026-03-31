@@ -2,6 +2,7 @@ defmodule ResellerWeb.ProductsLive.Index do
   use ResellerWeb, :live_view
 
   alias Reseller.Catalog
+  alias Reseller.Catalog.ProductTab
   alias Reseller.Exports
   alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
@@ -27,6 +28,10 @@ defmodule ResellerWeb.ProductsLive.Index do
        product_filters: Helpers.product_filters(),
        sortable_product_columns: @sortable_columns,
        product_filter: "all",
+       active_product_tab: nil,
+       product_tab_filter: "all",
+       active_product_tab_name: nil,
+       product_tabs: [],
        product_index_page: 1,
        product_index_page_size: @page_size,
        product_index_total_pages: 1,
@@ -36,6 +41,9 @@ defmodule ResellerWeb.ProductsLive.Index do
        product_index_query: nil,
        product_index_updated_from: nil,
        product_index_updated_to: nil,
+       product_tab_form: build_product_tab_form(),
+       editing_product_tab: nil,
+       show_product_tab_modal?: false,
        export_request_form: to_form(%{"name" => "Products export"}, as: :export),
        show_export_modal?: false,
        latest_export_id: nil,
@@ -71,6 +79,99 @@ defmodule ResellerWeb.ProductsLive.Index do
            "page" => "1"
          })
      )}
+  end
+
+  def handle_event("open_product_tab_modal", _params, socket) do
+    {:noreply,
+     assign(socket,
+       editing_product_tab: nil,
+       show_product_tab_modal?: true,
+       product_tab_form: build_product_tab_form()
+     )}
+  end
+
+  def handle_event("open_edit_product_tab_modal", params, socket) do
+    product_tab =
+      case Map.get(params, "product-tab-id") do
+        nil ->
+          socket.assigns.active_product_tab
+
+        product_tab_id ->
+          Catalog.get_product_tab_for_user(socket.assigns.current_user, product_tab_id)
+      end
+
+    if product_tab do
+      {:noreply,
+       assign(socket,
+         editing_product_tab: product_tab,
+         show_product_tab_modal?: true,
+         product_tab_form: build_product_tab_form(product_tab)
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_product_tab_modal", _params, socket) do
+    {:noreply, reset_product_tab_modal(socket)}
+  end
+
+  def handle_event("create_product_tab", %{"product_tab" => product_tab_params}, socket) do
+    case Catalog.create_product_tab_for_user(socket.assigns.current_user, product_tab_params) do
+      {:ok, product_tab} ->
+        {:noreply,
+         socket
+         |> reset_product_tab_modal()
+         |> put_flash(:info, "Tab created.")
+         |> push_patch(to: index_path(socket.assigns, %{"tab" => product_tab.id, "page" => "1"}))}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           show_product_tab_modal?: true,
+           product_tab_form: to_form(%{changeset | action: :validate}, as: :product_tab)
+         )}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Could not create tab: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event(
+        "update_product_tab",
+        %{"product_tab" => product_tab_params},
+        %{assigns: %{editing_product_tab: %ProductTab{} = product_tab}} = socket
+      ) do
+    case Catalog.update_product_tab_for_user(
+           socket.assigns.current_user,
+           product_tab.id,
+           product_tab_params
+         ) do
+      {:ok, updated_product_tab} ->
+        {:noreply,
+         socket
+         |> reset_product_tab_modal()
+         |> put_flash(:info, "Tab updated.")
+         |> push_patch(
+           to: index_path(socket.assigns, %{"tab" => updated_product_tab.id, "page" => "1"})
+         )}
+
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> reset_product_tab_modal()
+         |> put_flash(:error, "Tab not found.")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           show_product_tab_modal?: true,
+           product_tab_form: to_form(%{changeset | action: :validate}, as: :product_tab)
+         )}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Could not update tab: #{inspect(reason)}")}
+    end
   end
 
   def handle_event("open_export_modal", _params, socket) do
@@ -166,7 +267,7 @@ defmodule ResellerWeb.ProductsLive.Index do
               Table on the left, dedicated intake and review flows on their own LiveViews.
             </p>
             <div class="mt-5 flex flex-wrap gap-2">
-              <.link navigate={~p"/app/products/new"} class="btn btn-primary btn-sm rounded-full">
+              <.link navigate={new_product_path(assigns)} class="btn btn-primary btn-sm rounded-full">
                 + Add product
               </.link>
               <.link navigate={~p"/app/exports"} class="btn btn-outline btn-sm rounded-full">
@@ -203,10 +304,74 @@ defmodule ResellerWeb.ProductsLive.Index do
                 >
                   Export filtered
                 </button>
-                <.link navigate={~p"/app/products/new"} class="btn btn-primary btn-sm rounded-full">
+                <.link
+                  navigate={new_product_path(assigns)}
+                  class="btn btn-primary btn-sm rounded-full"
+                >
                   + Add product
                 </.link>
               </div>
+            </div>
+
+            <div
+              id="product-tab-strip"
+              class="mt-5 flex flex-wrap items-center gap-2 border-b border-base-300 pb-4"
+            >
+              <.link
+                id="product-tab-filter-all"
+                patch={index_path(assigns, %{"tab" => "all", "page" => "1"})}
+                class={[
+                  "rounded-full border px-4 py-2 text-sm transition",
+                  @product_tab_filter == "all" &&
+                    "border-primary bg-primary text-primary-content",
+                  @product_tab_filter != "all" &&
+                    "border-base-300 bg-base-100 text-base-content/70 hover:border-primary/35"
+                ]}
+              >
+                All products
+              </.link>
+              <%= for product_tab <- @product_tabs do %>
+                <%= if @product_tab_filter == Integer.to_string(product_tab.id) do %>
+                  <div
+                    id={"product-tab-active-#{product_tab.id}"}
+                    class="inline-flex items-center overflow-hidden rounded-full border border-primary bg-primary text-primary-content"
+                  >
+                    <.link
+                      id={"product-tab-filter-#{product_tab.id}"}
+                      patch={index_path(assigns, %{"tab" => product_tab.id, "page" => "1"})}
+                      class="px-4 py-2 text-sm transition"
+                    >
+                      {product_tab.name}
+                    </.link>
+                    <button
+                      id={"product-tab-action-#{product_tab.id}"}
+                      type="button"
+                      phx-click="open_edit_product_tab_modal"
+                      phx-value-product-tab-id={product_tab.id}
+                      class="border-l border-primary-content/20 px-3 py-2 text-sm font-semibold leading-none transition hover:bg-primary-content/10"
+                      aria-label={"Edit #{product_tab.name}"}
+                    >
+                      ...
+                    </button>
+                  </div>
+                <% else %>
+                  <.link
+                    id={"product-tab-filter-#{product_tab.id}"}
+                    patch={index_path(assigns, %{"tab" => product_tab.id, "page" => "1"})}
+                    class="rounded-full border border-base-300 bg-base-100 px-4 py-2 text-sm text-base-content/70 transition hover:border-primary/35"
+                  >
+                    {product_tab.name}
+                  </.link>
+                <% end %>
+              <% end %>
+              <button
+                id="open-product-tab-modal-button"
+                type="button"
+                phx-click="open_product_tab_modal"
+                class="btn btn-ghost btn-sm rounded-full"
+              >
+                + Add tab
+              </button>
             </div>
 
             <div class="mt-5 flex flex-wrap gap-2" id="product-filters">
@@ -292,6 +457,9 @@ defmodule ResellerWeb.ProductsLive.Index do
                 <p :if={@product_index_query} class="mt-1 text-sm text-base-content/60">
                   Searching for "{@product_index_query}"
                 </p>
+                <p :if={@active_product_tab_name} class="mt-1 text-sm text-base-content/60">
+                  Tab: {@active_product_tab_name}
+                </p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <.link
@@ -342,6 +510,11 @@ defmodule ResellerWeb.ProductsLive.Index do
                           <div class="font-semibold">{product.title || "Untitled product"}</div>
                           <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">
                             {product.brand || "No brand"} · {product.category || "No category"}
+                          </div>
+                          <div :if={product.product_tab} class="mt-2">
+                            <span class="badge badge-outline badge-sm">
+                              {product.product_tab.name}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -414,6 +587,73 @@ defmodule ResellerWeb.ProductsLive.Index do
             </div>
           </.surface>
         </section>
+
+        <div
+          :if={@show_product_tab_modal?}
+          id="product-tab-modal"
+          class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+        >
+          <button
+            type="button"
+            phx-click="close_product_tab_modal"
+            class="absolute inset-0 bg-neutral/55"
+            aria-label="Close tab modal"
+          >
+          </button>
+
+          <.surface
+            tag="section"
+            class="relative z-10 w-full max-w-lg border-base-300 bg-base-100 shadow-[0_30px_90px_rgba(20,20,20,0.28)]"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
+                  Product tabs
+                </p>
+                <p class="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  {product_tab_modal_title(@editing_product_tab)}
+                </p>
+                <p class="mt-2 text-sm leading-6 text-base-content/68">
+                  {product_tab_modal_description(@editing_product_tab)}
+                </p>
+              </div>
+              <button
+                type="button"
+                phx-click="close_product_tab_modal"
+                class="btn btn-ghost btn-sm rounded-full"
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
+            </div>
+
+            <.form
+              for={@product_tab_form}
+              id="product-tab-form"
+              phx-submit={product_tab_submit_event(@editing_product_tab)}
+              class="mt-6 grid gap-4"
+            >
+              <.input
+                field={@product_tab_form[:name]}
+                type="text"
+                label="Tab name"
+                placeholder="Shoes, Coats, Vintage finds..."
+              />
+
+              <div class="flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary rounded-full">
+                  {product_tab_submit_label(@editing_product_tab)}
+                </button>
+                <button
+                  type="button"
+                  phx-click="close_product_tab_modal"
+                  class="btn btn-ghost rounded-full"
+                >
+                  Cancel
+                </button>
+              </div>
+            </.form>
+          </.surface>
+        </div>
 
         <div
           :if={@show_export_modal?}
@@ -559,11 +799,17 @@ defmodule ResellerWeb.ProductsLive.Index do
   end
 
   defp assign_index(socket, params) do
-    product_page = product_page(socket.assigns.current_user, params)
+    product_tabs = Catalog.list_product_tabs_for_user(socket.assigns.current_user)
+    product_tab_id = active_product_tab_id(product_tabs, Map.get(params, "tab"))
+    product_page = product_page(socket.assigns.current_user, params, product_tab_id)
 
     socket
     |> assign(
+      active_product_tab: active_product_tab(product_tabs, product_tab_id),
       product_filter: product_page.status,
+      product_tab_filter: product_tab_id_param(product_tab_id),
+      active_product_tab_name: active_product_tab_name(product_tabs, product_tab_id),
+      product_tabs: product_tabs,
       product_index_page: product_page.page,
       product_index_page_size: product_page.page_size,
       product_index_total_pages: product_page.total_pages,
@@ -577,12 +823,13 @@ defmodule ResellerWeb.ProductsLive.Index do
     |> stream(:product_rows, product_page.entries, reset: true)
   end
 
-  defp product_page(current_user, params) do
+  defp product_page(current_user, params, product_tab_id) do
     Catalog.paginate_products_for_user(current_user,
       page: Map.get(params, "page"),
       page_size: @page_size,
       status: normalize_product_filter(Map.get(params, "status")),
       query: normalize_product_search_query(Map.get(params, "query")),
+      product_tab_id: product_tab_id,
       updated_from: parse_date(Map.get(params, "updated_from")),
       updated_to: parse_date(Map.get(params, "updated_to")),
       sort: normalize_product_sort(Map.get(params, "sort")),
@@ -645,6 +892,7 @@ defmodule ResellerWeb.ProductsLive.Index do
     build_path(
       "/app/products",
       %{
+        "tab" => assigns.product_tab_filter,
         "status" => assigns.product_filter,
         "query" => assigns.product_index_query,
         "updated_from" => assigns.product_index_updated_from,
@@ -709,6 +957,16 @@ defmodule ResellerWeb.ProductsLive.Index do
   defp humanize_sort("price"), do: "price"
   defp humanize_sort(sort), do: sort
 
+  defp build_product_tab_form do
+    to_form(%{"name" => ""}, as: :product_tab)
+  end
+
+  defp build_product_tab_form(%ProductTab{} = product_tab) do
+    product_tab
+    |> ProductTab.update_changeset(%{})
+    |> to_form(as: :product_tab)
+  end
+
   defp build_export_request_form(assigns) do
     to_form(%{"name" => default_export_name(assigns)}, as: :export)
   end
@@ -718,6 +976,9 @@ defmodule ResellerWeb.ProductsLive.Index do
       cond do
         is_binary(assigns.product_index_query) and assigns.product_index_query != "" ->
           "Search export"
+
+        is_binary(assigns.active_product_tab_name) and assigns.active_product_tab_name != "" ->
+          "#{assigns.active_product_tab_name} products"
 
         assigns.product_filter != "all" ->
           "#{String.capitalize(assigns.product_filter)} products"
@@ -731,6 +992,8 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   defp current_export_filters(assigns) do
     Exports.normalize_filter_params(%{
+      "product_tab_id" => active_product_tab_id_for_export(assigns),
+      "product_tab_name" => assigns.active_product_tab_name,
       "status" => assigns.product_filter,
       "query" => assigns.product_index_query,
       "updated_from" => assigns.product_index_updated_from,
@@ -790,4 +1053,71 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   defp sort_indicator(current_sort, current_dir, current_sort), do: String.upcase(current_dir)
   defp sort_indicator(_current_sort, _current_dir, _sort), do: nil
+
+  defp new_product_path(assigns) do
+    build_path("/app/products/new", %{"tab" => assigns.product_tab_filter})
+  end
+
+  defp active_product_tab_id(product_tabs, value) do
+    with product_tab_id when not is_nil(product_tab_id) <- parse_integer(value),
+         true <- Enum.any?(product_tabs, &(&1.id == product_tab_id)) do
+      product_tab_id
+    else
+      _other -> nil
+    end
+  end
+
+  defp active_product_tab_name(product_tabs, product_tab_id) when is_integer(product_tab_id) do
+    product_tabs
+    |> Enum.find(&(&1.id == product_tab_id))
+    |> case do
+      nil -> nil
+      product_tab -> product_tab.name
+    end
+  end
+
+  defp active_product_tab_name(_product_tabs, _product_tab_id), do: nil
+
+  defp active_product_tab(product_tabs, product_tab_id) when is_integer(product_tab_id) do
+    Enum.find(product_tabs, &(&1.id == product_tab_id))
+  end
+
+  defp active_product_tab(_product_tabs, _product_tab_id), do: nil
+
+  defp product_tab_id_param(product_tab_id) when is_integer(product_tab_id),
+    do: Integer.to_string(product_tab_id)
+
+  defp product_tab_id_param(_product_tab_id), do: "all"
+
+  defp active_product_tab_id_for_export(assigns) do
+    case assigns.product_tab_filter do
+      "all" -> nil
+      value -> parse_integer(value)
+    end
+  end
+
+  defp reset_product_tab_modal(socket) do
+    assign(socket,
+      editing_product_tab: nil,
+      show_product_tab_modal?: false,
+      product_tab_form: build_product_tab_form()
+    )
+  end
+
+  defp product_tab_modal_title(nil), do: "Add a new tab"
+  defp product_tab_modal_title(_product_tab), do: "Edit tab"
+
+  defp product_tab_modal_description(nil) do
+    "Tabs act like seller-defined product buckets for the inventory table and new product intake."
+  end
+
+  defp product_tab_modal_description(%ProductTab{} = product_tab) do
+    "Rename #{product_tab.name} without changing which products belong to it."
+  end
+
+  defp product_tab_submit_event(nil), do: "create_product_tab"
+  defp product_tab_submit_event(_product_tab), do: "update_product_tab"
+
+  defp product_tab_submit_label(nil), do: "Create tab"
+  defp product_tab_submit_label(_product_tab), do: "Save tab"
 end

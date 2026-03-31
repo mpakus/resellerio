@@ -40,7 +40,24 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "path" => "/api/v1/me"
                  },
                  %{
-                   "description" => "Lists products for the authenticated user.",
+                   "description" =>
+                     "Lists seller-defined product tabs for the authenticated user.",
+                   "method" => "GET",
+                   "path" => "/api/v1/product_tabs"
+                 },
+                 %{
+                   "description" => "Creates one seller-defined product tab.",
+                   "method" => "POST",
+                   "path" => "/api/v1/product_tabs"
+                 },
+                 %{
+                   "description" => "Updates one seller-defined product tab.",
+                   "method" => "PATCH",
+                   "path" => "/api/v1/product_tabs/:id"
+                 },
+                 %{
+                   "description" =>
+                     "Lists products for the authenticated user with filtering, sorting, and pagination.",
                    "method" => "GET",
                    "path" => "/api/v1/products"
                  },

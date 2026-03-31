@@ -103,8 +103,23 @@ Example response:
       },
       {
         "method": "GET",
+        "path": "/api/v1/product_tabs",
+        "description": "Lists seller-defined product tabs for the authenticated user."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/product_tabs",
+        "description": "Creates one seller-defined product tab."
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/v1/product_tabs/:id",
+        "description": "Updates one seller-defined product tab."
+      },
+      {
+        "method": "GET",
         "path": "/api/v1/products",
-        "description": "Lists products for the authenticated user."
+        "description": "Lists products for the authenticated user with filtering, sorting, and pagination."
       },
       {
         "method": "POST",
@@ -388,15 +403,123 @@ Notes:
 - `selected_marketplaces` may be an empty array if the user wants to skip marketplace-copy generation for future runs.
 - future processing and reprocessing runs generate `marketplace_listings` only for the selected marketplaces on the owning user account.
 
-### `GET /api/v1/products`
+### `GET /api/v1/product_tabs`
 
-Returns the authenticated user's products, newest first.
+Lists the authenticated user's seller-defined product tabs in display order.
 
 Required header:
 
 ```text
 Authorization: Bearer <token>
 ```
+
+Response:
+
+```json
+{
+  "data": {
+    "product_tabs": [
+      {
+        "id": 4,
+        "name": "Outerwear",
+        "position": 1,
+        "inserted_at": "2026-03-31T12:00:00Z",
+        "updated_at": "2026-03-31T12:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### `POST /api/v1/product_tabs`
+
+Creates one seller-defined product tab.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "product_tab": {
+    "name": "Shoes"
+  }
+}
+```
+
+Response status: `201 Created`
+
+```json
+{
+  "data": {
+    "product_tab": {
+      "id": 5,
+      "name": "Shoes",
+      "position": 2,
+      "inserted_at": "2026-03-31T12:05:00Z",
+      "updated_at": "2026-03-31T12:05:00Z"
+    }
+  }
+}
+```
+
+### `PATCH /api/v1/product_tabs/:id`
+
+Renames one seller-defined product tab.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "product_tab": {
+    "name": "Sneakers"
+  }
+}
+```
+
+Unknown or unauthorized tab IDs return:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "detail": "Product tab not found",
+    "status": 404
+  }
+}
+```
+
+### `GET /api/v1/products`
+
+Lists products for the authenticated user using the same filter model as the web workspace.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Supported query params:
+
+- `status`: `all`, `draft`, `uploading`, `processing`, `review`, `ready`, `sold`, `archived`
+- `query`: full-text search across indexed product fields
+- `product_tab_id`: optional seller-owned product tab filter
+- `updated_from`: ISO date
+- `updated_to`: ISO date
+- `sort`: `title`, `status`, `price`, `updated_at`, `inserted_at`
+- `dir`: `asc` or `desc`
+- `page`: 1-based page number
+- `page_size`: optional positive integer, capped at 100
 
 Response:
 
@@ -411,6 +534,12 @@ Response:
         "title": "Vintage blazer",
         "brand": "Ralph Lauren",
         "category": "Blazers",
+        "product_tab_id": 4,
+        "product_tab": {
+          "id": 4,
+          "name": "Outerwear",
+          "position": 1
+        },
         "tags": ["vintage", "wool"],
         "latest_processing_run": null,
         "description_draft": null,
@@ -418,10 +547,30 @@ Response:
         "marketplace_listings": [],
         "images": []
       }
-    ]
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 15,
+      "total_count": 1,
+      "total_pages": 1
+    },
+    "filters": {
+      "status": "all",
+      "query": null,
+      "product_tab_id": null,
+      "updated_from": null,
+      "updated_to": null,
+      "sort": "updated_at",
+      "dir": "desc"
+    }
   }
 }
 ```
+
+Notes:
+
+- invalid or unknown filter values are normalized to the default filter set shown in `filters`
+- the response always reflects the applied pagination and normalized filter state
 
 ### `POST /api/v1/products`
 
@@ -442,6 +591,7 @@ Request body without uploads:
     "title": "Vintage blazer",
     "brand": "Ralph Lauren",
     "category": "Blazers",
+    "product_tab_id": 4,
     "tags": ["vintage", "wool"]
   }
 }
@@ -479,6 +629,12 @@ Response:
       "title": "Nike Air Max",
       "brand": "Nike",
       "category": "Sneakers",
+      "product_tab_id": 4,
+      "product_tab": {
+        "id": 4,
+        "name": "Outerwear",
+        "position": 1
+      },
       "tags": ["running", "air-max"],
       "latest_processing_run": null,
       "description_draft": null,
@@ -538,6 +694,8 @@ Unknown or unauthorized product IDs return:
 
 Product payload notes:
 
+- `product_tab_id` is optional and links a product to a seller-defined workspace tab.
+- `product_tab` returns the current tab summary when one is assigned.
 - `latest_processing_run` returns the newest core AI-processing run, if one exists.
 - `latest_lifestyle_generation_run` returns the newest dedicated lifestyle-image generation run, if one exists.
 - each image now reserves lifecycle metadata for AI-generated lifestyle previews:
@@ -600,6 +758,7 @@ Request body:
   "product": {
     "title": "Updated title",
     "brand": "Patagonia",
+    "product_tab_id": 4,
     "price": "99.00",
     "notes": "Measured and cleaned",
     "tags": ["outerwear", "denim"],
@@ -613,6 +772,7 @@ Editable fields currently include:
 - `title`
 - `brand`
 - `category`
+- `product_tab_id`
 - `condition`
 - `color`
 - `size`
@@ -1126,6 +1286,7 @@ Request:
     "name": "Fila ready inventory",
     "filters": {
       "query": "fila",
+      "product_tab_id": 4,
       "status": "ready",
       "updated_from": "2026-03-01",
       "updated_to": "2026-03-31"
@@ -1151,6 +1312,8 @@ Example response:
       "file_name": "fila-ready-inventory-20260331-060045.zip",
       "filter_params": {
         "query": "fila",
+        "product_tab_id": 4,
+        "product_tab_name": "Outerwear",
         "status": "ready",
         "updated_from": "2026-03-01",
         "updated_to": "2026-03-31"

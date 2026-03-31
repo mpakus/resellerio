@@ -6,6 +6,7 @@ defmodule Reseller.Catalog do
   alias Reseller.Accounts
   alias Reseller.Accounts.User
   alias Reseller.Catalog.Product
+  alias Reseller.Catalog.ProductTab
   alias Reseller.Media
   alias Reseller.Repo
   alias Reseller.Workers
@@ -18,6 +19,49 @@ defmodule Reseller.Catalog do
     |> order_by([product], desc: product.inserted_at)
     |> preload(^product_preload())
     |> Repo.all()
+  end
+
+  def list_product_tabs_for_user(%User{id: user_id}) do
+    ProductTab
+    |> where([product_tab], product_tab.user_id == ^user_id)
+    |> order_by([product_tab], asc: product_tab.position, asc: product_tab.id)
+    |> Repo.all()
+  end
+
+  def get_product_tab_for_user(%User{id: user_id}, id) do
+    case normalize_product_tab_id(id) do
+      nil ->
+        nil
+
+      product_tab_id ->
+        ProductTab
+        |> where(
+          [product_tab],
+          product_tab.user_id == ^user_id and product_tab.id == ^product_tab_id
+        )
+        |> Repo.one()
+    end
+  end
+
+  def create_product_tab_for_user(%User{} = user, attrs) when is_map(attrs) do
+    next_position = next_product_tab_position(user.id)
+
+    %ProductTab{}
+    |> ProductTab.create_changeset(put_default_product_tab_position(attrs, next_position))
+    |> Ecto.Changeset.put_assoc(:user, user)
+    |> Repo.insert()
+  end
+
+  def update_product_tab_for_user(%User{} = user, id, attrs) when is_map(attrs) do
+    case get_product_tab_for_user(user, id) do
+      nil ->
+        {:error, :not_found}
+
+      product_tab ->
+        product_tab
+        |> ProductTab.update_changeset(attrs)
+        |> Repo.update()
+    end
   end
 
   def list_filtered_products_for_user(%User{id: user_id}, opts \\ []) do
@@ -42,6 +86,7 @@ defmodule Reseller.Catalog do
     page = normalize_page(Keyword.get(opts, :page, 1))
     status = normalize_product_status(Keyword.get(opts, :status, "all"))
     query = normalize_product_search_query(Keyword.get(opts, :query))
+    product_tab_id = normalize_product_tab_id(Keyword.get(opts, :product_tab_id))
     updated_from = Keyword.get(opts, :updated_from)
     updated_to = Keyword.get(opts, :updated_to)
     sort = normalize_product_sort(Keyword.get(opts, :sort, :updated_at))
@@ -70,6 +115,7 @@ defmodule Reseller.Catalog do
       total_pages: total_pages,
       status: status,
       query: query,
+      product_tab_id: product_tab_id,
       updated_from: updated_from,
       updated_to: updated_to,
       sort: sort,
@@ -122,6 +168,7 @@ defmodule Reseller.Catalog do
 
         product
         |> Product.update_changeset(attrs)
+        |> validate_product_tab_ownership(user)
         |> validate_manual_status_change()
         |> Repo.update()
         |> case do
@@ -339,6 +386,7 @@ defmodule Reseller.Catalog do
   defp product_changeset(%User{} = user, attrs) do
     %Product{}
     |> Product.create_changeset(attrs)
+    |> validate_product_tab_ownership(user)
     |> Ecto.Changeset.put_assoc(:user, user)
   end
 
@@ -356,7 +404,8 @@ defmodule Reseller.Catalog do
       "cost",
       "sku",
       "tags",
-      "notes"
+      "notes",
+      "product_tab_id"
     ])
   end
 
@@ -407,6 +456,7 @@ defmodule Reseller.Catalog do
 
   defp product_preload do
     [
+      :product_tab,
       :description_draft,
       :price_research,
       :marketplace_listings,
@@ -538,6 +588,7 @@ defmodule Reseller.Catalog do
   defp filtered_product_query(user_id, opts) when is_integer(user_id) and is_list(opts) do
     status = normalize_product_status(Keyword.get(opts, :status, "all"))
     query = normalize_product_search_query(Keyword.get(opts, :query))
+    product_tab_id = normalize_product_tab_id(Keyword.get(opts, :product_tab_id))
     updated_from = Keyword.get(opts, :updated_from)
     updated_to = Keyword.get(opts, :updated_to)
 
@@ -545,6 +596,7 @@ defmodule Reseller.Catalog do
     |> where([product], product.user_id == ^user_id)
     |> maybe_filter_status(status)
     |> maybe_filter_product_search(query)
+    |> maybe_filter_product_tab(product_tab_id)
     |> maybe_filter_updated_from(updated_from)
     |> maybe_filter_updated_to(updated_to)
   end
@@ -554,6 +606,12 @@ defmodule Reseller.Catalog do
   end
 
   defp maybe_filter_product_search(query, _search_query), do: query
+
+  defp maybe_filter_product_tab(query, nil), do: query
+
+  defp maybe_filter_product_tab(query, product_tab_id) do
+    where(query, [product], product.product_tab_id == ^product_tab_id)
+  end
 
   defp maybe_filter_updated_to(query, %Date{} = updated_to) do
     exclusive_end =
@@ -656,6 +714,19 @@ defmodule Reseller.Catalog do
 
   defp normalize_product_search_query(_query), do: nil
 
+  defp normalize_product_tab_id(product_tab_id)
+       when is_integer(product_tab_id) and product_tab_id > 0,
+       do: product_tab_id
+
+  defp normalize_product_tab_id(product_tab_id) when is_binary(product_tab_id) do
+    case Integer.parse(product_tab_id) do
+      {value, ""} when value > 0 -> value
+      _other -> nil
+    end
+  end
+
+  defp normalize_product_tab_id(_product_tab_id), do: nil
+
   defp normalize_product_sort(sort)
        when sort in [:title, :status, :price, :updated_at, :inserted_at],
        do: sort
@@ -680,6 +751,40 @@ defmodule Reseller.Catalog do
 
   defp total_pages(total_count, page_size) when total_count <= 0 or page_size <= 0, do: 1
   defp total_pages(total_count, page_size), do: div(total_count - 1, page_size) + 1
+
+  defp put_default_product_tab_position(attrs, position) when is_map(attrs) do
+    cond do
+      Map.has_key?(attrs, "position") or Map.has_key?(attrs, :position) ->
+        attrs
+
+      true ->
+        Map.put(attrs, "position", position)
+    end
+  end
+
+  defp next_product_tab_position(user_id) when is_integer(user_id) do
+    ProductTab
+    |> where([product_tab], product_tab.user_id == ^user_id)
+    |> select([product_tab], coalesce(max(product_tab.position), 0) + 1)
+    |> Repo.one()
+  end
+
+  defp validate_product_tab_ownership(changeset, %User{} = user) do
+    case Ecto.Changeset.fetch_change(changeset, :product_tab_id) do
+      {:ok, nil} ->
+        changeset
+
+      {:ok, product_tab_id} ->
+        if get_product_tab_for_user(user, product_tab_id) do
+          changeset
+        else
+          Ecto.Changeset.add_error(changeset, :product_tab_id, "is invalid")
+        end
+
+      :error ->
+        changeset
+    end
+  end
 
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(_value), do: false
