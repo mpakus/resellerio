@@ -2,6 +2,7 @@ defmodule ResellerWeb.ProductsLive.Index do
   use ResellerWeb, :live_view
 
   alias Reseller.Catalog
+  alias Reseller.Exports
   alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
 
@@ -15,6 +16,10 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Exports.subscribe(socket.assigns.current_user)
+    end
+
     {:ok,
      assign(socket,
        page_title: ResellerWeb.PageTitle.build("Products", "Workspace / Inventory"),
@@ -28,8 +33,14 @@ defmodule ResellerWeb.ProductsLive.Index do
        product_index_total_count: 0,
        product_index_sort: "updated_at",
        product_index_sort_dir: "desc",
+       product_index_query: nil,
        product_index_updated_from: nil,
-       product_index_updated_to: nil
+       product_index_updated_to: nil,
+       export_request_form: to_form(%{"name" => "Products export"}, as: :export),
+       show_export_modal?: false,
+       latest_export_id: nil,
+       active_export: nil,
+       active_export_download_url: nil
      )}
   end
 
@@ -52,6 +63,7 @@ defmodule ResellerWeb.ProductsLive.Index do
        to:
          index_path(socket.assigns, %{
            "status" => Map.get(filters, "status", socket.assigns.product_filter),
+           "query" => Map.get(filters, "query", socket.assigns.product_index_query),
            "updated_from" => Map.get(filters, "updated_from"),
            "updated_to" => Map.get(filters, "updated_to"),
            "sort" => socket.assigns.product_index_sort,
@@ -59,6 +71,69 @@ defmodule ResellerWeb.ProductsLive.Index do
            "page" => "1"
          })
      )}
+  end
+
+  def handle_event("open_export_modal", _params, socket) do
+    {:noreply,
+     assign(socket,
+       show_export_modal?: true,
+       active_export: nil,
+       active_export_download_url: nil,
+       export_request_form: build_export_request_form(socket.assigns)
+     )}
+  end
+
+  def handle_event("close_export_modal", _params, socket) do
+    {:noreply, assign(socket, show_export_modal?: false)}
+  end
+
+  def handle_event("request_filtered_export", %{"export" => export_params}, socket) do
+    case Exports.request_export_for_user(socket.assigns.current_user,
+           name: Map.get(export_params, "name"),
+           filters: current_export_filters(socket.assigns)
+         ) do
+      {:ok, export} ->
+        {:noreply,
+         assign(socket,
+           latest_export_id: export.id,
+           active_export: export,
+           active_export_download_url: maybe_export_download_url(export),
+           show_export_modal?: true
+         )}
+
+      {:error, :no_products} ->
+        {:noreply, put_flash(socket, :error, "No matching products are available to export.")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           show_export_modal?: true,
+           export_request_form: to_form(%{changeset | action: :validate}, as: :export)
+         )}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Could not start export: #{inspect(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_info({:export_updated, export}, socket) do
+    if export.id == socket.assigns.latest_export_id do
+      {:noreply,
+       assign(socket,
+         active_export: export,
+         active_export_download_url: maybe_export_download_url(export),
+         show_export_modal?:
+           socket.assigns.show_export_modal? or export.status in ["completed", "failed"]
+       )}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info(_message, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -76,7 +151,7 @@ defmodule ResellerWeb.ProductsLive.Index do
             id="products-index-heading"
             eyebrow="Inventory"
             title="Browse inventory in a real products table."
-            description="Use the products index to paginate catalog results, sort key columns, and narrow the result set by updated date before jumping into the separate intake and review forms."
+            description="Use the products index to search in real time, paginate catalog results, sort key columns, and narrow the result set by updated date before jumping into the separate intake and review forms."
             title_class="reseller-display mt-4 text-5xl font-semibold tracking-[-0.04em] text-balance"
             class="gap-0"
           />
@@ -111,12 +186,26 @@ defmodule ResellerWeb.ProductsLive.Index do
                   Products index
                 </p>
                 <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
-                  This page is table-first. Uploads and edits now live on separate routes so filtering, sorting, and pagination stay focused.
+                  This page is table-first. Search, filters, sorting, and pagination stay focused here while uploads and edits live on separate routes.
                 </p>
               </div>
-              <.link navigate={~p"/app/products/new"} class="btn btn-primary btn-sm rounded-full">
-                + Add product
-              </.link>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  id="open-export-modal-button"
+                  type="button"
+                  phx-click="open_export_modal"
+                  disabled={@product_index_total_count == 0}
+                  class={[
+                    "btn btn-outline btn-sm rounded-full",
+                    @product_index_total_count == 0 && "btn-disabled"
+                  ]}
+                >
+                  Export filtered
+                </button>
+                <.link navigate={~p"/app/products/new"} class="btn btn-primary btn-sm rounded-full">
+                  + Add product
+                </.link>
+              </div>
             </div>
 
             <div class="mt-5 flex flex-wrap gap-2" id="product-filters">
@@ -140,6 +229,7 @@ defmodule ResellerWeb.ProductsLive.Index do
                 to_form(
                   %{
                     "status" => @product_filter,
+                    "query" => @product_index_query,
                     "updated_from" => @product_index_updated_from,
                     "updated_to" => @product_index_updated_to
                   },
@@ -148,11 +238,25 @@ defmodule ResellerWeb.ProductsLive.Index do
               }
               id="product-date-range-form"
               phx-change="change_product_filters"
-              class="mt-5 grid gap-3 lg:grid-cols-[1fr_1fr_auto]"
+              class="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_1fr_1fr_auto]"
             >
+              <.input
+                field={filters_form[:query]}
+                type="search"
+                label="Search products"
+                placeholder="Title, brand, SKU, tags, notes..."
+                phx-debounce="250"
+              />
               <.input field={filters_form[:updated_from]} type="date" label="Updated from" />
               <.input field={filters_form[:updated_to]} type="date" label="Updated to" />
-              <div class="flex items-end">
+              <div class="flex items-end gap-2">
+                <.link
+                  :if={@product_index_query}
+                  patch={index_path(assigns, %{"query" => nil, "page" => "1"})}
+                  class="btn btn-ghost rounded-full"
+                >
+                  Clear search
+                </.link>
                 <.link
                   patch={
                     index_path(assigns, %{"updated_from" => nil, "updated_to" => nil, "page" => "1"})
@@ -163,6 +267,10 @@ defmodule ResellerWeb.ProductsLive.Index do
                 </.link>
               </div>
             </.form>
+
+            <p class="mt-4 text-sm text-base-content/60">
+              Export uses the current search and filters, then packages all {@product_index_total_count} matching products across every page into one ZIP archive.
+            </p>
           </.surface>
 
           <.surface tag="article" padding="none" class="overflow-hidden">
@@ -179,6 +287,9 @@ defmodule ResellerWeb.ProductsLive.Index do
                   Sorted by {humanize_sort(@product_index_sort)} {String.upcase(
                     @product_index_sort_dir
                   )}
+                </p>
+                <p :if={@product_index_query} class="mt-1 text-sm text-base-content/60">
+                  Searching for "{@product_index_query}"
                 </p>
               </div>
               <div class="flex flex-wrap gap-2">
@@ -261,9 +372,9 @@ defmodule ResellerWeb.ProductsLive.Index do
                       </.link>
                     </td>
                   </tr>
-                  <tr :if={@product_index_total_count == 0} id="workspace-products-empty">
+                  <tr id="workspace-products-empty" class="hidden only:table-row">
                     <td colspan="6" class="py-10 text-center text-sm text-base-content/60">
-                      No products matched the current status and date filters.
+                      No products matched the current search and filters.
                     </td>
                   </tr>
                 </tbody>
@@ -302,6 +413,141 @@ defmodule ResellerWeb.ProductsLive.Index do
             </div>
           </.surface>
         </section>
+
+        <div
+          :if={@show_export_modal?}
+          id="products-export-modal"
+          class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+        >
+          <button
+            type="button"
+            phx-click="close_export_modal"
+            class="absolute inset-0 bg-neutral/55"
+            aria-label="Close export modal"
+          >
+          </button>
+
+          <.surface
+            tag="section"
+            class="relative z-10 w-full max-w-2xl border-base-300 bg-base-100 shadow-[0_30px_90px_rgba(20,20,20,0.28)]"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">
+                  Archive export
+                </p>
+                <p class="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  {export_modal_title(@active_export)}
+                </p>
+                <p class="mt-2 text-sm leading-6 text-base-content/68">
+                  {export_modal_description(@active_export, @product_index_total_count)}
+                </p>
+              </div>
+              <button
+                type="button"
+                phx-click="close_export_modal"
+                class="btn btn-ghost btn-sm rounded-full"
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
+            </div>
+
+            <%= if @active_export do %>
+              <div class="mt-6 grid gap-4">
+                <.surface tag="div" variant="soft" padding="md">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold">{@active_export.name}</p>
+                      <p class="mt-1 text-sm text-base-content/60">
+                        {export_product_count_label(@active_export.product_count)} · {Exports.filter_summary(
+                          @active_export.filter_params || %{}
+                        )}
+                      </p>
+                    </div>
+                    <.status_badge status={@active_export.status} />
+                  </div>
+                </.surface>
+
+                <%= cond do %>
+                  <% @active_export.status in ["queued", "running"] -> %>
+                    <p class="text-sm leading-6 text-base-content/68">
+                      The archive is generating in the background. Leave this page if you want. We’ll keep the finished file on the Exports screen and send it by email when delivery succeeds.
+                    </p>
+                  <% @active_export.status == "completed" -> %>
+                    <div class="flex flex-wrap gap-2">
+                      <a
+                        :if={@active_export_download_url}
+                        id="download-export-link"
+                        href={@active_export_download_url}
+                        download={@active_export.file_name}
+                        class="btn btn-primary rounded-full"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download ZIP
+                      </a>
+                      <.link navigate={~p"/app/exports"} class="btn btn-outline rounded-full">
+                        Open export history
+                      </.link>
+                    </div>
+                  <% @active_export.status == "failed" -> %>
+                    <p class="text-sm leading-6 text-error">
+                      {@active_export.error_message ||
+                        "Export failed. Check the export history and try again."}
+                    </p>
+                  <% true -> %>
+                    <p class="text-sm leading-6 text-base-content/68">
+                      Export status updated.
+                    </p>
+                <% end %>
+              </div>
+            <% else %>
+              <.form
+                for={@export_request_form}
+                id="request-export-form"
+                phx-submit="request_filtered_export"
+                class="mt-6 grid gap-4"
+              >
+                <.input
+                  field={@export_request_form[:name]}
+                  type="text"
+                  label="Export name"
+                  placeholder="Products export"
+                />
+
+                <.surface tag="div" variant="soft" padding="md" class="grid gap-3">
+                  <p class="text-sm font-semibold">
+                    {export_product_count_label(@product_index_total_count)}
+                  </p>
+                  <p class="text-sm leading-6 text-base-content/68">
+                    The ZIP will contain `Products.xls`, `manifest.json`, and one image folder per product under `images/&lt;product_id&gt;/...`.
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      :for={detail <- current_export_filter_details(assigns)}
+                      class="badge badge-outline rounded-full px-3 py-3 text-xs uppercase tracking-[0.16em]"
+                    >
+                      {detail.label}: {detail.value}
+                    </span>
+                  </div>
+                </.surface>
+
+                <div class="flex flex-wrap gap-2">
+                  <button type="submit" class="btn btn-primary rounded-full">
+                    Start background export
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="close_export_modal"
+                    class="btn btn-ghost rounded-full"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </.form>
+            <% end %>
+          </.surface>
+        </div>
       </section>
     </Layouts.app_shell>
     """
@@ -319,6 +565,7 @@ defmodule ResellerWeb.ProductsLive.Index do
       product_index_total_count: product_page.total_count,
       product_index_sort: Atom.to_string(product_page.sort),
       product_index_sort_dir: Atom.to_string(product_page.sort_dir),
+      product_index_query: product_page.query,
       product_index_updated_from: date_input_value(product_page.updated_from),
       product_index_updated_to: date_input_value(product_page.updated_to)
     )
@@ -330,6 +577,7 @@ defmodule ResellerWeb.ProductsLive.Index do
       page: Map.get(params, "page"),
       page_size: @page_size,
       status: normalize_product_filter(Map.get(params, "status")),
+      query: normalize_product_search_query(Map.get(params, "query")),
       updated_from: parse_date(Map.get(params, "updated_from")),
       updated_to: parse_date(Map.get(params, "updated_to")),
       sort: normalize_product_sort(Map.get(params, "sort")),
@@ -342,6 +590,15 @@ defmodule ResellerWeb.ProductsLive.Index do
        do: filter
 
   defp normalize_product_filter(_filter), do: "all"
+
+  defp normalize_product_search_query(query) when is_binary(query) do
+    case String.trim(query) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_product_search_query(_query), do: nil
 
   defp normalize_product_sort(sort)
        when sort in ["title", "status", "price", "updated_at", "inserted_at"],
@@ -384,6 +641,7 @@ defmodule ResellerWeb.ProductsLive.Index do
       "/app/products",
       %{
         "status" => assigns.product_filter,
+        "query" => assigns.product_index_query,
         "updated_from" => assigns.product_index_updated_from,
         "updated_to" => assigns.product_index_updated_to,
         "sort" => assigns.product_index_sort,
@@ -445,6 +703,80 @@ defmodule ResellerWeb.ProductsLive.Index do
   defp humanize_sort("status"), do: "status"
   defp humanize_sort("price"), do: "price"
   defp humanize_sort(sort), do: sort
+
+  defp build_export_request_form(assigns) do
+    to_form(%{"name" => default_export_name(assigns)}, as: :export)
+  end
+
+  defp default_export_name(assigns) do
+    prefix =
+      cond do
+        is_binary(assigns.product_index_query) and assigns.product_index_query != "" ->
+          "Search export"
+
+        assigns.product_filter != "all" ->
+          "#{String.capitalize(assigns.product_filter)} products"
+
+        true ->
+          "Products export"
+      end
+
+    "#{prefix} #{Date.utc_today() |> Date.to_iso8601()}"
+  end
+
+  defp current_export_filters(assigns) do
+    Exports.normalize_filter_params(%{
+      "status" => assigns.product_filter,
+      "query" => assigns.product_index_query,
+      "updated_from" => assigns.product_index_updated_from,
+      "updated_to" => assigns.product_index_updated_to,
+      "sort" => assigns.product_index_sort,
+      "dir" => assigns.product_index_sort_dir
+    })
+  end
+
+  defp current_export_filter_details(assigns) do
+    assigns
+    |> current_export_filters()
+    |> Exports.filter_details()
+    |> case do
+      [] -> [%{label: "Filters", value: "All products"}]
+      details -> details
+    end
+  end
+
+  defp maybe_export_download_url(%{status: "completed"} = export) do
+    case Exports.download_url(export) do
+      {:ok, download_url} -> download_url
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp maybe_export_download_url(_export), do: nil
+
+  defp export_modal_title(nil), do: "Export the current table results"
+  defp export_modal_title(%{status: "completed"}), do: "Export is ready"
+  defp export_modal_title(%{status: "failed"}), do: "Export failed"
+  defp export_modal_title(_export), do: "Export is running"
+
+  defp export_modal_description(nil, total_count) do
+    "Create a background ZIP for the #{export_product_count_label(total_count)} currently matching this table."
+  end
+
+  defp export_modal_description(%{status: "completed"}, _total_count) do
+    "The archive is ready to download now, and the same file remains on the Exports page."
+  end
+
+  defp export_modal_description(%{status: "failed"}, _total_count) do
+    "The background job returned an error. You can try again with the same filters or adjust the result set first."
+  end
+
+  defp export_modal_description(_export, _total_count) do
+    "The job is running in the background. We’ll keep the finished download link in your export history."
+  end
+
+  defp export_product_count_label(1), do: "1 product"
+  defp export_product_count_label(total_count), do: "#{total_count} products"
 
   defp sort_indicator(current_sort, current_dir, current_sort), do: String.upcase(current_dir)
   defp sort_indicator(_current_sort, _current_dir, _sort), do: nil

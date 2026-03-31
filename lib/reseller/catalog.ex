@@ -20,21 +20,34 @@ defmodule Reseller.Catalog do
     |> Repo.all()
   end
 
+  def list_filtered_products_for_user(%User{id: user_id}, opts \\ []) do
+    sort = normalize_product_sort(Keyword.get(opts, :sort, :updated_at))
+    sort_dir = normalize_product_sort_dir(Keyword.get(opts, :sort_dir, :desc))
+
+    user_id
+    |> filtered_product_query(opts)
+    |> order_product_index(sort, sort_dir)
+    |> preload(^product_preload())
+    |> Repo.all()
+  end
+
+  def count_filtered_products_for_user(%User{id: user_id}, opts \\ []) do
+    user_id
+    |> filtered_product_query(opts)
+    |> Repo.aggregate(:count)
+  end
+
   def paginate_products_for_user(%User{id: user_id}, opts \\ []) do
     page_size = normalize_page_size(Keyword.get(opts, :page_size, @product_index_page_size))
     page = normalize_page(Keyword.get(opts, :page, 1))
     status = normalize_product_status(Keyword.get(opts, :status, "all"))
+    query = normalize_product_search_query(Keyword.get(opts, :query))
     updated_from = Keyword.get(opts, :updated_from)
     updated_to = Keyword.get(opts, :updated_to)
     sort = normalize_product_sort(Keyword.get(opts, :sort, :updated_at))
     sort_dir = normalize_product_sort_dir(Keyword.get(opts, :sort_dir, :desc))
 
-    base_query =
-      Product
-      |> where([product], product.user_id == ^user_id)
-      |> maybe_filter_status(status)
-      |> maybe_filter_updated_from(updated_from)
-      |> maybe_filter_updated_to(updated_to)
+    base_query = filtered_product_query(user_id, opts)
 
     total_count = Repo.aggregate(base_query, :count)
     total_pages = total_pages(total_count, page_size)
@@ -56,6 +69,7 @@ defmodule Reseller.Catalog do
       total_count: total_count,
       total_pages: total_pages,
       status: status,
+      query: query,
       updated_from: updated_from,
       updated_to: updated_to,
       sort: sort,
@@ -521,6 +535,26 @@ defmodule Reseller.Catalog do
 
   defp maybe_filter_updated_from(query, _updated_from), do: query
 
+  defp filtered_product_query(user_id, opts) when is_integer(user_id) and is_list(opts) do
+    status = normalize_product_status(Keyword.get(opts, :status, "all"))
+    query = normalize_product_search_query(Keyword.get(opts, :query))
+    updated_from = Keyword.get(opts, :updated_from)
+    updated_to = Keyword.get(opts, :updated_to)
+
+    Product
+    |> where([product], product.user_id == ^user_id)
+    |> maybe_filter_status(status)
+    |> maybe_filter_product_search(query)
+    |> maybe_filter_updated_from(updated_from)
+    |> maybe_filter_updated_to(updated_to)
+  end
+
+  defp maybe_filter_product_search(query, search_query) when is_binary(search_query) do
+    where(query, ^product_search_dynamic(search_query))
+  end
+
+  defp maybe_filter_product_search(query, _search_query), do: query
+
   defp maybe_filter_updated_to(query, %Date{} = updated_to) do
     exclusive_end =
       updated_to
@@ -539,6 +573,13 @@ defmodule Reseller.Catalog do
   end
 
   defp maybe_filter_updated_to(query, _updated_to), do: query
+
+  defp product_search_dynamic(search_query) do
+    dynamic(
+      [_product],
+      fragment("search_document @@ websearch_to_tsquery('simple', ?)", ^search_query)
+    )
+  end
 
   defp order_product_index(query, :title, :asc) do
     order_by(query, [product],
@@ -605,6 +646,15 @@ defmodule Reseller.Catalog do
        do: status
 
   defp normalize_product_status(_status), do: "all"
+
+  defp normalize_product_search_query(query) when is_binary(query) do
+    case String.trim(query) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_product_search_query(_query), do: nil
 
   defp normalize_product_sort(sort)
        when sort in [:title, :status, :price, :updated_at, :inserted_at],

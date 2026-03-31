@@ -623,6 +623,10 @@ Key fields:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `user_id` | FK -> `users` | required |
+| `name` | `string` | saved user-facing export label |
+| `file_name` | `string` | ZIP filename used for download |
+| `filter_params` | `map` | normalized search/status/date/sort filters from Products |
+| `product_count` | `integer` | total matching products included in the archive |
 | `status` | `string` | `queued`, `running`, `completed`, `failed` |
 | `storage_key` | `string` | ZIP object key in Tigris |
 | `expires_at` | `utc_datetime` | artifact TTL boundary |
@@ -795,17 +799,19 @@ Optional lifestyle-generation behavior:
 
 ## 8.5 ZIP export flow
 
-1. User requests export via API or LiveView
+1. User requests export from the Products page or API
 2. `Reseller.Exports.request_export_for_user/2` creates `exports` row in `queued`
-3. `ExportWorker.perform/2` marks export `running`
-4. `ZipBuilder.build_user_export/2` loads products and images
-5. Image binaries are fetched using public URLs
-6. ZIP is assembled with:
-   - `index.json`
-   - `images/...`
-7. ZIP is uploaded through `Reseller.Media.Storage`
-8. Export is marked `completed`
-9. notifier sends export-ready email
+3. Requested export name, normalized filter params, and matching product count are stored on `exports`
+4. `ExportWorker.perform/2` marks export `running`
+5. `ZipBuilder.build_export/3` loads all products that match the saved filters, ignoring Products-page pagination
+6. Image binaries are fetched using signed download URLs when available
+7. ZIP is assembled with:
+   - `Products.xls`
+   - `manifest.json`
+   - `images/<product_id>/...`
+8. ZIP is uploaded through `Reseller.Media.Storage`
+9. Export is marked `completed`
+10. notifier sends export-ready email and the same finished archive appears on `/app/exports`
 
 ## 8.6 ZIP import flow
 
@@ -813,7 +819,7 @@ Optional lifestyle-generation behavior:
 2. `Reseller.Imports.request_import_for_user/3` validates base64/archive metadata
 3. Source ZIP is uploaded to storage
 4. `ImportWorker.perform/2` marks import `running`
-5. `ZipParser.parse_archive/1` reads `index.json` and image entries
+5. `ZipParser.parse_archive/1` reads `manifest.json` plus image entries and ignores `Products.xls`
 6. `ArchiveImporter.import_user_archive/3` recreates:
    - `products`
    - `product_images`

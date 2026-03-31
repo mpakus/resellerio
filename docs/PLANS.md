@@ -37,8 +37,8 @@
 - Marketplace rule notes: `docs/MARKETS.md`
 - Media variants: a processed `background_removed` image is now generated per original upload, and the review page supports deleting stale photos and uploading replacements
 - Lifestyle-image planning for Gemini-backed "real life" scene generation is tracked in `docs/PLAN-GENERATE-IMAGE.md`
-- Exports: `Reseller.Exports` now builds ZIP archives with `index.json` and `images/*`, uploads them to storage, and triggers export-ready email notifications
-- Imports: `Reseller.Imports` now stores source ZIP archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
+- Exports: `Reseller.Exports` now saves user-facing export names plus Products-page filter params, builds ZIP archives with `Products.xls`, `manifest.json`, and `images/*`, uploads them to storage, and triggers export-ready email notifications
+- Imports: `Reseller.Imports` now accepts the manifest-backed export ZIP format, stores source archives, recreates products/images/AI metadata, and records per-product failures without aborting the full import
 - Product lifecycle: editable product fields can now be updated, products can be deleted, and explicit sold/archive/unarchive flows now exist
 - Product metadata: products now support seller-managed `tags`, and seller edits can directly move products between manual statuses like `draft`, `review`, `ready`, `sold`, and `archived`
 - Deployment: the repo now includes a production-focused `Dockerfile`, `.dockerignore`, and `docker-compose.yml` with release migrations on boot

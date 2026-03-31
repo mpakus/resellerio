@@ -1086,6 +1086,24 @@ Required header:
 Authorization: Bearer <token>
 ```
 
+Request:
+
+```json
+{
+  "export": {
+    "name": "Fila ready inventory",
+    "filters": {
+      "query": "fila",
+      "status": "ready",
+      "updated_from": "2026-03-01",
+      "updated_to": "2026-03-31"
+    }
+  }
+}
+```
+
+The `export` payload is optional. If omitted, the backend exports the full product catalog.
+
 Response status: `202 Accepted`
 
 The returned export record may be `queued`, `running`, `completed`, or `failed` depending on when the worker updates the record.
@@ -1097,6 +1115,15 @@ Example response:
   "data": {
     "export": {
       "id": 1,
+      "name": "Fila ready inventory",
+      "file_name": "fila-ready-inventory-20260331-060045.zip",
+      "filter_params": {
+        "query": "fila",
+        "status": "ready",
+        "updated_from": "2026-03-01",
+        "updated_to": "2026-03-31"
+      },
+      "product_count": 4,
       "status": "queued",
       "storage_key": null,
       "download_url": null,
@@ -1120,6 +1147,7 @@ Authorization: Bearer <token>
 ```
 
 Completed exports include a `storage_key`, a `download_url`, and `expires_at`.
+The generated ZIP contains `Products.xls`, `manifest.json`, and product image files under `images/<product_id>/...`.
 
 Unknown or unauthorized export IDs return:
 
@@ -1136,6 +1164,7 @@ Unknown or unauthorized export IDs return:
 ### `POST /api/v1/imports`
 
 Queues an import for the authenticated user. The current API accepts the ZIP archive as base64 in JSON, stores the source archive, and then recreates products in the background.
+Resellerio-generated archives should include `Products.xls`, `manifest.json`, and `images/*`.
 
 Required header:
 

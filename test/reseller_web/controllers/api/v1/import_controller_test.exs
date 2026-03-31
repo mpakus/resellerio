@@ -80,7 +80,10 @@ defmodule ResellerWeb.API.V1.ImportControllerTest do
 
   defp build_import_zip(index_payload, image_entries) do
     entries =
-      [{~c"index.json", Jason.encode!(index_payload, pretty: true)}] ++
+      [
+        {~c"manifest.json", Jason.encode!(index_payload, pretty: true)},
+        {~c"Products.xls", "<Workbook></Workbook>"}
+      ] ++
         Enum.map(image_entries, fn {path, body} -> {String.to_charlist(path), body} end)
 
     {:ok, {_filename, zip_binary}} = :zip.create(~c"import.zip", entries, [:memory])

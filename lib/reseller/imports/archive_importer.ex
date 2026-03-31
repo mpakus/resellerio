@@ -107,15 +107,15 @@ defmodule Reseller.Imports.ArchiveImporter do
     %ProductDescriptionDraft{}
     |> ProductDescriptionDraft.create_changeset(%{
       "status" => normalize_generated_status(payload["status"]),
-      "provider" => "import",
-      "model" => "zip-import",
+      "provider" => payload["provider"] || "import",
+      "model" => payload["model"] || "zip-import",
       "suggested_title" => payload["suggested_title"],
       "short_description" => payload["short_description"] || payload["long_description"],
       "long_description" => payload["long_description"],
       "key_features" => List.wrap(payload["key_features"]),
       "seo_keywords" => List.wrap(payload["seo_keywords"]),
       "missing_details_warning" => payload["missing_details_warning"],
-      "raw_payload" => payload
+      "raw_payload" => Map.get(payload, "raw_payload", payload)
     })
     |> Ecto.Changeset.put_assoc(:product, product)
     |> Repo.insert()
@@ -128,8 +128,8 @@ defmodule Reseller.Imports.ArchiveImporter do
     %ProductPriceResearch{}
     |> ProductPriceResearch.create_changeset(%{
       "status" => normalize_generated_status(payload["status"]),
-      "provider" => "import",
-      "model" => "zip-import",
+      "provider" => payload["provider"] || "import",
+      "model" => payload["model"] || "zip-import",
       "currency" => payload["currency"] || "USD",
       "suggested_min_price" => payload["suggested_min_price"],
       "suggested_target_price" => payload["suggested_target_price"],
@@ -138,8 +138,8 @@ defmodule Reseller.Imports.ArchiveImporter do
       "pricing_confidence" => payload["pricing_confidence"],
       "rationale_summary" => payload["rationale_summary"],
       "market_signals" => List.wrap(payload["market_signals"]),
-      "comparable_results" => %{"items" => List.wrap(payload["comparable_results"])},
-      "raw_payload" => payload
+      "comparable_results" => comparable_results_payload(payload["comparable_results"]),
+      "raw_payload" => Map.get(payload, "raw_payload", payload)
     })
     |> Ecto.Changeset.put_assoc(:product, product)
     |> Repo.insert()
@@ -168,8 +168,8 @@ defmodule Reseller.Imports.ArchiveImporter do
       "generated_price_suggestion" => payload["generated_price_suggestion"],
       "generation_version" => payload["generation_version"] || "zip-import",
       "compliance_warnings" => List.wrap(payload["compliance_warnings"]),
-      "raw_payload" => payload,
-      "last_generated_at" => now()
+      "raw_payload" => Map.get(payload, "raw_payload", payload),
+      "last_generated_at" => parse_datetime(payload["last_generated_at"]) || now()
     })
     |> Ecto.Changeset.put_assoc(:product, product)
     |> Repo.insert()
@@ -194,10 +194,18 @@ defmodule Reseller.Imports.ArchiveImporter do
       "position" => payload["position"] || 1,
       "storage_key" => storage_key,
       "content_type" => image_content_type(payload),
-      "byte_size" => byte_size(body),
+      "byte_size" => payload["byte_size"] || byte_size(body),
+      "width" => payload["width"],
+      "height" => payload["height"],
+      "checksum" => payload["checksum"],
       "background_style" => payload["background_style"],
       "processing_status" => normalize_processing_status(payload["processing_status"]),
-      "original_filename" => payload["path"] |> Path.basename()
+      "original_filename" => payload["original_filename"] || payload["path"] |> Path.basename(),
+      "scene_key" => payload["scene_key"],
+      "variant_index" => payload["variant_index"],
+      "source_image_ids" => List.wrap(payload["source_image_ids"]),
+      "seller_approved" => payload["seller_approved"] || false,
+      "approved_at" => parse_datetime(payload["approved_at"])
     }
   end
 
@@ -271,6 +279,16 @@ defmodule Reseller.Imports.ArchiveImporter do
   defp normalize_generated_status(status) when status in ~w(generated review failed), do: status
   defp normalize_generated_status(_status), do: "generated"
 
+  defp comparable_results_payload(nil), do: %{}
+
+  defp comparable_results_payload(%{} = comparable_results), do: comparable_results
+
+  defp comparable_results_payload(comparable_results) when is_list(comparable_results) do
+    %{"items" => comparable_results}
+  end
+
+  defp comparable_results_payload(_other), do: %{}
+
   defp build_failure(index, payload, reason) do
     %{
       "index" => index,
@@ -287,6 +305,17 @@ defmodule Reseller.Imports.ArchiveImporter do
 
   defp normalize_insert_result({:ok, _record}), do: :ok
   defp normalize_insert_result({:error, reason}), do: {:error, reason}
+
+  defp parse_datetime(nil), do: nil
+
+  defp parse_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _other -> nil
+    end
+  end
+
+  defp parse_datetime(_value), do: nil
 
   defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 end

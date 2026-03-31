@@ -7,13 +7,16 @@ defmodule ResellerWeb.WorkspaceLive do
   alias Reseller.Exports
   alias Reseller.Imports
   alias Reseller.Marketplaces
-  alias Reseller.Media
   alias ResellerWeb.WorkspaceNavigation
 
   @zip_upload_accept ~w(.zip)
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Exports.subscribe(socket.assigns.current_user)
+    end
+
     {:ok,
      socket
      |> allow_upload(:import_archive,
@@ -45,20 +48,16 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   @impl true
-  def handle_event("request_export", _params, socket) do
-    case Exports.request_export_for_user(socket.assigns.current_user) do
-      {:ok, _export} ->
-        {:noreply,
-         socket
-         |> refresh_workspace()
-         |> put_flash(:info, "Export requested from the web workspace.")}
-
-      {:error, reason} ->
-        {:noreply,
-         put_flash(socket, :error, "Could not request export: #{format_reason(reason)}")}
-    end
+  def handle_info({:export_updated, _export}, socket) do
+    {:noreply, refresh_workspace(socket)}
   end
 
+  @impl true
+  def handle_info(_message, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("sync_import_upload", _params, socket) do
     {:noreply, clear_flash(socket, :error)}
   end
@@ -263,24 +262,20 @@ defmodule ResellerWeb.WorkspaceLive do
               <div class="grid gap-4">
                 <.surface tag="article">
                   <.header>
-                    Export catalog
+                    Export history
                     <:subtitle>
-                      Generate the Resellerio ZIP archive directly from the web workspace.
+                      Start archive generation from the Products page so the active search and filters are saved with the export.
                     </:subtitle>
-                    <:actions>
-                      <button
-                        id="request-export-button"
-                        type="button"
-                        phx-click="request_export"
-                        class="btn btn-primary btn-sm rounded-full"
-                      >
-                        Request export
-                      </button>
-                    </:actions>
                   </.header>
                   <p class="text-sm leading-6 text-base-content/70">
-                    The export worker packages `index.json` plus images into a ZIP archive and stores it for download.
+                    Each finished ZIP contains `Products.xls`, `manifest.json`, and `images/&lt;product_id&gt;/...`.
+                    Use the Products table when you need a filtered export instead of a full catalog dump.
                   </p>
+                  <div class="mt-4">
+                    <.link navigate={~p"/app/products"} class="btn btn-outline rounded-full">
+                      Open products
+                    </.link>
+                  </div>
                 </.surface>
 
                 <.surface tag="article">
@@ -321,15 +316,26 @@ defmodule ResellerWeb.WorkspaceLive do
                       variant="soft"
                       padding="sm"
                     >
-                      <div class="flex items-center justify-between gap-4">
-                        <div>
-                          <p class="text-sm font-semibold">Export #{export.id}</p>
+                      <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                          <p class="text-sm font-semibold">{export.name}</p>
                           <p class="mt-1 text-xs uppercase tracking-[0.2em] text-base-content/50">
-                            {export.status}
+                            {export.file_name}
+                          </p>
+                          <p class="mt-2 text-sm text-base-content/60">
+                            Requested {format_datetime(export.requested_at)} · {export.product_count} products
                           </p>
                           <p :if={export.completed_at} class="mt-1 text-sm text-base-content/60">
                             Completed {format_datetime(export.completed_at)}
                           </p>
+                          <div class="mt-3 flex flex-wrap gap-2">
+                            <span
+                              :for={detail <- export_filter_details(export)}
+                              class="badge badge-outline rounded-full px-3 py-3 text-xs uppercase tracking-[0.16em]"
+                            >
+                              {detail.label}: {detail.value}
+                            </span>
+                          </div>
                         </div>
                         <div class="flex flex-col items-end gap-2">
                           <.status_badge status={export.status} />
@@ -337,6 +343,7 @@ defmodule ResellerWeb.WorkspaceLive do
                             :if={download_url = export_download_url(export)}
                             href={download_url}
                             class="btn btn-ghost btn-xs rounded-full"
+                            download={export.file_name}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -610,9 +617,16 @@ defmodule ResellerWeb.WorkspaceLive do
   defp export_download_url(%{storage_key: nil}), do: nil
 
   defp export_download_url(export) do
-    case Media.public_url_for_storage_key(export.storage_key) do
+    case Exports.download_url(export) do
       {:ok, url} -> url
       {:error, _reason} -> nil
+    end
+  end
+
+  defp export_filter_details(export) do
+    case Exports.filter_details(export.filter_params || %{}) do
+      [] -> [%{label: "Filters", value: "All products"}]
+      details -> details
     end
   end
 

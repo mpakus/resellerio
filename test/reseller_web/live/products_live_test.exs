@@ -5,6 +5,7 @@ defmodule ResellerWeb.ProductsLiveTest do
   import Phoenix.LiveViewTest
 
   alias Reseller.Catalog
+  alias Reseller.Exports
   alias Reseller.Repo
 
   test "products index filters by status and updated date", %{conn: conn} do
@@ -72,6 +73,58 @@ defmodule ResellerWeb.ProductsLiveTest do
     |> render_click()
 
     assert has_element?(view, "#workspace-products-table", "Paged item 01")
+  end
+
+  test "products index filters rows with real-time full-text search", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product_fixture(user, %{"title" => "Nike runner", "tags" => "retro, vintage"})
+    product_fixture(user, %{"title" => "Canvas tote", "notes" => "Farmer market bag"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+
+    view
+    |> form("#product-date-range-form", filters: %{"query" => "retro"})
+    |> render_change()
+
+    assert render(view) =~ ~s(value="retro")
+    assert has_element?(view, "#workspace-products-table", "Nike runner")
+    refute has_element?(view, "#workspace-products-table", "Canvas tote")
+    assert render(view) =~ ~s(id="workspace-products-empty" class="hidden only:table-row")
+  end
+
+  test "products index exports the current filtered result set", %{conn: conn} do
+    user = user_fixture(%{"email" => "seller@example.com"})
+    product_fixture(user, %{"title" => "Fila jacket", "status" => "ready"})
+    product_fixture(user, %{"title" => "Canvas tote", "status" => "ready"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products")
+
+    view
+    |> form("#product-date-range-form", filters: %{"query" => "Fila"})
+    |> render_change()
+
+    view
+    |> element("#open-export-modal-button")
+    |> render_click()
+
+    assert has_element?(view, "#products-export-modal", "Export the current table results")
+    assert render(view) =~ "1 product"
+    assert render(view) =~ "Search: Fila"
+
+    view
+    |> form("#request-export-form", export: %{"name" => "Fila filtered export"})
+    |> render_submit()
+
+    [export] = Exports.list_exports_for_user(user)
+
+    assert export.name == "Fila filtered export"
+    assert export.filter_params == %{"query" => "Fila"}
+    assert export.product_count == 1
+
+    assert has_element?(view, "#products-export-modal", "Export is ready")
+    assert has_element?(view, "#download-export-link", "Download ZIP")
   end
 
   test "products index sorts by title", %{conn: conn} do

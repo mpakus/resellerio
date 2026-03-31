@@ -13,16 +13,24 @@ defmodule ResellerWeb.API.V1.ExportControllerTest do
   end
 
   test "POST /api/v1/exports queues and completes an export", %{conn: conn, user: user} do
-    product_fixture(user, %{"title" => "Export product"})
+    product_fixture(user, %{"title" => "Fila jacket", "status" => "ready"})
+    product_fixture(user, %{"title" => "Canvas tote", "status" => "ready"})
 
     conn =
       post(conn, "/api/v1/exports", %{
-        "download_request_fun" => "ignored"
+        "export" => %{
+          "name" => "Fila export",
+          "filters" => %{"query" => "Fila"}
+        }
       })
 
     assert %{
              "data" => %{
                "export" => %{
+                 "name" => "Fila export",
+                 "file_name" => file_name,
+                 "filter_params" => %{"query" => "Fila"},
+                 "product_count" => 1,
                  "status" => "completed",
                  "storage_key" => storage_key,
                  "download_url" => download_url
@@ -30,7 +38,9 @@ defmodule ResellerWeb.API.V1.ExportControllerTest do
              }
            } = json_response(conn, 202)
 
+    assert file_name =~ "fila-export-"
     assert storage_key =~ "users/#{user.id}/exports/"
+    assert storage_key =~ "/" <> file_name
     assert download_url =~ storage_key
   end
 

@@ -65,7 +65,6 @@ defmodule ResellerWeb.WorkspaceLiveTest do
 
     assert_patch(view, "/app/exports")
     assert has_element?(view, "#workspace-exports")
-    assert has_element?(view, "#request-export-button")
     assert has_element?(view, "#import-archive-upload-panel")
 
     view
@@ -83,9 +82,16 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#workspace-dashboard")
   end
 
-  test "requests exports and uploads imports from the web UI", %{conn: conn} do
+  test "shows export history and uploads imports from the web UI", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     product_fixture(user, %{"title" => "Export candidate"})
+
+    {:ok, _export} =
+      Exports.request_export_for_user(user,
+        name: "Candidate export",
+        filters: %{"query" => "candidate"}
+      )
+
     conn = init_test_session(conn, %{user_id: user.id})
 
     {:ok, view, html} = live(conn, "/app/exports")
@@ -93,14 +99,8 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert has_element?(view, "#import-archive-upload-panel")
     assert html =~ ~s(id="import-archive-form")
     assert html =~ ~s(phx-change="sync_import_upload")
-
-    view
-    |> element("#request-export-button")
-    |> render_click()
-
-    [export] = Exports.list_exports_for_user(user)
-    assert export.status == "completed"
-    assert render(view) =~ "Export ##{export.id}"
+    assert render(view) =~ "Candidate export"
+    assert render(view) =~ "Search: candidate"
 
     upload =
       file_input(view, "#import-archive-form", :import_archive, [
@@ -181,7 +181,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
   end
 
   defp import_zip_binary do
-    index_json =
+    manifest_json =
       Jason.encode!(%{
         "products" => [
           %{
@@ -195,7 +195,14 @@ defmodule ResellerWeb.WorkspaceLiveTest do
       })
 
     {:ok, {_name, zip_binary}} =
-      :zip.create(~c"catalog-import.zip", [{~c"index.json", index_json}], [:memory])
+      :zip.create(
+        ~c"catalog-import.zip",
+        [
+          {~c"manifest.json", manifest_json},
+          {~c"Products.xls", "<Workbook></Workbook>"}
+        ],
+        [:memory]
+      )
 
     zip_binary
   end

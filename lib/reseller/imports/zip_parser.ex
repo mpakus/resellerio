@@ -5,12 +5,16 @@ defmodule Reseller.Imports.ZipParser do
 
   def parse_archive(archive_binary) when is_binary(archive_binary) do
     with {:ok, entries} <- extract_entries(archive_binary),
-         {:ok, index_payload} <- decode_index(entries),
-         {:ok, products} <- fetch_products(index_payload) do
+         {:ok, manifest_payload} <- decode_manifest(entries),
+         {:ok, products} <- fetch_products(manifest_payload) do
       {:ok,
        %{
          products: products,
-         images: Map.delete(entries, "index.json")
+         images:
+           entries
+           |> Map.delete("manifest.json")
+           |> Map.delete("index.json")
+           |> Map.delete("Products.xls")
        }}
     end
   end
@@ -37,16 +41,26 @@ defmodule Reseller.Imports.ZipParser do
     end
   end
 
-  defp decode_index(entries) do
-    case Map.fetch(entries, "index.json") do
-      {:ok, index_json} ->
-        case Jason.decode(index_json) do
-          {:ok, payload} when is_map(payload) -> {:ok, payload}
-          {:error, reason} -> {:error, {:invalid_index_json, reason}}
-        end
+  defp decode_manifest(entries) do
+    entries
+    |> Map.fetch("manifest.json")
+    |> case do
+      {:ok, manifest_json} -> decode_manifest_json(manifest_json, :invalid_manifest_json)
+      :error -> decode_legacy_index(entries)
+    end
+  end
 
-      :error ->
-        {:error, :missing_index_json}
+  defp decode_legacy_index(entries) do
+    case Map.fetch(entries, "index.json") do
+      {:ok, index_json} -> decode_manifest_json(index_json, :invalid_index_json)
+      :error -> {:error, :missing_manifest_json}
+    end
+  end
+
+  defp decode_manifest_json(payload_json, error_tag) do
+    case Jason.decode(payload_json) do
+      {:ok, payload} when is_map(payload) -> {:ok, payload}
+      {:error, reason} -> {:error, {error_tag, reason}}
     end
   end
 

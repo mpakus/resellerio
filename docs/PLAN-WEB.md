@@ -11,13 +11,14 @@
 - [x] Step W3.1: Build the new product upload flow.
 - [x] Step W4.1: Build the product detail and editing flow.
 - [x] Step W5.1: Build export and import screens.
+- [x] Step W5.2: Move export requests to the Products index and save filter-aware export history.
 
 ## Latest Web Progress
 
-- Completed: Step W5.1 export and import screens.
+- Completed: Step W5.2 filtered export requests from Products plus saved export history metadata.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
 - Current auth routes: `live "/"`, `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/products/new"`, `live "/app/products/:id"`, `live "/app/listings"`, `live "/app/exports"`, `live "/app/settings"`, and protected admin routes under `/admin`
-- Current workspace features: dashboard summaries, a table-first products index with pagination/sorting/date filters, upload-first product intake, AI-seeded product review/editing, lifecycle actions, marketplace listing review, per-user marketplace defaults in settings, and export/import actions in LiveView.
+- Current workspace features: dashboard summaries, a table-first products index with real-time full-text search plus pagination/sorting/date filters, upload-first product intake, AI-seeded product review/editing, lifecycle actions, marketplace listing review, per-user marketplace defaults in settings, filtered export requests from Products, and archive history/import actions in LiveView.
 - Next target: passkey-focused account settings plus richer AI review controls and regeneration actions.
 
 ## 1. Current Web Stack Analysis

@@ -4,6 +4,30 @@ defmodule ResellerWeb.API.V1.ExportController do
   alias Reseller.Exports
   alias ResellerWeb.APIError
 
+  def create(conn, %{"export" => export_params}) when is_map(export_params) do
+    case Exports.request_export_for_user(
+           conn.assigns.current_user,
+           name: Map.get(export_params, "name"),
+           filters: Map.get(export_params, "filters", %{})
+         ) do
+      {:ok, export} ->
+        conn
+        |> put_status(:accepted)
+        |> json(%{data: %{export: export_json(export)}})
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "export_failed",
+          "Could not start export: #{inspect(reason)}"
+        )
+    end
+  end
+
   def create(conn, _params) do
     case Exports.request_export_for_user(conn.assigns.current_user) do
       {:ok, export} ->
@@ -37,10 +61,13 @@ defmodule ResellerWeb.API.V1.ExportController do
   defp export_json(export) do
     %{
       id: export.id,
+      name: export.name,
+      file_name: export.file_name,
+      filter_params: export.filter_params || %{},
+      product_count: export.product_count,
       status: export.status,
       storage_key: export.storage_key,
-      download_url:
-        export.storage_key && Reseller.Media.public_url_for_storage_key!(export.storage_key),
+      download_url: export_download_url(export),
       expires_at: datetime_to_iso8601(export.expires_at),
       requested_at: datetime_to_iso8601(export.requested_at),
       completed_at: datetime_to_iso8601(export.completed_at),
@@ -52,4 +79,13 @@ defmodule ResellerWeb.API.V1.ExportController do
 
   defp datetime_to_iso8601(nil), do: nil
   defp datetime_to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+
+  defp export_download_url(%{storage_key: nil}), do: nil
+
+  defp export_download_url(export) do
+    case Exports.download_url(export) do
+      {:ok, download_url} -> download_url
+      {:error, _reason} -> nil
+    end
+  end
 end

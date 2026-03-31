@@ -101,6 +101,33 @@ defmodule Reseller.CatalogTest do
     assert [%{title: "Beta jacket"}] = page.entries
   end
 
+  test "paginate_products_for_user/2 filters products with full-text search" do
+    user = user_fixture()
+
+    tagged_match =
+      product_fixture(user, %{
+        "title" => "Running shoe",
+        "brand" => "Nike",
+        "tags" => "retro, runner",
+        "notes" => "Air cushioned sole"
+      })
+
+    _non_match =
+      product_fixture(user, %{
+        "title" => "Canvas tote",
+        "brand" => "Baggu",
+        "tags" => "neutral, everyday",
+        "notes" => "Market carryall"
+      })
+
+    page = Catalog.paginate_products_for_user(user, query: "retro cushioned")
+
+    assert page.total_count == 1
+    assert page.query == "retro cushioned"
+    assert [%{id: id, title: "Running shoe"}] = page.entries
+    assert id == tagged_match.id
+  end
+
   test "get_product_for_user/2 returns nil for another user's product" do
     user = user_fixture()
     other_user = user_fixture()

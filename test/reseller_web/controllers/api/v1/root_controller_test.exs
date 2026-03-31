@@ -114,7 +114,8 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "path" => "/api/v1/products/:id/unarchive"
                  },
                  %{
-                   "description" => "Queues a ZIP export for the authenticated user.",
+                   "description" =>
+                     "Queues a filtered ZIP export for the authenticated user with optional saved name and filter params.",
                    "method" => "POST",
                    "path" => "/api/v1/exports"
                  },
@@ -124,7 +125,8 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
                    "path" => "/api/v1/exports/:id"
                  },
                  %{
-                   "description" => "Queues a ZIP import for the authenticated user.",
+                   "description" =>
+                     "Queues a Resellerio ZIP import for the authenticated user using Products.xls, manifest.json, and images.",
                    "method" => "POST",
                    "path" => "/api/v1/imports"
                  },

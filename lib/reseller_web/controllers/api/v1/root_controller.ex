@@ -112,7 +112,8 @@ defmodule ResellerWeb.API.V1.RootController do
           %{
             method: "POST",
             path: "/api/v1/exports",
-            description: "Queues a ZIP export for the authenticated user."
+            description:
+              "Queues a filtered ZIP export for the authenticated user with optional saved name and filter params."
           },
           %{
             method: "GET",
@@ -122,7 +123,8 @@ defmodule ResellerWeb.API.V1.RootController do
           %{
             method: "POST",
             path: "/api/v1/imports",
-            description: "Queues a ZIP import for the authenticated user."
+            description:
+              "Queues a Resellerio ZIP import for the authenticated user using Products.xls, manifest.json, and images."
           },
           %{
             method: "GET",
