@@ -272,6 +272,47 @@ defmodule Reseller.Media do
     end
   end
 
+  @spec update_product_image_storefront_settings(Product.t(), pos_integer(), map()) ::
+          {:ok, ProductImage.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def update_product_image_storefront_settings(%Product{id: product_id}, image_id, attrs)
+      when is_integer(image_id) do
+    case Repo.get_by(ProductImage, id: image_id, product_id: product_id) do
+      nil ->
+        {:error, :not_found}
+
+      image ->
+        image
+        |> ProductImage.storefront_update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  @spec reorder_product_images_storefront_position(Product.t(), [pos_integer()]) ::
+          {:ok, map()} | {:error, :not_found | Ecto.Changeset.t()}
+  def reorder_product_images_storefront_position(%Product{id: product_id}, ordered_image_ids)
+      when is_list(ordered_image_ids) do
+    ordered_image_ids
+    |> Enum.with_index(1)
+    |> Enum.reduce(Multi.new(), fn {image_id, position}, multi ->
+      Multi.run(multi, {:reorder, image_id}, fn repo, _changes ->
+        case repo.get_by(ProductImage, id: image_id, product_id: product_id) do
+          nil ->
+            {:error, :not_found}
+
+          image ->
+            image
+            |> ProductImage.storefront_update_changeset(%{storefront_position: position})
+            |> repo.update()
+        end
+      end)
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, changes} -> {:ok, changes}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
   @spec generate_product_variants(Product.t(), keyword()) ::
           {:ok, [ProductImage.t()]} | {:error, term()}
   def generate_product_variants(%Product{} = product, opts \\ []) do

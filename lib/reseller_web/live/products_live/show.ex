@@ -36,7 +36,8 @@ defmodule ResellerWeb.ProductsLive.Show do
        review_form_dirty?: false,
        storefront_publication_form: to_form(%{}, as: :storefront_publication),
        marketplace_url_values: %{},
-       marketplace_url_errors: %{}
+       marketplace_url_errors: %{},
+       lightbox_image: nil
      )}
   end
 
@@ -459,6 +460,96 @@ defmodule ResellerWeb.ProductsLive.Show do
     end
   end
 
+  def handle_event("open_lightbox", %{"image-id" => image_id}, socket) do
+    image =
+      socket.assigns.product.images
+      |> Enum.find(&(to_string(&1.id) == image_id))
+
+    {:noreply, assign(socket, lightbox_image: image)}
+  end
+
+  def handle_event("close_lightbox", _params, socket) do
+    {:noreply, assign(socket, lightbox_image: nil)}
+  end
+
+  def handle_event("toggle_storefront_visible", %{"image-id" => image_id}, socket) do
+    case parse_integer(image_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Image not found.")}
+
+      parsed_id ->
+        current =
+          socket.assigns.product.images
+          |> Enum.find(&(&1.id == parsed_id))
+          |> case do
+            nil -> false
+            img -> img.storefront_visible
+          end
+
+        case Catalog.update_image_storefront_settings_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               parsed_id,
+               %{"storefront_visible" => !current}
+             ) do
+          {:ok, updated_product} ->
+            {:noreply, assign_product(socket, updated_product, rebuild_form: false)}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "Image not found.")}
+
+          {:error, reason} ->
+            {:noreply,
+             put_flash(socket, :error, "Could not update image: #{format_reason(reason)}")}
+        end
+    end
+  end
+
+  def handle_event("move_storefront_image", %{"image-id" => image_id, "direction" => dir}, socket) do
+    case parse_integer(image_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Image not found.")}
+
+      parsed_id ->
+        ordered_ids = Helpers.storefront_ordered_image_ids(socket.assigns.product)
+        new_order = move_image_in_list(ordered_ids, parsed_id, dir)
+
+        case Catalog.reorder_storefront_images_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               new_order
+             ) do
+          {:ok, updated_product} ->
+            {:noreply, assign_product(socket, updated_product, rebuild_form: false)}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "Image not found.")}
+
+          {:error, reason} ->
+            {:noreply,
+             put_flash(socket, :error, "Could not reorder images: #{format_reason(reason)}")}
+        end
+    end
+  end
+
+  def handle_event("reorder_storefront_images", %{"image_ids" => image_ids}, socket)
+      when is_list(image_ids) do
+    parsed_ids = Enum.map(image_ids, &parse_integer/1) |> Enum.reject(&is_nil/1)
+
+    case Catalog.reorder_storefront_images_for_user(
+           socket.assigns.current_user,
+           socket.assigns.product.id,
+           parsed_ids
+         ) do
+      {:ok, updated_product} ->
+        {:noreply, assign_product(socket, updated_product, rebuild_form: false)}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Could not reorder images: #{format_reason(reason)}")}
+    end
+  end
+
   def handle_event("mark_sold", _params, socket) do
     {:noreply,
      mutate_product(
@@ -776,10 +867,11 @@ defmodule ResellerWeb.ProductsLive.Show do
               <.header>
                 Images
                 <:subtitle>
-                  Each uploaded photo keeps its original plus one background-removed processing variant, and you can swap photos before the product is sold or archived.
+                  Click any image to preview it full-size. Use the toggle on each tile to add it to your Storefront Gallery, then drag to reorder.
                 </:subtitle>
               </.header>
 
+              <%!-- ── Uploaded images ── --%>
               <div>
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -787,7 +879,7 @@ defmodule ResellerWeb.ProductsLive.Show do
                       Uploaded and processed images
                     </p>
                     <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
-                      Review each uploaded source photo alongside its cleaned background-removed version, delete outdated shots, and upload replacements without leaving this page.
+                      Review each uploaded source photo alongside its background-removed version. Toggle any tile to include it in your Storefront Gallery.
                     </p>
                   </div>
                   <span class="badge rounded-full border border-base-300 bg-base-100 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-base-content/60">
@@ -842,14 +934,72 @@ defmodule ResellerWeb.ProductsLive.Show do
                     </div>
 
                     <div class="grid gap-3 p-4 md:grid-cols-2">
-                      <div class="overflow-hidden rounded-3xl border border-base-300 bg-base-100">
-                        <img
-                          :if={image_url = Helpers.public_image_url(group.original)}
-                          id={"product-image-original-#{group.original.id}"}
-                          src={image_url}
-                          alt={group.original.original_filename || group.original.kind}
-                          class="aspect-square w-full object-cover"
-                        />
+                      <%!-- Original tile --%>
+                      <div class={[
+                        "overflow-hidden rounded-3xl border bg-base-100 transition",
+                        if(group.original.storefront_visible,
+                          do: "border-primary/50 ring-2 ring-primary/20",
+                          else: "border-base-300"
+                        )
+                      ]}>
+                        <div class="relative">
+                          <button
+                            :if={Helpers.public_image_url(group.original)}
+                            type="button"
+                            phx-click="open_lightbox"
+                            phx-value-image-id={group.original.id}
+                            class="group relative block w-full"
+                            title="View full size"
+                          >
+                            <img
+                              id={"product-image-original-#{group.original.id}"}
+                              src={Helpers.public_image_url(group.original)}
+                              alt={group.original.original_filename || group.original.kind}
+                              class="aspect-square w-full object-cover transition group-hover:opacity-90"
+                            />
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                              <.icon
+                                name="hero-arrows-pointing-out"
+                                class="size-8 rounded-full bg-base-100/80 p-1.5 text-base-content"
+                              />
+                            </div>
+                          </button>
+                          <button
+                            :if={@storefront && Helpers.public_image_url(group.original)}
+                            type="button"
+                            phx-click="toggle_storefront_visible"
+                            phx-value-image-id={group.original.id}
+                            class={[
+                              "absolute bottom-2 right-2 flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold shadow transition",
+                              if(group.original.storefront_visible,
+                                do:
+                                  "border-primary bg-primary text-primary-content hover:bg-primary/80",
+                                else:
+                                  "border-base-300 bg-base-100/90 text-base-content/70 hover:border-primary hover:text-primary"
+                              )
+                            ]}
+                            title={
+                              if(group.original.storefront_visible,
+                                do: "Remove from Storefront",
+                                else: "Add to Storefront"
+                              )
+                            }
+                          >
+                            <.icon
+                              name={
+                                if(group.original.storefront_visible,
+                                  do: "hero-check",
+                                  else: "hero-plus"
+                                )
+                              }
+                              class="size-3"
+                            />
+                            {if(group.original.storefront_visible,
+                              do: "In gallery",
+                              else: "Add"
+                            )}
+                          </button>
+                        </div>
                         <div class="p-3 text-sm">
                           <p class="font-semibold">Original</p>
                           <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
@@ -858,19 +1008,89 @@ defmodule ResellerWeb.ProductsLive.Show do
                         </div>
                       </div>
 
-                      <div class="overflow-hidden rounded-3xl border border-base-300 bg-base-100">
-                        <img
-                          :if={image_url = Helpers.public_image_url(group.background_removed)}
-                          id={"product-image-background-#{group.original.id}"}
-                          src={image_url}
-                          alt={
-                            (group.background_removed &&
-                               (group.background_removed.original_filename ||
-                                  group.background_removed.kind)) ||
-                              "Background removed image"
-                          }
-                          class="aspect-square w-full object-cover"
-                        />
+                      <%!-- Background-removed tile --%>
+                      <div class={[
+                        "overflow-hidden rounded-3xl border bg-base-100 transition",
+                        if(group.background_removed && group.background_removed.storefront_visible,
+                          do: "border-primary/50 ring-2 ring-primary/20",
+                          else: "border-base-300"
+                        )
+                      ]}>
+                        <div class="relative">
+                          <button
+                            :if={
+                              group.background_removed &&
+                                Helpers.public_image_url(group.background_removed)
+                            }
+                            type="button"
+                            phx-click="open_lightbox"
+                            phx-value-image-id={group.background_removed.id}
+                            class="group relative block w-full"
+                            title="View full size"
+                          >
+                            <img
+                              id={"product-image-background-#{group.original.id}"}
+                              src={Helpers.public_image_url(group.background_removed)}
+                              alt={
+                                group.background_removed.original_filename ||
+                                  group.background_removed.kind
+                              }
+                              class="aspect-square w-full object-cover transition group-hover:opacity-90"
+                            />
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                              <.icon
+                                name="hero-arrows-pointing-out"
+                                class="size-8 rounded-full bg-base-100/80 p-1.5 text-base-content"
+                              />
+                            </div>
+                          </button>
+                          <button
+                            :if={
+                              @storefront && group.background_removed &&
+                                Helpers.public_image_url(group.background_removed)
+                            }
+                            type="button"
+                            phx-click="toggle_storefront_visible"
+                            phx-value-image-id={group.background_removed.id}
+                            class={[
+                              "absolute bottom-2 right-2 flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold shadow transition",
+                              if(
+                                group.background_removed &&
+                                  group.background_removed.storefront_visible,
+                                do:
+                                  "border-primary bg-primary text-primary-content hover:bg-primary/80",
+                                else:
+                                  "border-base-300 bg-base-100/90 text-base-content/70 hover:border-primary hover:text-primary"
+                              )
+                            ]}
+                            title={
+                              if(
+                                group.background_removed &&
+                                  group.background_removed.storefront_visible,
+                                do: "Remove from Storefront",
+                                else: "Add to Storefront"
+                              )
+                            }
+                          >
+                            <.icon
+                              name={
+                                if(
+                                  group.background_removed &&
+                                    group.background_removed.storefront_visible,
+                                  do: "hero-check",
+                                  else: "hero-plus"
+                                )
+                              }
+                              class="size-3"
+                            />
+                            {if(
+                              group.background_removed &&
+                                group.background_removed.storefront_visible,
+                              do: "In gallery",
+                              else: "Add"
+                            )}
+                          </button>
+                        </div>
                         <div class="p-3 text-sm">
                           <p class="font-semibold">Background removed</p>
                           <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/50">
@@ -892,6 +1112,7 @@ defmodule ResellerWeb.ProductsLive.Show do
                 </div>
               </div>
 
+              <%!-- ── Upload / manage section ── --%>
               <div class="mt-8 border-t border-base-300/80 pt-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -943,6 +1164,7 @@ defmodule ResellerWeb.ProductsLive.Show do
                 </div>
               </div>
 
+              <%!-- ── Real-life previews ── --%>
               <div class="mt-8 border-t border-base-300/80 pt-6">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -996,14 +1218,62 @@ defmodule ResellerWeb.ProductsLive.Show do
                   <div
                     :for={image <- Helpers.lifestyle_preview_images(@product)}
                     id={"lifestyle-preview-image-#{image.id}"}
-                    class="overflow-hidden rounded-3xl border border-info/20 bg-info/5"
+                    class={[
+                      "overflow-hidden rounded-3xl border transition",
+                      if(image.storefront_visible,
+                        do: "border-primary/50 bg-primary/5 ring-2 ring-primary/20",
+                        else: "border-info/20 bg-info/5"
+                      )
+                    ]}
                   >
-                    <img
-                      :if={image_url = Helpers.public_image_url(image)}
-                      src={image_url}
-                      alt={image.original_filename || image.kind}
-                      class="aspect-square w-full object-cover"
-                    />
+                    <div class="relative">
+                      <button
+                        :if={image_url = Helpers.public_image_url(image)}
+                        type="button"
+                        phx-click="open_lightbox"
+                        phx-value-image-id={image.id}
+                        class="group relative block w-full"
+                        title="View full size"
+                      >
+                        <img
+                          src={image_url}
+                          alt={image.original_filename || image.kind}
+                          class="aspect-square w-full object-cover transition group-hover:opacity-90"
+                        />
+                        <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                          <.icon
+                            name="hero-arrows-pointing-out"
+                            class="size-8 rounded-full bg-base-100/80 p-1.5 text-base-content"
+                          />
+                        </div>
+                      </button>
+                      <button
+                        :if={@storefront && Helpers.public_image_url(image)}
+                        type="button"
+                        phx-click="toggle_storefront_visible"
+                        phx-value-image-id={image.id}
+                        class={[
+                          "absolute bottom-2 right-2 flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold shadow transition",
+                          if(image.storefront_visible,
+                            do: "border-primary bg-primary text-primary-content hover:bg-primary/80",
+                            else:
+                              "border-base-300 bg-base-100/90 text-base-content/70 hover:border-primary hover:text-primary"
+                          )
+                        ]}
+                        title={
+                          if(image.storefront_visible,
+                            do: "Remove from Storefront",
+                            else: "Add to Storefront"
+                          )
+                        }
+                      >
+                        <.icon
+                          name={if(image.storefront_visible, do: "hero-check", else: "hero-plus")}
+                          class="size-3"
+                        />
+                        {if(image.storefront_visible, do: "In gallery", else: "Add")}
+                      </button>
+                    </div>
                     <div class="p-3 text-sm">
                       <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -1062,6 +1332,81 @@ defmodule ResellerWeb.ProductsLive.Show do
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <%!-- ── Storefront Gallery (selected + draggable) ── --%>
+              <div
+                :if={@storefront}
+                id="storefront-gallery-section"
+                class="mt-8 border-t border-base-300/80 pt-6"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.22em] text-base-content/50">
+                      Storefront gallery
+                    </p>
+                    <p class="mt-2 max-w-2xl text-sm leading-6 text-base-content/70">
+                      Images you've toggled above appear here. Drag to reorder — this order controls how they display on your public storefront.
+                    </p>
+                  </div>
+                  <span class={[
+                    "badge rounded-full border px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em]",
+                    if(Helpers.storefront_visible_count(@product) > 0,
+                      do: "border-primary/30 bg-primary/10 text-primary",
+                      else: "border-base-300 bg-base-100 text-base-content/50"
+                    )
+                  ]}>
+                    {Helpers.storefront_visible_count(@product)} selected
+                  </span>
+                </div>
+
+                <div
+                  :if={Helpers.storefront_visible_count(@product) == 0}
+                  class="mt-4 rounded-[1.75rem] border border-dashed border-base-300 bg-base-50 px-5 py-5 text-sm leading-6 text-base-content/60"
+                >
+                  No images selected yet. Use the
+                  <strong class="font-semibold text-base-content">+ Add</strong>
+                  button on any image tile above to include it here.
+                </div>
+
+                <ul
+                  :if={Helpers.storefront_visible_count(@product) > 0}
+                  id="storefront-gallery-list"
+                  phx-hook="SortableGallery"
+                  class="mt-4 flex flex-wrap gap-3"
+                >
+                  <li
+                    :for={image <- Helpers.storefront_selected_images(@product)}
+                    id={"storefront-gallery-item-#{image.id}"}
+                    data-image-id={image.id}
+                    class="group relative cursor-grab overflow-hidden rounded-2xl border border-primary/30 bg-base-100 shadow-sm transition active:cursor-grabbing"
+                  >
+                    <div data-drag-handle class="relative">
+                      <img
+                        src={Helpers.public_image_url(image)}
+                        alt={image.original_filename || image.kind}
+                        class="size-24 object-cover sm:size-28"
+                      />
+                      <div class="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-black/50 to-transparent pb-1.5 pt-4 opacity-0 transition group-hover:opacity-100">
+                        <.icon name="hero-bars-3" class="size-3.5 text-white" />
+                      </div>
+                    </div>
+                    <div class="px-2 pb-2 pt-1">
+                      <p class="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-base-content/50">
+                        {Helpers.storefront_image_kind_label(image)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      phx-click="toggle_storefront_visible"
+                      phx-value-image-id={image.id}
+                      class="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-base-100/90 text-base-content/50 opacity-0 shadow transition hover:bg-error hover:text-error-content group-hover:opacity-100"
+                      title="Remove from gallery"
+                    >
+                      <.icon name="hero-x-mark" class="size-3" />
+                    </button>
+                  </li>
+                </ul>
               </div>
             </.surface>
           </div>
@@ -1212,44 +1557,31 @@ defmodule ResellerWeb.ProductsLive.Show do
               </.header>
 
               <%= if @storefront do %>
-                <.form
-                  for={@storefront_publication_form}
-                  id="product-storefront-form"
-                  phx-change="validate_storefront_publication"
-                  phx-submit="save_storefront_publication"
-                  class="grid gap-4"
-                >
-                  <div class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                      <div class="max-w-2xl">
-                        <p class="text-sm font-semibold">Publish on storefront</p>
-                        <p class="mt-1 text-sm leading-6 text-base-content/68">
-                          Requires a saved storefront, a product title, and at least one finalized original image.
-                        </p>
-                      </div>
-                      <label class="label cursor-pointer gap-3">
-                        <input
-                          id="storefront-publication-enabled"
-                          type="checkbox"
-                          checked={
-                            truthy_field?(@storefront_publication_form[:storefront_enabled].value)
-                          }
-                          phx-click="toggle_storefront_enabled"
-                          class="toggle toggle-primary"
-                        />
-                        <span class="text-sm font-medium">Enabled</span>
-                      </label>
+                <%!-- Toggle lives outside the URL form so phx-change doesn't interfere --%>
+                <div class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="max-w-2xl">
+                      <p class="text-sm font-semibold">Publish on storefront</p>
+                      <p class="mt-1 text-sm leading-6 text-base-content/68">
+                        Requires a saved storefront, a product title, and at least one finalized original image.
+                      </p>
                     </div>
-                    <p
-                      :for={
-                        error <- form_field_errors(@storefront_publication_form[:storefront_enabled])
-                      }
-                      class="mt-3 text-sm text-error"
-                    >
-                      {error}
-                    </p>
+                    <label class="label cursor-pointer gap-3" for="storefront-publication-enabled">
+                      <input
+                        id="storefront-publication-enabled"
+                        type="checkbox"
+                        checked={@product.storefront_enabled}
+                        phx-click="toggle_storefront_enabled"
+                        class="toggle toggle-primary"
+                      />
+                      <span class="text-sm font-medium">
+                        {if(@product.storefront_enabled, do: "Enabled", else: "Disabled")}
+                      </span>
+                    </label>
                   </div>
+                </div>
 
+                <div :if={@product.storefront_enabled} class="mt-4 grid gap-4">
                   <div class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4">
                     <p class="text-xs uppercase tracking-[0.2em] text-base-content/45">
                       Public product URL
@@ -1277,77 +1609,79 @@ defmodule ResellerWeb.ProductsLive.Show do
                     >
                       Published {Helpers.format_datetime(@product.storefront_published_at)}
                     </p>
-                    <p class="mt-2 text-sm leading-6 text-base-content/65">
-                      The path is reserved now. Public storefront routing lands in the next storefront step.
-                    </p>
                   </div>
 
-                  <div
-                    :if={@product.marketplace_listings == []}
-                    class="rounded-[1.5rem] border border-dashed border-base-300 bg-base-100 px-4 py-4 text-sm leading-6 text-base-content/68"
-                  >
-                    No marketplace drafts exist for this product yet. External listing links become editable after AI marketplace copy is generated.
-                  </div>
-
-                  <div
+                  <.form
                     :if={@product.marketplace_listings != []}
-                    id="product-storefront-marketplace-links"
-                    class="grid gap-3"
+                    for={@storefront_publication_form}
+                    id="product-storefront-form"
+                    phx-change="validate_storefront_publication"
+                    phx-submit="save_storefront_publication"
+                    class="grid gap-4"
                   >
                     <div
-                      :for={listing <- @product.marketplace_listings}
-                      class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4"
+                      id="product-storefront-marketplace-links"
+                      class="grid gap-3"
                     >
-                      <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p class="text-sm font-semibold">
-                            {Marketplaces.marketplace_label(listing.marketplace)}
-                          </p>
-                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/45">
-                            {listing.marketplace}
+                      <div
+                        :for={listing <- @product.marketplace_listings}
+                        class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4"
+                      >
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p class="text-sm font-semibold">
+                              {Marketplaces.marketplace_label(listing.marketplace)}
+                            </p>
+                            <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/45">
+                              {listing.marketplace}
+                            </p>
+                          </div>
+                          <span class="badge rounded-full border border-base-300 bg-base-50 px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-base-content/60">
+                            {listing.status}
+                          </span>
+                        </div>
+
+                        <div class="mt-4">
+                          <label
+                            for={"marketplace-external-url-#{listing.id}"}
+                            class="label mb-1 text-sm"
+                          >
+                            External listing URL
+                          </label>
+                          <input
+                            id={"marketplace-external-url-#{listing.id}"}
+                            type="url"
+                            name={"storefront_publication[marketplace_urls][#{listing.marketplace}]"}
+                            value={Map.get(@marketplace_url_values, listing.marketplace, "")}
+                            placeholder="https://..."
+                            class={[
+                              "input w-full",
+                              Map.has_key?(@marketplace_url_errors, listing.marketplace) &&
+                                "input-error"
+                            ]}
+                          />
+                          <p
+                            :if={error = Map.get(@marketplace_url_errors, listing.marketplace)}
+                            class="mt-2 text-sm text-error"
+                          >
+                            {error}
                           </p>
                         </div>
-                        <span class="badge rounded-full border border-base-300 bg-base-50 px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-base-content/60">
-                          {listing.status}
-                        </span>
-                      </div>
-
-                      <div class="mt-4">
-                        <label
-                          for={"marketplace-external-url-#{listing.id}"}
-                          class="label mb-1 text-sm"
-                        >
-                          External listing URL
-                        </label>
-                        <input
-                          id={"marketplace-external-url-#{listing.id}"}
-                          type="url"
-                          name={"storefront_publication[marketplace_urls][#{listing.marketplace}]"}
-                          value={Map.get(@marketplace_url_values, listing.marketplace, "")}
-                          placeholder="https://..."
-                          class={[
-                            "input w-full",
-                            Map.has_key?(@marketplace_url_errors, listing.marketplace) &&
-                              "input-error"
-                          ]}
-                        />
-                        <p
-                          :if={error = Map.get(@marketplace_url_errors, listing.marketplace)}
-                          class="mt-2 text-sm text-error"
-                        >
-                          {error}
-                        </p>
                       </div>
                     </div>
-                  </div>
 
-                  <div class="flex flex-wrap gap-2">
-                    <.button class="btn btn-primary rounded-full">Save storefront settings</.button>
-                    <.link navigate={~p"/app/settings"} class="btn btn-ghost rounded-full">
-                      Open storefront settings
-                    </.link>
-                  </div>
-                </.form>
+                    <div class="flex flex-wrap gap-2">
+                      <.button class="btn btn-primary rounded-full">Save marketplace URLs</.button>
+                    </div>
+                  </.form>
+
+                  <.link
+                    navigate={~p"/app/settings"}
+                    class="btn btn-ghost btn-sm rounded-full self-start"
+                  >
+                    Open storefront settings
+                  </.link>
+                </div>
               <% else %>
                 <div
                   id="product-storefront-setup-needed"
@@ -1422,6 +1756,43 @@ defmodule ResellerWeb.ProductsLive.Show do
           </div>
         </section>
       </section>
+
+      <div
+        :if={@lightbox_image}
+        id="image-lightbox"
+        phx-click="close_lightbox"
+        phx-window-keydown="close_lightbox"
+        phx-key="Escape"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      >
+        <div
+          class="relative flex max-h-full max-w-4xl flex-col items-center gap-4"
+          phx-click-stop="ignore"
+        >
+          <img
+            src={Helpers.public_image_url(@lightbox_image)}
+            alt={@lightbox_image.original_filename || @lightbox_image.kind}
+            class="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl"
+          />
+          <div class="flex items-center gap-3">
+            <a
+              href={Helpers.public_image_url(@lightbox_image)}
+              download={@lightbox_image.original_filename || "product-image"}
+              class="btn btn-sm rounded-full bg-white/10 text-white hover:bg-white/20"
+              phx-click-stop="ignore"
+            >
+              <.icon name="hero-arrow-down-tray" class="size-4" /> Download
+            </a>
+            <button
+              type="button"
+              phx-click="close_lightbox"
+              class="btn btn-sm rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <.icon name="hero-x-mark" class="size-4" /> Close
+            </button>
+          </div>
+        </div>
+      </div>
     </Layouts.app_shell>
     """
   end
@@ -1532,10 +1903,6 @@ defmodule ResellerWeb.ProductsLive.Show do
     |> List.first()
   end
 
-  defp form_field_errors(field), do: Enum.map(field.errors, &translate_error/1)
-
-  defp truthy_field?(value), do: value in [true, "true", 1, "1", "on"]
-
   defp product_storefront_preview_url(nil, _product), do: "Save storefront details first."
 
   defp product_storefront_preview_url(storefront, product) do
@@ -1553,6 +1920,32 @@ defmodule ResellerWeb.ProductsLive.Show do
         put_flash(socket, :error, "Could not update product: #{format_reason(reason)}")
     end
   end
+
+  defp move_image_in_list(ids, image_id, "up") do
+    idx = Enum.find_index(ids, &(&1 == image_id))
+
+    if is_nil(idx) or idx == 0 do
+      ids
+    else
+      ids
+      |> List.delete_at(idx)
+      |> List.insert_at(idx - 1, image_id)
+    end
+  end
+
+  defp move_image_in_list(ids, image_id, "down") do
+    idx = Enum.find_index(ids, &(&1 == image_id))
+
+    if is_nil(idx) or idx == length(ids) - 1 do
+      ids
+    else
+      ids
+      |> List.delete_at(idx)
+      |> List.insert_at(idx + 1, image_id)
+    end
+  end
+
+  defp move_image_in_list(ids, _image_id, _dir), do: ids
 
   defp parse_integer(value) when is_integer(value), do: value
 

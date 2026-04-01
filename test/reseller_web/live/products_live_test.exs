@@ -444,10 +444,13 @@ defmodule ResellerWeb.ProductsLiveTest do
 
     {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
 
-    assert has_element?(view, "#product-storefront-form")
-    assert has_element?(view, "#product-storefront-preview-url", "/store/seller-store/products/")
+    assert has_element?(view, "#storefront-publication-enabled")
+    refute has_element?(view, "#product-storefront-form")
 
     view |> element("#storefront-publication-enabled") |> render_click()
+
+    assert has_element?(view, "#product-storefront-preview-url", "/store/seller-store/products/")
+    assert has_element?(view, "#product-storefront-form")
 
     view
     |> form("#product-storefront-form", %{

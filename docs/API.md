@@ -1348,6 +1348,84 @@ Returns `404` when the image does not belong to the product or the product does 
 
 Returns `422 invalid_product_state` when the product is in `uploading`, `processing`, `sold`, or `archived` status.
 
+### `PATCH /api/v1/products/:id/images/:image_id/storefront`
+
+Updates the storefront visibility and/or display order position of a single product image.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body (any subset of fields):
+
+```json
+{
+  "storefront_visible": true,
+  "storefront_position": 2
+}
+```
+
+- `storefront_visible` — when `true` the image appears in the public storefront gallery.
+- `storefront_position` — explicit display order (1-based); `null` falls back to upload `position`.
+
+**Storefront gallery selection logic:**
+
+When at least one image has `storefront_visible: true`, the public gallery shows only those images
+in `storefront_position` order (nulls last, then `position`, then `id`).
+
+When no image is `storefront_visible`, the gallery falls back in this priority order:
+1. Approved `lifestyle_generated` images (`seller_approved: true`), sorted by `position, id`.
+2. `background_removed` images, sorted by `position, id`.
+3. `original` images only when neither of the above exist, sorted by `position, id`.
+
+Only images with `processing_status: "ready"` are shown publicly in all cases.
+
+Response:
+
+```json
+{
+  "data": {
+    "product": { "id": 12 }
+  }
+}
+```
+
+Returns `404` when the image or product is not found or does not belong to the authenticated user.
+
+### `PUT /api/v1/products/:id/images/storefront_order`
+
+Sets the `storefront_position` for an ordered list of image IDs. Positions are assigned
+1-to-N in the supplied order. This is the canonical way to reorder the storefront gallery.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "image_ids": [42, 17, 99]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "product": { "id": 12 }
+  }
+}
+```
+
+Returns `404` when the product is not found or does not belong to the authenticated user.
+Returns `400 bad_request` when `image_ids` is not a list.
+
 ### Product Processing Status
 
 Product payloads now expose `latest_processing_run` so clients can track background progress without a separate worker endpoint yet.

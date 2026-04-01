@@ -25,6 +25,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {Hooks as BackpexHooks} from "backpex"
 import {hooks as colocatedHooks} from "phoenix-colocated/reseller"
 import topbar from "../vendor/topbar"
+import Sortable from "../vendor/sortable.min.js"
 
 const ClipboardButton = {
   mounted() {
@@ -181,11 +182,31 @@ window.addEventListener("phx:navigate", () => {
 
 const CountUp = {}
 
+const SortableGallery = {
+  mounted() {
+    this.sortable = new Sortable(this.el, {
+      animation: 150,
+      ghostClass: "opacity-40",
+      chosenClass: "scale-105",
+      dragClass: "shadow-xl",
+      handle: "[data-drag-handle]",
+      onEnd: (evt) => {
+        const items = Array.from(this.el.querySelectorAll("[data-image-id]"))
+        const ids = items.map(el => parseInt(el.dataset.imageId, 10))
+        this.pushEvent("reorder_storefront_images", {image_ids: ids})
+      }
+    })
+  },
+  destroyed() {
+    if (this.sortable) this.sortable.destroy()
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {ClipboardButton, ScrollReveal, CountUp, ...colocatedHooks, ...BackpexHooks},
+  hooks: {ClipboardButton, ScrollReveal, CountUp, SortableGallery, ...colocatedHooks, ...BackpexHooks},
 })
 
 // Show progress bar on live navigation and form submits

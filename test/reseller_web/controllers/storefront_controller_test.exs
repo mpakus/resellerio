@@ -286,6 +286,38 @@ defmodule ResellerWeb.StorefrontControllerTest do
     refute response =~ "Buy from an active listing"
   end
 
+  test "GET /store/:slug/products/:product_ref shows lifestyle and background_removed images as fallback gallery",
+       %{conn: conn} do
+    user = user_fixture(%{"email" => "gallery-fallback@example.com"})
+
+    _storefront =
+      storefront_fixture(user, %{
+        "slug" => "gallery-fallback",
+        "title" => "Gallery Fallback Store",
+        "enabled" => true
+      })
+
+    product =
+      public_product_fixture(user, %{
+        "title" => "Fallback Gallery Item",
+        "price" => "50.00"
+      })
+
+    bg_removed =
+      add_image(product, %{
+        "kind" => "background_removed",
+        "position" => 1,
+        "storage_key" => "products/#{product.id}/bg_removed_1.jpg"
+      })
+
+    response =
+      conn
+      |> get("/store/gallery-fallback/products/#{product.id}-fallback-gallery-item")
+      |> html_response(200)
+
+    assert response =~ bg_removed.storage_key |> String.split("/") |> List.last()
+  end
+
   defp public_product_fixture(user, attrs) do
     product =
       product_fixture(
@@ -317,6 +349,25 @@ defmodule ResellerWeb.StorefrontControllerTest do
       })
 
     refreshed_product
+  end
+
+  defp add_image(product, extra_attrs) do
+    base = %{
+      "kind" => "original",
+      "position" => 1,
+      "storage_key" => "products/#{product.id}/#{System.unique_integer([:positive])}.jpg",
+      "content_type" => "image/jpeg",
+      "processing_status" => "ready",
+      "original_filename" => "photo.jpg",
+      "byte_size" => 2048,
+      "width" => 1200,
+      "height" => 1600
+    }
+
+    %ProductImage{}
+    |> ProductImage.create_changeset(Map.merge(base, extra_attrs))
+    |> Ecto.Changeset.put_assoc(:product, product)
+    |> Repo.insert!()
   end
 
   defp add_finalized_original_image(product) do

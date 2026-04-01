@@ -444,6 +444,33 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def update_image_storefront_settings_for_user(%User{} = user, product_id, image_id, attrs) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        case Media.update_product_image_storefront_settings(product, image_id, attrs) do
+          {:ok, _image} -> {:ok, refresh_product(product)}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  def reorder_storefront_images_for_user(%User{} = user, product_id, ordered_image_ids)
+      when is_list(ordered_image_ids) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        case Media.reorder_product_images_storefront_position(product, ordered_image_ids) do
+          {:ok, _result} -> {:ok, refresh_product(product)}
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
   defp product_changeset(%User{} = user, attrs) do
     %Product{}
     |> Product.create_changeset(attrs)

@@ -225,6 +225,12 @@ Responsibilities:
 - inquiry notification dispatch
 - owner-scoped inquiry listing with search, pagination, and deletion
 
+**Storefront gallery image selection** (`storefront_gallery_images/1`):
+
+- If any image has `storefront_visible: true` → show those, ordered by `storefront_position NULLS LAST, position, id`.
+- Fallback (no visible images): approved `lifestyle_generated` first, then `background_removed`, then `original` only when neither exist.
+- Only `processing_status: "ready"` images are shown publicly.
+
 Primary modules:
 
 - `Reseller.Storefronts`
@@ -344,23 +350,27 @@ The workspace LiveView currently supports:
 
 ### JSON API
 
-Current authenticated API surface:
+Current authenticated API surface (see `docs/API.md` for full reference):
 
-- `GET /api/v1/me`
-- `PATCH /api/v1/me`
-- `GET /api/v1/products`
-- `POST /api/v1/products`
-- `GET /api/v1/products/:id`
-- `PATCH /api/v1/products/:id`
-- `DELETE /api/v1/products/:id`
+- `GET /api/v1/me`, `PATCH /api/v1/me`
+- `GET /api/v1/product_tabs`, `POST`, `PATCH /:id`, `DELETE /:id`
+- `GET /api/v1/storefront`, `PUT /api/v1/storefront`
+- `GET /api/v1/storefront/pages`, `POST`, `PATCH /:page_id`, `DELETE /:page_id`
+- `DELETE /api/v1/storefront/assets/:kind`
+- `GET /api/v1/inquiries`, `DELETE /:id`
+- `GET /api/v1/products`, `POST`, `GET /:id`, `PATCH /:id`, `DELETE /:id`
 - `POST /api/v1/products/:id/finalize_uploads`
-- `POST /api/v1/products/:id/mark_sold`
-- `POST /api/v1/products/:id/archive`
-- `POST /api/v1/products/:id/unarchive`
-- `POST /api/v1/exports`
-- `GET /api/v1/exports/:id`
-- `POST /api/v1/imports`
-- `GET /api/v1/imports/:id`
+- `POST /api/v1/products/:id/reprocess`
+- `POST /api/v1/products/:id/generate_lifestyle_images`
+- `GET /api/v1/products/:id/lifestyle_generation_runs`
+- `POST /api/v1/products/:id/generated_images/:image_id/approve`
+- `DELETE /api/v1/products/:id/generated_images/:image_id`
+- `DELETE /api/v1/products/:id/images/:image_id`
+- `PATCH /api/v1/products/:id/images/:image_id/storefront`
+- `PUT /api/v1/products/:id/images/storefront_order`
+- `POST /api/v1/products/:id/mark_sold`, `archive`, `unarchive`
+- `POST /api/v1/exports`, `GET /api/v1/exports/:id`
+- `POST /api/v1/imports`, `GET /api/v1/imports/:id`
 
 ### Admin
 

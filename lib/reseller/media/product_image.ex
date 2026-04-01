@@ -19,6 +19,8 @@ defmodule Reseller.Media.ProductImage do
     field :source_image_ids, {:array, :integer}, default: []
     field :seller_approved, :boolean, default: false
     field :approved_at, :utc_datetime
+    field :storefront_visible, :boolean, default: false
+    field :storefront_position, :integer
 
     belongs_to :product, Reseller.Catalog.Product
     belongs_to :lifestyle_generation_run, Reseller.AI.ProductLifestyleGenerationRun
@@ -45,6 +47,8 @@ defmodule Reseller.Media.ProductImage do
       :source_image_ids,
       :seller_approved,
       :approved_at,
+      :storefront_visible,
+      :storefront_position,
       :lifestyle_generation_run_id
     ])
     |> validate_required([:kind, :position, :storage_key, :content_type, :processing_status])
@@ -76,6 +80,12 @@ defmodule Reseller.Media.ProductImage do
     |> unique_constraint([:lifestyle_generation_run_id, :scene_key, :variant_index],
       name: :product_images_lifestyle_generation_variant_index
     )
+  end
+
+  def storefront_update_changeset(product_image, attrs) do
+    product_image
+    |> cast(attrs, [:storefront_visible, :storefront_position])
+    |> validate_number(:storefront_position, greater_than: 0)
   end
 
   defp validate_lifestyle_generated_metadata(changeset) do

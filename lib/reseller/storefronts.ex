@@ -482,7 +482,14 @@ defmodule Reseller.Storefronts do
   defp public_product_preload do
     [
       :marketplace_listings,
-      images: from(image in ProductImage, order_by: [asc: image.position, asc: image.id])
+      images:
+        from(image in ProductImage,
+          order_by: [
+            asc_nulls_last: image.storefront_position,
+            asc: image.position,
+            asc: image.id
+          ]
+        )
     ]
   end
 

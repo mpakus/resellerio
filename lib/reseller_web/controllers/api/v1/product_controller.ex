@@ -342,6 +342,56 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def update_image_storefront(conn, %{"id" => product_id, "image_id" => image_id} = params) do
+    case parse_integer(image_id) do
+      nil ->
+        APIError.render(conn, :not_found, "not_found", "Product image not found")
+
+      parsed_image_id ->
+        attrs = Map.take(params, ["storefront_visible", "storefront_position"])
+
+        case Catalog.update_image_storefront_settings_for_user(
+               conn.assigns.current_user,
+               product_id,
+               parsed_image_id,
+               attrs
+             ) do
+          {:ok, product} ->
+            json(conn, %{data: %{product: product_json(product)}})
+
+          {:error, :not_found} ->
+            APIError.render(conn, :not_found, "not_found", "Product or image not found")
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            APIError.validation(conn, changeset)
+        end
+    end
+  end
+
+  def reorder_storefront_images(conn, %{"id" => product_id, "image_ids" => image_ids})
+      when is_list(image_ids) do
+    parsed_ids = Enum.map(image_ids, &parse_integer/1) |> Enum.reject(&is_nil/1)
+
+    case Catalog.reorder_storefront_images_for_user(
+           conn.assigns.current_user,
+           product_id,
+           parsed_ids
+         ) do
+      {:ok, product} ->
+        json(conn, %{data: %{product: product_json(product)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, reason} ->
+        APIError.render(conn, :unprocessable_entity, "reorder_failed", inspect(reason))
+    end
+  end
+
+  def reorder_storefront_images(conn, _params) do
+    APIError.render(conn, :bad_request, "bad_request", "image_ids must be a list")
+  end
+
   def archive(conn, %{"id" => product_id}) do
     case Catalog.archive_product_for_user(conn.assigns.current_user, product_id) do
       {:ok, product} ->

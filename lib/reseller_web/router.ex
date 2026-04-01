@@ -142,6 +142,12 @@ defmodule ResellerWeb.Router do
 
       delete "/products/:id/images/:image_id", ProductController, :delete_image
 
+      patch "/products/:id/images/:image_id/storefront",
+            ProductController,
+            :update_image_storefront
+
+      put "/products/:id/images/storefront_order", ProductController, :reorder_storefront_images
+
       post "/products/:id/mark_sold", ProductController, :mark_sold
       post "/products/:id/archive", ProductController, :archive
       post "/products/:id/unarchive", ProductController, :unarchive

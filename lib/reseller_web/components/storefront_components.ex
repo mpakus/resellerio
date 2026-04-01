@@ -186,9 +186,36 @@ defmodule ResellerWeb.StorefrontComponents do
   def storefront_primary_image_url(_product), do: nil
 
   def storefront_gallery_images(%Product{images: images}) when is_list(images) do
-    case Enum.filter(images, &(&1.kind == "original")) do
-      [] -> images
-      originals -> originals
+    ready_images =
+      Enum.filter(images, fn img ->
+        img.processing_status == "ready" and
+          img.kind in ["original", "background_removed", "lifestyle_generated"]
+      end)
+
+    visible = Enum.filter(ready_images, & &1.storefront_visible)
+
+    if visible != [] do
+      Enum.sort_by(visible, fn img ->
+        {img.storefront_position || 99_999, img.position, img.id}
+      end)
+    else
+      lifestyle =
+        Enum.filter(ready_images, &(&1.kind == "lifestyle_generated" and &1.seller_approved))
+
+      bg_removed = Enum.filter(ready_images, &(&1.kind == "background_removed"))
+
+      fallback =
+        if lifestyle != [] or bg_removed != [] do
+          sorted_lifestyle = Enum.sort_by(lifestyle, &{&1.position || 0, &1.id})
+          sorted_bg = Enum.sort_by(bg_removed, &{&1.position || 0, &1.id})
+          sorted_lifestyle ++ sorted_bg
+        else
+          ready_images
+          |> Enum.filter(&(&1.kind == "original"))
+          |> Enum.sort_by(&{&1.position, &1.id})
+        end
+
+      fallback
     end
   end
 

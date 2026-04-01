@@ -99,6 +99,53 @@ defmodule ResellerWeb.ProductsLive.Helpers do
     your
   )
 
+  def storefront_sorted_image_groups(%Product{} = product) do
+    groups = product_image_groups(product)
+
+    Enum.sort_by(groups, fn group ->
+      img = group.original
+      {img.storefront_position || 99_999, img.position, img.id}
+    end)
+  end
+
+  def storefront_sorted_image_groups(_product), do: []
+
+  def storefront_ordered_image_ids(%Product{} = product) do
+    product
+    |> storefront_selected_images()
+    |> Enum.map(& &1.id)
+  end
+
+  def storefront_ordered_image_ids(_product), do: []
+
+  def storefront_visible_count(%Product{} = product) do
+    product.images
+    |> List.wrap()
+    |> Enum.count(& &1.storefront_visible)
+  end
+
+  def storefront_visible_count(_product), do: 0
+
+  def storefront_selected_images(%Product{} = product) do
+    product.images
+    |> List.wrap()
+    |> Enum.filter(& &1.storefront_visible)
+    |> Enum.sort_by(fn img ->
+      {img.storefront_position || 99_999, img.position, img.id}
+    end)
+  end
+
+  def storefront_selected_images(_product), do: []
+
+  def storefront_image_kind_label(%{kind: "original"}), do: "Original"
+  def storefront_image_kind_label(%{kind: "background_removed"}), do: "BG removed"
+  def storefront_image_kind_label(%{kind: "lifestyle_generated"}), do: "Real-life"
+  def storefront_image_kind_label(%{kind: kind}) when is_binary(kind), do: humanize_kind(kind)
+  def storefront_image_kind_label(_image), do: "Image"
+
+  def storefront_image_visible?(%{storefront_visible: true}), do: true
+  def storefront_image_visible?(_image), do: false
+
   def product_filters, do: @product_filters
   def manual_product_status_options, do: @manual_product_status_options
 

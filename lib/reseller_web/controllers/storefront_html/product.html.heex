@@ -22,39 +22,102 @@
     class="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]"
   >
     <div class="space-y-4">
-      <div class="overflow-hidden rounded-[2.2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_28px_80px_rgba(15,23,42,0.08)]">
+      <% gallery_images = storefront_gallery_images(@product)
+      primary_image = List.first(gallery_images) %>
+
+      <div
+        id="storefront-primary-image-wrap"
+        class="relative overflow-hidden rounded-[2.2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_28px_80px_rgba(15,23,42,0.08)]"
+      >
         <div class="aspect-[4/5] bg-white/60">
           <img
-            :if={storefront_primary_image_url(@product)}
-            src={storefront_primary_image_url(@product)}
+            :if={primary_image && storefront_image_url(primary_image)}
+            id="storefront-primary-image"
+            src={storefront_image_url(primary_image)}
             alt={@product.title || "Storefront product image"}
             class="size-full object-cover"
           />
           <div
-            :if={!storefront_primary_image_url(@product)}
+            :if={is_nil(primary_image) || !storefront_image_url(primary_image)}
             class="flex size-full items-center justify-center px-6 text-center text-sm text-[var(--storefront-muted)]"
           >
             Product images are still being prepared.
           </div>
         </div>
+
+        <button
+          :if={primary_image && storefront_image_url(primary_image)}
+          id="storefront-lightbox-open"
+          type="button"
+          onclick="var lb=document.getElementById('storefront-lightbox');lb.style.display='flex';lb.focus();"
+          class="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-full border border-white/30 bg-black/40 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/60"
+          aria-label="View full size"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class="size-3.5"
+          >
+            <path d="M15 3h6m0 0v6m0-6-7 7M9 21H3m0 0v-6m0 6 7-7" />
+          </svg>
+          Expand
+        </button>
       </div>
 
       <div
-        :if={storefront_gallery_images(@product) != []}
+        :if={length(gallery_images) > 1}
         id="storefront-product-gallery"
-        class="grid grid-cols-2 gap-4 sm:grid-cols-3"
+        class="flex gap-3 overflow-x-auto pb-1"
       >
-        <div
-          :for={image <- storefront_gallery_images(@product)}
-          class="overflow-hidden rounded-[1.4rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+        <button
+          :for={{image, idx} <- Enum.with_index(gallery_images)}
+          :if={storefront_image_url(image)}
+          type="button"
+          data-storefront-thumb
+          data-src={storefront_image_url(image)}
+          data-alt={@product.title || "Storefront gallery image"}
+          onclick="var t=this;var pi=document.getElementById('storefront-primary-image');if(pi){pi.src=t.dataset.src;pi.alt=t.dataset.alt;}var li=document.getElementById('storefront-lightbox-img');if(li){li.src=t.dataset.src;}document.querySelectorAll('[data-storefront-thumb]').forEach(function(el){el.classList.remove('ring-2','ring-offset-1');});t.classList.add('ring-2','ring-offset-1');"
+          style="ring-color: var(--storefront-primary); --tw-ring-color: var(--storefront-primary);"
+          class={[
+            "shrink-0 overflow-hidden rounded-[1rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_10px_25px_rgba(15,23,42,0.06)] transition hover:opacity-90",
+            if(idx == 0, do: "ring-2 ring-offset-1", else: "")
+          ]}
+          aria-label={"Image #{idx + 1}"}
         >
           <img
-            :if={storefront_image_url(image)}
             src={storefront_image_url(image)}
-            alt={@product.title || "Storefront gallery image"}
-            class="aspect-[4/5] size-full object-cover"
+            alt={@product.title || "Gallery thumbnail"}
+            class="size-20 object-cover sm:size-24"
           />
-        </div>
+        </button>
+      </div>
+
+      <div
+        :if={primary_image && storefront_image_url(primary_image)}
+        id="storefront-lightbox"
+        tabindex="-1"
+        onclick="if(event.target===this){this.style.display='none';}"
+        onkeydown="if(event.key==='Escape'){this.style.display='none';}"
+        style="display:none; position:fixed; inset:0; z-index:50; align-items:center; justify-content:center; flex-direction:column; gap:1rem; background:rgba(0,0,0,0.85); padding:1rem;"
+      >
+        <img
+          id="storefront-lightbox-img"
+          src={storefront_image_url(primary_image)}
+          alt={@product.title || "Full size image"}
+          style="max-height:80vh; max-width:100%; border-radius:1rem; object-fit:contain; box-shadow:0 30px 80px rgba(0,0,0,0.5);"
+        />
+        <button
+          type="button"
+          onclick="document.getElementById('storefront-lightbox').style.display='none';"
+          style="background:rgba(255,255,255,0.12); color:white; border:none; border-radius:9999px; padding:0.5rem 1.25rem; font-size:0.875rem; font-weight:600; cursor:pointer; transition:background 0.15s;"
+          onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.12)'"
+        >
+          Close
+        </button>
       </div>
     </div>
 
