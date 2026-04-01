@@ -228,22 +228,6 @@ defmodule ResellerWeb.WorkspaceLive do
     {:noreply, upload_storefront_asset(socket, :storefront_header, "header")}
   end
 
-  defp handle_storefront_logo_progress(:storefront_logo, entry, socket) do
-    if entry.done? do
-      {:noreply, consume_storefront_asset_entry(socket, entry, "logo")}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  defp handle_storefront_header_progress(:storefront_header, entry, socket) do
-    if entry.done? do
-      {:noreply, consume_storefront_asset_entry(socket, entry, "header")}
-    else
-      {:noreply, socket}
-    end
-  end
-
   def handle_event("delete_storefront_asset", %{"kind" => kind}, socket) do
     case Storefronts.delete_storefront_asset_for_user(socket.assigns.current_user, kind) do
       {:ok, _asset} ->
@@ -1286,6 +1270,22 @@ defmodule ResellerWeb.WorkspaceLive do
       </div>
     </Layouts.app_shell>
     """
+  end
+
+  defp handle_storefront_logo_progress(:storefront_logo, entry, socket) do
+    if entry.done? do
+      {:noreply, consume_storefront_asset_entry(socket, entry, "logo")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp handle_storefront_header_progress(:storefront_header, entry, socket) do
+    if entry.done? do
+      {:noreply, consume_storefront_asset_entry(socket, entry, "header")}
+    else
+      {:noreply, socket}
+    end
   end
 
   defp assign_workspace(socket, params, uri) do
