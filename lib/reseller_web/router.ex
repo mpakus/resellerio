@@ -46,6 +46,13 @@ defmodule ResellerWeb.Router do
       live "/sign-in", Auth.SignInLive
     end
 
+    scope "/" do
+      pipe_through :browser_authenticated
+
+      get "/app/listings", WorkspaceRedirectController, :listings
+      get "/app/products/export.xls", ProductsExcelController, :download
+    end
+
     live_session :authenticated, on_mount: [{ResellerWeb.LiveUserAuth, :ensure_authenticated}] do
       live "/app", WorkspaceLive, :dashboard
       live "/app/products", ProductsLive.Index, :index
@@ -54,12 +61,6 @@ defmodule ResellerWeb.Router do
       live "/app/inquiries", InquiriesLive, :index
       live "/app/exports", WorkspaceLive, :exports
       live "/app/settings", WorkspaceLive, :settings
-    end
-
-    scope "/" do
-      pipe_through :browser_authenticated
-
-      get "/app/listings", WorkspaceRedirectController, :listings
     end
 
     post "/sign-up", RegistrationController, :create

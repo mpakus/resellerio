@@ -79,6 +79,9 @@ defmodule Reseller.Exports.ZipBuilder do
     end)
   end
 
+  @spec export_product_payload(struct()) :: map()
+  def export_product_payload(product), do: export_product_payload(product, [])
+
   defp export_product_payload(product, image_payloads) do
     %{
       "id" => product.id,

@@ -264,7 +264,7 @@ defmodule ResellerWeb.ProductsLive.Index do
               {@current_user.email}
             </p>
             <p class="mt-2 text-sm text-base-content/65">
-              Table on the left, dedicated intake and review flows on their own LiveViews.
+              Search, filter, and manage your inventory. Open any product to review or edit it.
             </p>
             <div class="mt-5 flex flex-wrap gap-2">
               <.link navigate={new_product_path(assigns)} class="btn btn-primary btn-sm rounded-full">
@@ -292,6 +292,13 @@ defmodule ResellerWeb.ProductsLive.Index do
                 </p>
               </div>
               <div class="flex flex-wrap gap-2">
+                <.link
+                  :if={@product_index_total_count > 0}
+                  href={excel_export_path(assigns)}
+                  class="btn btn-outline btn-sm rounded-full"
+                >
+                  Export .xls
+                </.link>
                 <button
                   id="open-export-modal-button"
                   type="button"
@@ -302,7 +309,7 @@ defmodule ResellerWeb.ProductsLive.Index do
                     @product_index_total_count == 0 && "btn-disabled"
                   ]}
                 >
-                  Export filtered
+                  Full Export
                 </button>
                 <.link
                   navigate={new_product_path(assigns)}
@@ -435,7 +442,7 @@ defmodule ResellerWeb.ProductsLive.Index do
             </.form>
 
             <p class="mt-4 text-sm text-base-content/60">
-              Export uses the current search and filters, then packages all {@product_index_total_count} matching products across every page into one ZIP archive.
+              Full Export packages all {@product_index_total_count} matching products across every page into one ZIP archive with images. Export .xls downloads just the spreadsheet instantly.
             </p>
           </.surface>
 
@@ -1057,6 +1064,18 @@ defmodule ResellerWeb.ProductsLive.Index do
 
   defp new_product_path(assigns) do
     build_path("/app/products/new", %{"tab" => assigns.product_tab_filter})
+  end
+
+  defp excel_export_path(assigns) do
+    build_path("/app/products/export.xls", %{
+      "status" => assigns.product_filter,
+      "query" => assigns.product_index_query,
+      "tab" => assigns.product_tab_filter,
+      "updated_from" => assigns.product_index_updated_from,
+      "updated_to" => assigns.product_index_updated_to,
+      "sort" => assigns.product_index_sort,
+      "dir" => assigns.product_index_sort_dir
+    })
   end
 
   defp active_product_tab_id(product_tabs, value) do

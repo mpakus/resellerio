@@ -3,7 +3,6 @@ defmodule Reseller.Exports.Spreadsheet do
   Builds an Excel-compatible XML workbook for exported products.
   """
 
-  alias Reseller.Exports
   alias Reseller.Exports.Export
 
   @spec build_workbook(Export.t(), map()) :: binary()
@@ -19,6 +18,23 @@ defmodule Reseller.Exports.Spreadsheet do
       styles_xml(),
       worksheet_xml("Export", export_headers(), [export_row(export, manifest)]),
       worksheet_xml("Products", product_headers(), Enum.map(products, &product_row/1)),
+      "</Workbook>"
+    ]
+    |> IO.iodata_to_binary()
+  end
+
+  @spec build_products_workbook([map()]) :: binary()
+  def build_products_workbook(product_payloads) do
+    [
+      ~s(<?xml version="1.0"?>),
+      ~s(<?mso-application progid="Excel.Sheet"?>),
+      ~s(<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ),
+      ~s(xmlns:o="urn:schemas-microsoft-com:office:office" ),
+      ~s(xmlns:x="urn:schemas-microsoft-com:office:excel" ),
+      ~s(xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" ),
+      ~s(xmlns:html="http://www.w3.org/TR/REC-html40">),
+      styles_xml(),
+      worksheet_xml("Products", product_headers(), Enum.map(product_payloads, &product_row/1)),
       "</Workbook>"
     ]
     |> IO.iodata_to_binary()
@@ -53,7 +69,6 @@ defmodule Reseller.Exports.Spreadsheet do
       {"Product ID", & &1["id"]},
       {"Title", & &1["title"]},
       {"Status", & &1["status"]},
-      {"Source", & &1["source"]},
       {"Brand", & &1["brand"]},
       {"Category", & &1["category"]},
       {"Condition", & &1["condition"]},
@@ -63,6 +78,7 @@ defmodule Reseller.Exports.Spreadsheet do
       {"Price", & &1["price"]},
       {"Cost", & &1["cost"]},
       {"SKU", & &1["sku"]},
+      {"Source", & &1["source"]},
       {"Tags", fn payload -> join_values(payload["tags"]) end},
       {"Notes", & &1["notes"]},
       {"AI Summary", & &1["ai_summary"]},
@@ -100,14 +116,7 @@ defmodule Reseller.Exports.Spreadsheet do
       {"Archive Filename", fn export, _manifest -> export.file_name end},
       {"Requested At",
        fn export, _manifest -> export.requested_at && DateTime.to_iso8601(export.requested_at) end},
-      {"Product Count",
-       fn _export, manifest -> get_in(manifest, ["export", "product_count"]) end},
-      {"Filters",
-       fn _export, manifest ->
-         Exports.filter_summary(get_in(manifest, ["export", "filter_params"]) || %{})
-       end},
-      {"Filter Params JSON",
-       fn _export, manifest -> json_value(get_in(manifest, ["export", "filter_params"])) end}
+      {"Product Count", fn _export, manifest -> get_in(manifest, ["export", "product_count"]) end}
     ]
   end
 
@@ -130,6 +139,10 @@ defmodule Reseller.Exports.Spreadsheet do
 
   defp cell_xml(value, "header") do
     ~s(<Cell ss:StyleID="header"><Data ss:Type="String">#{xml_escape(to_string(value))}</Data></Cell>)
+  end
+
+  defp cell_xml(value, _style_id) when is_integer(value) do
+    ~s(<Cell><Data ss:Type="Number">#{value}</Data></Cell>)
   end
 
   defp cell_xml(value, _style_id) do

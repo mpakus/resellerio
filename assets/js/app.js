@@ -118,11 +118,74 @@ async function copyText(text) {
   textarea.remove()
 }
 
+const ScrollReveal = {
+  mounted() {
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed")
+            this.observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    )
+    this.el.querySelectorAll(".reveal, .reveal-left, .reveal-right").forEach(el => {
+      this.observer.observe(el)
+    })
+    if (this.el.classList.contains("reveal") || this.el.classList.contains("reveal-left") || this.el.classList.contains("reveal-right")) {
+      this.observer.observe(this.el)
+    }
+  },
+  destroyed() { this.observer.disconnect() }
+}
+
+let scrollRevealActive = false
+
+function revealCheck() {
+  const vh = window.innerHeight
+  document.querySelectorAll(".reveal, .reveal-left, .reveal-right").forEach(el => {
+    if (el.classList.contains("revealed")) return
+    const rect = el.getBoundingClientRect()
+    if (rect.top < vh + 20 && rect.bottom > -20) {
+      el.classList.add("revealed")
+    }
+  })
+}
+
+function setupScrollReveal() {
+  document.querySelectorAll(".reveal, .reveal-left, .reveal-right").forEach(el => {
+    el.classList.add("reveal-ready")
+  })
+  revealCheck()
+  if (!scrollRevealActive) {
+    scrollRevealActive = true
+    window.addEventListener("scroll", revealCheck, { passive: true })
+  }
+}
+
+document.addEventListener("DOMContentLoaded", setupScrollReveal)
+let scrollRevealInitialized = false
+window.addEventListener("phx:page-loading-stop", () => {
+  if (!scrollRevealInitialized) {
+    scrollRevealInitialized = true
+    setTimeout(setupScrollReveal, 100)
+  }
+})
+window.addEventListener("phx:navigate", () => {
+  scrollRevealInitialized = false
+  scrollRevealActive = false
+  setTimeout(setupScrollReveal, 120)
+})
+
+const CountUp = {}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {ClipboardButton, ...colocatedHooks, ...BackpexHooks},
+  hooks: {ClipboardButton, ScrollReveal, CountUp, ...colocatedHooks, ...BackpexHooks},
 })
 
 // Show progress bar on live navigation and form submits

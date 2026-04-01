@@ -59,6 +59,7 @@ defmodule ResellerWeb.WorkspaceLive do
        storefront_header_asset: nil,
        storefront_pages: [],
        theme_presets: ThemePresets.all(),
+       show_all_themes?: false,
        show_storefront_page_modal?: false,
        editing_storefront_page: nil,
        storefront_page_slug_locked: false,
@@ -206,6 +207,10 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   def handle_event("noop", _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_all_themes", _params, socket) do
+    {:noreply, assign(socket, show_all_themes?: !socket.assigns.show_all_themes?)}
+  end
 
   def handle_event("cancel-storefront-logo", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :storefront_logo, ref)}
@@ -708,12 +713,16 @@ defmodule ResellerWeb.WorkspaceLive do
                         <p class="text-xs uppercase tracking-[0.2em] text-base-content/45">
                           Preview path
                         </p>
-                        <p
+                        <a
                           id="storefront-preview-url"
-                          class="mt-2 break-all text-sm font-medium leading-6 text-base-content"
+                          href={storefront_root_url(@storefront_form[:slug].value)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-2 flex items-center gap-2 break-all text-sm font-medium leading-6 text-base-content hover:text-primary"
                         >
                           {storefront_root_url(@storefront_form[:slug].value)}
-                        </p>
+                          <.icon name="hero-arrow-top-right-on-square" class="size-4 shrink-0" />
+                        </a>
                         <p class="mt-2 text-sm leading-6 text-base-content/65">
                           Public routes are completed in SF4. This is the reserved path your storefront will use.
                         </p>
@@ -746,7 +755,7 @@ defmodule ResellerWeb.WorkspaceLive do
                         class="mt-4 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"
                       >
                         <label
-                          :for={preset <- @theme_presets}
+                          :for={preset <- visible_theme_presets(@theme_presets, @show_all_themes?, current_theme_id(@storefront_form))}
                           for={"storefront-theme-#{preset.id}"}
                           class="block cursor-pointer"
                         >
@@ -815,6 +824,20 @@ defmodule ResellerWeb.WorkspaceLive do
                           </div>
                         </label>
                       </div>
+
+                      <button
+                        type="button"
+                        phx-click="toggle_all_themes"
+                        class="mt-3 flex items-center gap-1.5 text-sm text-base-content/60 hover:text-base-content transition"
+                      >
+                        <.icon
+                          name={if @show_all_themes?, do: "hero-chevron-up", else: "hero-chevron-down"}
+                          class="size-4"
+                        />
+                        {if @show_all_themes?,
+                          do: "Show fewer presets",
+                          else: "Show all #{length(@theme_presets)} presets"}
+                      </button>
                     </div>
 
                     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -1285,6 +1308,7 @@ defmodule ResellerWeb.WorkspaceLive do
       storefront_header_asset: storefront_asset(storefront, "header"),
       storefront_pages: storefront.pages || [],
       theme_presets: ThemePresets.all(),
+      show_all_themes?: false,
       stats: dashboard_stats(products, exports, imports),
       current_params: params,
       current_url: uri
@@ -1635,6 +1659,19 @@ defmodule ResellerWeb.WorkspaceLive do
 
   defp storefront_page_modal_description(_page) do
     "Update the public copy, menu label, or published state for this page."
+  end
+
+  defp visible_theme_presets(presets, true, _current_theme_id), do: presets
+
+  defp visible_theme_presets(presets, false, current_theme_id) do
+    selected = Enum.find(presets, &(&1.id == current_theme_id))
+    defaults = Enum.take(presets, 4)
+
+    if selected && selected not in defaults do
+      defaults |> List.delete_at(-1) |> List.insert_at(-1, selected)
+    else
+      defaults
+    end
   end
 
   defp current_theme_id(form) do

@@ -47,14 +47,15 @@ defmodule ResellerWeb.Layouts do
             </div>
             <div>
               <p class="reseller-display text-xl font-semibold leading-none">Resellerio</p>
-              <p class="text-xs uppercase tracking-[0.28em] text-base-content/55">Web Workspace</p>
+              <p class="text-xs uppercase tracking-[0.28em] text-base-content/55">AI Inventory</p>
             </div>
           </.link>
 
           <div class="hidden items-center gap-3 md:flex">
             <a href="#workflow" class="btn btn-ghost btn-sm rounded-full">Workflow</a>
+            <a href="#features" class="btn btn-ghost btn-sm rounded-full">Features</a>
+            <a href="#lifestyle" class="btn btn-ghost btn-sm rounded-full">Lifestyle AI</a>
             <a href="#markets" class="btn btn-ghost btn-sm rounded-full">Markets</a>
-            <a href="#launch" class="btn btn-ghost btn-sm rounded-full">Launch</a>
             <a href={~p"/api/v1"} class="btn btn-outline btn-sm rounded-full">API v1</a>
             <%= if @current_user do %>
               <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
@@ -92,6 +93,26 @@ defmodule ResellerWeb.Layouts do
       </header>
 
       <main>{render_slot(@inner_block)}</main>
+
+      <footer class="border-t border-base-300/60 bg-base-200/40">
+        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 text-sm text-base-content/55 sm:flex-row sm:px-6 lg:px-8">
+          <a
+            href="https://scaledfactorialproduct.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="hover:text-base-content transition-colors"
+          >
+            Built by humans in Texas
+          </a>
+          <a href="https://made-by-human.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src="https://made-by-human.com/images/human29.png"
+              alt="made by human"
+              class="h-8 w-auto opacity-80 hover:opacity-100 transition-opacity"
+            />
+          </a>
+        </div>
+      </footer>
 
       <.flash_group flash={@flash} />
     </div>
@@ -333,12 +354,7 @@ defmodule ResellerWeb.Layouts do
       <div class="min-w-0">
         <header class="border-b border-base-300 bg-base-100/80 backdrop-blur">
           <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div>
-              <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Protected route</p>
-              <p class="mt-1 text-lg font-semibold">Authenticated web shell</p>
-            </div>
-
-            <div class="flex items-center gap-2">
+            <div class="ml-auto flex items-center gap-2">
               <span class="hidden rounded-full border border-base-300 bg-base-200 px-3 py-1 text-sm text-base-content/70 sm:inline-flex">
                 {@current_user.email}
               </span>

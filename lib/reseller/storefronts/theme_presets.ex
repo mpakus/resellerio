@@ -307,6 +307,336 @@ defmodule Reseller.Storefronts.ThemePresets do
             "#d5dced",
             "rgba(29, 63, 138, 0.42)"
           )
+      },
+      %{
+        id: "mulberry-ash",
+        label: "Mulberry Ash",
+        colors:
+          preset_colors(
+            "#f3eef5",
+            "#fdf8fe",
+            "#2e2035",
+            "#7a6e80",
+            "#7b3f7e",
+            "#b87db8",
+            "#ddd4e2",
+            "rgba(46, 32, 53, 0.46)"
+          )
+      },
+      %{
+        id: "indigo-parchment",
+        label: "Indigo Parchment",
+        colors:
+          preset_colors(
+            "#eef0f8",
+            "#fdfcf7",
+            "#252d5c",
+            "#6a6f8a",
+            "#8b6a2e",
+            "#c9a458",
+            "#d4d8ec",
+            "rgba(37, 45, 92, 0.44)"
+          )
+      },
+      %{
+        id: "amber-slate",
+        label: "Amber Slate",
+        colors:
+          preset_colors(
+            "#f5f0e8",
+            "#fffcf4",
+            "#2c3040",
+            "#6d7280",
+            "#b87228",
+            "#dda84e",
+            "#dcd8ce",
+            "rgba(44, 48, 64, 0.46)"
+          )
+      },
+      %{
+        id: "rose-ivory",
+        label: "Rose Ivory",
+        colors:
+          preset_colors(
+            "#faf0f0",
+            "#fffaf8",
+            "#4a2828",
+            "#8a6a6a",
+            "#c05060",
+            "#e0909a",
+            "#eedede",
+            "rgba(74, 40, 40, 0.44)"
+          )
+      },
+      %{
+        id: "pewter-gold",
+        label: "Pewter Gold",
+        colors:
+          preset_colors(
+            "#f0f0ec",
+            "#fafaf5",
+            "#2a2a28",
+            "#707068",
+            "#9a8030",
+            "#c8b058",
+            "#d8d8d0",
+            "rgba(42, 42, 40, 0.48)"
+          )
+      },
+      %{
+        id: "fern-cream",
+        label: "Fern Cream",
+        colors:
+          preset_colors(
+            "#f0f5ec",
+            "#fbfdf7",
+            "#263020",
+            "#68786a",
+            "#4a7a38",
+            "#88b06a",
+            "#d2dece",
+            "rgba(38, 48, 32, 0.44)"
+          )
+      },
+      %{
+        id: "twilight-sand",
+        label: "Twilight Sand",
+        colors:
+          preset_colors(
+            "#f2f0f8",
+            "#fdfcfe",
+            "#2c2848",
+            "#706c88",
+            "#8a6848",
+            "#c0a078",
+            "#dcdae8",
+            "rgba(44, 40, 72, 0.44)"
+          )
+      },
+      %{
+        id: "tangerine-smoke",
+        label: "Tangerine Smoke",
+        colors:
+          preset_colors(
+            "#fdf0e8",
+            "#fffaf4",
+            "#3a2010",
+            "#806050",
+            "#d05818",
+            "#e8904a",
+            "#ead0bc",
+            "rgba(58, 32, 16, 0.46)"
+          )
+      },
+      %{
+        id: "moss-linen",
+        label: "Moss Linen",
+        colors:
+          preset_colors(
+            "#f0f2e8",
+            "#fbfcf5",
+            "#303828",
+            "#6a7260",
+            "#607040",
+            "#90a060",
+            "#d4d8ca",
+            "rgba(48, 56, 40, 0.44)"
+          )
+      },
+      %{
+        id: "iron-rose",
+        label: "Iron Rose",
+        colors:
+          preset_colors(
+            "#f2eef0",
+            "#fdfbfc",
+            "#302028",
+            "#786a70",
+            "#904858",
+            "#c07880",
+            "#dcd4d8",
+            "rgba(48, 32, 40, 0.46)"
+          )
+      },
+      %{
+        id: "teal-parchment",
+        label: "Teal Parchment",
+        colors:
+          preset_colors(
+            "#eaf5f3",
+            "#fbfef8",
+            "#1a3c38",
+            "#5a7870",
+            "#207868",
+            "#58a898",
+            "#cce0dc",
+            "rgba(26, 60, 56, 0.44)"
+          )
+      },
+      %{
+        id: "navy-wheat",
+        label: "Navy Wheat",
+        colors:
+          preset_colors(
+            "#eef1f8",
+            "#fffef8",
+            "#182040",
+            "#5a6278",
+            "#a07820",
+            "#d0ac50",
+            "#d4daec",
+            "rgba(24, 32, 64, 0.46)"
+          )
+      },
+      %{
+        id: "burgundy-fog",
+        label: "Burgundy Fog",
+        colors:
+          preset_colors(
+            "#f5eef0",
+            "#fdf8f8",
+            "#380c18",
+            "#7a606a",
+            "#903040",
+            "#c07080",
+            "#e0d0d4",
+            "rgba(56, 12, 24, 0.48)"
+          )
+      },
+      %{
+        id: "glacier-oak",
+        label: "Glacier Oak",
+        colors:
+          preset_colors(
+            "#eef4f8",
+            "#fbfefe",
+            "#1c3848",
+            "#5a7888",
+            "#8a6030",
+            "#b89060",
+            "#d0dce4",
+            "rgba(28, 56, 72, 0.44)"
+          )
+      },
+      %{
+        id: "copper-mist",
+        label: "Copper Mist",
+        colors:
+          preset_colors(
+            "#f4eeec",
+            "#fdfaf8",
+            "#362820",
+            "#7a6860",
+            "#c07040",
+            "#d8a070",
+            "#ddd4d0",
+            "rgba(54, 40, 32, 0.46)"
+          )
+      },
+      %{
+        id: "plum-grain",
+        label: "Plum Grain",
+        colors:
+          preset_colors(
+            "#f2ecf5",
+            "#fdf8fe",
+            "#2c1838",
+            "#7a6080",
+            "#6a2870",
+            "#a868b0",
+            "#ddd0e4",
+            "rgba(44, 24, 56, 0.46)"
+          )
+      },
+      %{
+        id: "cedar-frost",
+        label: "Cedar Frost",
+        colors:
+          preset_colors(
+            "#f0f4f4",
+            "#fbfeff",
+            "#1e3038",
+            "#607078",
+            "#8a5028",
+            "#b88058",
+            "#d0dce0",
+            "rgba(30, 48, 56, 0.44)"
+          )
+      },
+      %{
+        id: "warm-concrete",
+        label: "Warm Concrete",
+        colors:
+          preset_colors(
+            "#f0ece8",
+            "#faf8f4",
+            "#282420",
+            "#706a64",
+            "#a87848",
+            "#d0a870",
+            "#dcd8d0",
+            "rgba(40, 36, 32, 0.48)"
+          )
+      },
+      %{
+        id: "citrus-dusk",
+        label: "Citrus Dusk",
+        colors:
+          preset_colors(
+            "#fdf4e8",
+            "#fffdf5",
+            "#302008",
+            "#807060",
+            "#c87808",
+            "#e8b040",
+            "#eadcc8",
+            "rgba(48, 32, 8, 0.46)"
+          )
+      },
+      %{
+        id: "storm-clay",
+        label: "Storm Clay",
+        colors:
+          preset_colors(
+            "#eef0f4",
+            "#fbfcfe",
+            "#202838",
+            "#606870",
+            "#8a6850",
+            "#b89878",
+            "#d4d8e0",
+            "rgba(32, 40, 56, 0.46)"
+          )
+      },
+      %{
+        id: "pine-amber",
+        label: "Pine Amber",
+        colors:
+          preset_colors(
+            "#edf2e8",
+            "#fbfdf5",
+            "#1e2e18",
+            "#5c6c58",
+            "#a07018",
+            "#d0a840",
+            "#ccd8c8",
+            "rgba(30, 46, 24, 0.46)"
+          )
+      },
+      %{
+        id: "charcoal-blush",
+        label: "Charcoal Blush",
+        colors:
+          preset_colors(
+            "#f0eeed",
+            "#fdfcfb",
+            "#202020",
+            "#706868",
+            "#b05870",
+            "#d898a0",
+            "#ddd8d8",
+            "rgba(32, 32, 32, 0.48)"
+          )
       }
     ]
   end
