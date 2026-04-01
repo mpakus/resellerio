@@ -90,6 +90,13 @@ config :reseller, Reseller.Exports,
 
 config :reseller, Reseller.Imports, processing_mode: :async
 
+config :reseller, Reseller.Storefronts,
+  notifier: Reseller.Storefronts.Notifiers.Email,
+  from_email: "storefront@resellerio.local",
+  inquiry_ip_limit: 5,
+  inquiry_storefront_limit: 50,
+  inquiry_window_minutes: 60
+
 config :backpex,
   pubsub_server: Reseller.PubSub,
   translator_function: {ResellerWeb.CoreComponents, :translate_backpex},

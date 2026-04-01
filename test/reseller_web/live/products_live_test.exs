@@ -436,6 +436,49 @@ defmodule ResellerWeb.ProductsLiveTest do
     refute render(view) =~ "Hashtags"
   end
 
+  test "review page saves storefront publishing and marketplace external URLs", %{conn: conn} do
+    user = user_fixture(%{"email" => "storefront-review@example.com"})
+    _storefront = storefront_fixture(user, %{"slug" => "seller-store", "title" => "Seller Store"})
+    product = variant_failure_product_fixture(user)
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/products/#{product.id}")
+
+    assert has_element?(view, "#product-storefront-form")
+    assert has_element?(view, "#product-storefront-preview-url", "/store/seller-store/products/")
+
+    view |> element("#storefront-publication-enabled") |> render_click()
+
+    view
+    |> form("#product-storefront-form", %{
+      "storefront_publication" => %{
+        "marketplace_urls" => %{
+          "ebay" => "https://example.com/ebay/#{product.id}",
+          "depop" => "https://example.com/depop/#{product.id}",
+          "poshmark" => ""
+        }
+      }
+    })
+    |> render_submit()
+
+    refreshed_product = Catalog.get_product_for_user(user, product.id)
+    ebay_listing = Enum.find(refreshed_product.marketplace_listings, &(&1.marketplace == "ebay"))
+
+    depop_listing =
+      Enum.find(refreshed_product.marketplace_listings, &(&1.marketplace == "depop"))
+
+    poshmark_listing =
+      Enum.find(refreshed_product.marketplace_listings, &(&1.marketplace == "poshmark"))
+
+    assert refreshed_product.storefront_enabled == true
+    assert refreshed_product.storefront_published_at
+    assert ebay_listing.external_url == "https://example.com/ebay/#{product.id}"
+    assert depop_listing.external_url == "https://example.com/depop/#{product.id}"
+    assert poshmark_listing.external_url == nil
+    assert has_element?(view, "#flash-info", "Storefront publishing settings updated.")
+    assert has_element?(view, "#product-storefront-badge", "Storefront enabled")
+  end
+
   test "review page lets sellers delete old images and upload replacements", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     product = finalized_review_product_fixture(user)

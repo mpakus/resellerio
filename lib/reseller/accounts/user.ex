@@ -15,6 +15,7 @@ defmodule Reseller.Accounts.User do
 
     has_many :api_tokens, Reseller.Accounts.ApiToken
     has_many :products, Reseller.Catalog.Product
+    has_one :storefront, Reseller.Storefronts.Storefront
 
     timestamps(type: :utc_datetime)
   end

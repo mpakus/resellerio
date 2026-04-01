@@ -1,12 +1,14 @@
 defmodule Reseller.Catalog do
   import Ecto.Query, warn: false
 
+  alias Ecto.Changeset
   alias Ecto.Multi
   alias Reseller.AI
   alias Reseller.Accounts
   alias Reseller.Accounts.User
   alias Reseller.Catalog.Product
   alias Reseller.Catalog.ProductTab
+  alias Reseller.Marketplaces
   alias Reseller.Media
   alias Reseller.Repo
   alias Reseller.Workers
@@ -165,15 +167,67 @@ defmodule Reseller.Catalog do
           attrs
           |> editable_product_attrs()
           |> apply_manual_status_transition(product)
+          |> apply_storefront_publication_transition(product)
 
         product
         |> Product.update_changeset(attrs)
         |> validate_product_tab_ownership(user)
         |> validate_manual_status_change()
+        |> validate_storefront_publication()
         |> Repo.update()
         |> case do
           {:ok, updated_product} -> {:ok, refresh_product(updated_product)}
           {:error, changeset} -> {:error, changeset}
+        end
+    end
+  end
+
+  def update_product_review_for_user(
+        %User{} = user,
+        product_id,
+        attrs,
+        marketplace_url_attrs \\ %{}
+      )
+      when is_map(attrs) and is_map(marketplace_url_attrs) do
+    case get_product_for_user(user, product_id) do
+      nil ->
+        {:error, :not_found}
+
+      product ->
+        attrs =
+          attrs
+          |> editable_product_attrs()
+          |> apply_manual_status_transition(product)
+          |> apply_storefront_publication_transition(product)
+
+        product_changeset =
+          product
+          |> Product.update_changeset(attrs)
+          |> validate_product_tab_ownership(user)
+          |> validate_manual_status_change()
+          |> validate_storefront_publication()
+
+        Multi.new()
+        |> Multi.update(:product, product_changeset)
+        |> Multi.merge(fn %{product: updated_product} ->
+          Marketplaces.update_external_urls_multi(updated_product, marketplace_url_attrs)
+        end)
+        |> Multi.run(:refreshed_product, fn repo, %{product: updated_product} ->
+          {:ok, repo.preload(updated_product, product_preload())}
+        end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{refreshed_product: refreshed_product}} ->
+            {:ok, refreshed_product}
+
+          {:error, :product, %Changeset{} = changeset, _changes} ->
+            {:error, changeset}
+
+          {:error, {:marketplace_listing, marketplace}, %Changeset{} = changeset, _changes} ->
+            {:error, {:marketplace_listing, marketplace, changeset}}
+
+          {:error, _step, reason, _changes} ->
+            {:error, reason}
         end
     end
   end
@@ -405,7 +459,9 @@ defmodule Reseller.Catalog do
       "sku",
       "tags",
       "notes",
-      "product_tab_id"
+      "product_tab_id",
+      "storefront_enabled",
+      "storefront_published_at"
     ])
   end
 
@@ -444,6 +500,33 @@ defmodule Reseller.Catalog do
 
   defp status_transition_attrs(_product, _status, _now), do: %{}
 
+  defp apply_storefront_publication_transition(attrs, %Product{} = product) do
+    case Map.fetch(attrs, "storefront_enabled") do
+      {:ok, value} ->
+        case normalize_boolean(value) do
+          {:ok, true} ->
+            Map.merge(attrs, %{
+              "storefront_enabled" => true,
+              "storefront_published_at" =>
+                product.storefront_published_at ||
+                  DateTime.utc_now() |> DateTime.truncate(:second)
+            })
+
+          {:ok, false} ->
+            Map.merge(attrs, %{
+              "storefront_enabled" => false,
+              "storefront_published_at" => nil
+            })
+
+          :error ->
+            attrs
+        end
+
+      :error ->
+        attrs
+    end
+  end
+
   defp validate_manual_status_change(changeset) do
     case Ecto.Changeset.fetch_change(changeset, :status) do
       {:ok, _status} ->
@@ -451,6 +534,55 @@ defmodule Reseller.Catalog do
 
       :error ->
         changeset
+    end
+  end
+
+  defp validate_storefront_publication(changeset) do
+    if Ecto.Changeset.get_field(changeset, :storefront_enabled) do
+      changeset
+      |> validate_storefront_title()
+      |> validate_storefront_images()
+    else
+      changeset
+    end
+  end
+
+  defp validate_storefront_title(changeset) do
+    case Ecto.Changeset.get_field(changeset, :title) do
+      title when is_binary(title) ->
+        if String.trim(title) == "" do
+          Ecto.Changeset.add_error(
+            changeset,
+            :storefront_enabled,
+            "requires a product title before it can be published"
+          )
+        else
+          changeset
+        end
+
+      _other ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :storefront_enabled,
+          "requires a product title before it can be published"
+        )
+    end
+  end
+
+  defp validate_storefront_images(changeset) do
+    original_images =
+      changeset.data.images
+      |> List.wrap()
+      |> Enum.filter(&(&1.kind == "original" and &1.processing_status != "pending_upload"))
+
+    if original_images == [] do
+      Ecto.Changeset.add_error(
+        changeset,
+        :storefront_enabled,
+        "requires at least one finalized original image"
+      )
+    else
+      changeset
     end
   end
 
@@ -472,6 +604,10 @@ defmodule Reseller.Catalog do
         )
     ]
   end
+
+  defp normalize_boolean(value) when value in [true, "true", 1, "1", "on"], do: {:ok, true}
+  defp normalize_boolean(value) when value in [false, "false", 0, "0", "off"], do: {:ok, false}
+  defp normalize_boolean(_value), do: :error
 
   defp ensure_lifestyle_generation_allowed(%Product{images: []}), do: {:error, :no_product_images}
 

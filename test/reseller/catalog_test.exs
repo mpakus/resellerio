@@ -250,6 +250,46 @@ defmodule Reseller.CatalogTest do
     assert %{status: ["is invalid"]} = errors_on(changeset)
   end
 
+  test "update_product_for_user/3 tracks storefront publication state" do
+    user = user_fixture()
+    product = product_fixture(user, %{"title" => "Storefront product", "status" => "ready"})
+
+    {:ok, _image} =
+      %Reseller.Media.ProductImage{}
+      |> Reseller.Media.ProductImage.create_changeset(%{
+        "kind" => "original",
+        "position" => 1,
+        "storage_key" => "users/#{user.id}/products/#{product.id}/originals/storefront-ready.jpg",
+        "content_type" => "image/jpeg",
+        "processing_status" => "ready"
+      })
+      |> Ecto.Changeset.put_assoc(:product, product)
+      |> Repo.insert()
+
+    assert {:ok, published_product} =
+             Catalog.update_product_for_user(user, product.id, %{"storefront_enabled" => true})
+
+    assert published_product.storefront_enabled == true
+    assert %DateTime{} = published_product.storefront_published_at
+
+    assert {:ok, unpublished_product} =
+             Catalog.update_product_for_user(user, product.id, %{"storefront_enabled" => false})
+
+    assert unpublished_product.storefront_enabled == false
+    assert unpublished_product.storefront_published_at == nil
+  end
+
+  test "update_product_for_user/3 rejects storefront publication without a finalized original image" do
+    user = user_fixture()
+    product = product_fixture(user, %{"title" => "Image pending", "status" => "ready"})
+
+    assert {:error, changeset} =
+             Catalog.update_product_for_user(user, product.id, %{"storefront_enabled" => true})
+
+    assert %{storefront_enabled: ["requires at least one finalized original image"]} =
+             errors_on(changeset)
+  end
+
   test "delete_product_for_user/2 deletes the product" do
     user = user_fixture()
     product = product_fixture(user, %{"title" => "Delete me"})

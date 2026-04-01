@@ -34,6 +34,10 @@
 - Pricing: `product_price_researches` now store grounded price suggestions and comparable evidence separately from editable product fields
 - Marketplace settings: users now store a per-account `selected_marketplaces` list, editable in `/app/settings` and via `PATCH /api/v1/me`
 - Marketplace output: `marketplace_listings` now store generated copy per selected marketplace, and the supported catalog now includes eBay, Depop, Poshmark, Mercari, Facebook Marketplace, OfferUp, Whatnot, Grailed, The RealReal, Vestiaire Collective, thredUp, and Etsy
+- Storefront inquiry management: `/app/inquiries` now provides a dedicated `InquiriesLive` for sellers to read, search (by name, contact, or message), paginate, and delete storefront inquiries. The `Reseller.Storefronts` context was extended with `list_inquiries_for_user/2` and `delete_inquiry_for_user/2`; both are ownership-scoped and covered by regression tests.
+- Storefront foundation: `Reseller.Storefronts` now owns seller storefront records, branding assets, custom pages, and inquiries; products can be flagged for storefront publication; and marketplace listings can persist seller-managed external URLs
+- Storefront seller UI: `/app/settings` now manages storefront profile, branding assets, theme presets, and page CRUD, while `/app/products/:id` now manages storefront publish state and external marketplace links
+- Public storefront web UI: `/store/:slug`, `/store/:slug/products/:product_ref`, and `/store/:slug/pages/:page_slug` now expose seller storefront catalogs, shareable product pages, search, and custom pages with public `404` handling for disabled or unpublished content
 - Marketplace rule notes: `docs/MARKETS.md`
 - Media variants: a processed `background_removed` image is now generated per original upload, and the review page supports deleting stale photos and uploading replacements
 - Lifestyle-image planning for Gemini-backed "real life" scene generation is tracked in `docs/PLAN-GENERATE-IMAGE.md`

@@ -6,6 +6,7 @@ defmodule ResellerWeb.ProductsLive.Show do
   alias Reseller.Catalog.Product
   alias Reseller.Marketplaces
   alias Reseller.Media.Storage
+  alias Reseller.Storefronts
   alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
 
@@ -30,8 +31,12 @@ defmodule ResellerWeb.ProductsLive.Show do
        pipeline_progress: nil,
        product: nil,
        product_id: nil,
+       storefront: nil,
        review_form: to_form(%{}, as: :product),
-       review_form_dirty?: false
+       review_form_dirty?: false,
+       storefront_publication_form: to_form(%{}, as: :storefront_publication),
+       marketplace_url_values: %{},
+       marketplace_url_errors: %{}
      )}
   end
 
@@ -102,6 +107,120 @@ defmodule ResellerWeb.ProductsLive.Show do
       {:error, reason} ->
         {:noreply,
          put_flash(socket, :error, "Could not update product: #{format_reason(reason)}")}
+    end
+  end
+
+  def handle_event("toggle_storefront_enabled", _params, socket) do
+    current = socket.assigns.product.storefront_enabled
+    marketplace_url_values = socket.assigns.marketplace_url_values
+
+    case Catalog.update_product_review_for_user(
+           socket.assigns.current_user,
+           socket.assigns.product.id,
+           %{"storefront_enabled" => to_string(!current)},
+           marketplace_url_values
+         ) do
+      {:ok, updated_product} ->
+        {:noreply,
+         socket
+         |> assign_product(updated_product, rebuild_form: false)
+         |> put_flash(:info, "Storefront publishing settings updated.")}
+
+      {:error, %Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           storefront_publication_form:
+             to_form(%{changeset | action: :validate}, as: :storefront_publication)
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Could not update storefront settings: #{format_reason(reason)}"
+         )}
+    end
+  end
+
+  def handle_event(
+        "validate_storefront_publication",
+        %{"storefront_publication" => storefront_publication_params},
+        socket
+      ) do
+    storefront_enabled = Map.get(storefront_publication_params, "storefront_enabled", "false")
+    marketplace_url_values = normalize_marketplace_url_values(storefront_publication_params)
+
+    storefront_publication_form =
+      socket.assigns.product
+      |> Product.update_changeset(%{"storefront_enabled" => storefront_enabled})
+      |> Map.put(:action, :validate)
+      |> to_form(as: :storefront_publication)
+
+    {:noreply,
+     assign(socket,
+       storefront_publication_form: storefront_publication_form,
+       marketplace_url_values: marketplace_url_values,
+       marketplace_url_errors: %{}
+     )}
+  end
+
+  def handle_event(
+        "save_storefront_publication",
+        %{"storefront_publication" => storefront_publication_params},
+        socket
+      ) do
+    storefront_enabled =
+      Map.get(
+        storefront_publication_params,
+        "storefront_enabled",
+        to_string(socket.assigns.product.storefront_enabled)
+      )
+
+    marketplace_url_values = normalize_marketplace_url_values(storefront_publication_params)
+
+    case Catalog.update_product_review_for_user(
+           socket.assigns.current_user,
+           socket.assigns.product.id,
+           %{"storefront_enabled" => storefront_enabled},
+           marketplace_url_values
+         ) do
+      {:ok, updated_product} ->
+        {:noreply,
+         socket
+         |> assign_product(updated_product, rebuild_form: false)
+         |> put_flash(:info, "Storefront publishing settings updated.")}
+
+      {:error, %Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket,
+           storefront_publication_form:
+             to_form(%{changeset | action: :validate}, as: :storefront_publication),
+           marketplace_url_values: marketplace_url_values,
+           marketplace_url_errors: %{}
+         )}
+
+      {:error, {:marketplace_listing, marketplace, changeset}} ->
+        {:noreply,
+         assign(socket,
+           storefront_publication_form:
+             socket.assigns.product
+             |> Product.update_changeset(%{"storefront_enabled" => storefront_enabled})
+             |> Map.put(:action, :validate)
+             |> to_form(as: :storefront_publication),
+           marketplace_url_values: marketplace_url_values,
+           marketplace_url_errors: %{
+             marketplace => marketplace_url_error_message(changeset)
+           }
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Could not update storefront settings: #{format_reason(reason)}"
+         )}
     end
   end
 
@@ -391,6 +510,13 @@ defmodule ResellerWeb.ProductsLive.Show do
             <span class="badge badge-outline badge-lg">Step 1 · Upload complete</span>
             <span class="badge badge-primary badge-lg">Step 2 · Review AI fields</span>
             <.status_badge status={@product.status} class="badge-lg" />
+            <span
+              :if={@product.storefront_enabled}
+              id="product-storefront-badge"
+              class="badge badge-outline badge-lg"
+            >
+              Storefront enabled
+            </span>
             <span :if={@product.ai_confidence} class="badge badge-outline badge-lg">
               AI {Float.round(@product.ai_confidence, 2)}
             </span>
@@ -1077,6 +1203,166 @@ defmodule ResellerWeb.ProductsLive.Show do
               </div>
             </.surface>
 
+            <.surface id="product-storefront-publication" tag="article" variant="soft">
+              <.header>
+                Storefront publishing
+                <:subtitle>
+                  Publish this product to your public storefront and attach live marketplace URLs for channels where it is already listed.
+                </:subtitle>
+              </.header>
+
+              <%= if @storefront do %>
+                <.form
+                  for={@storefront_publication_form}
+                  id="product-storefront-form"
+                  phx-change="validate_storefront_publication"
+                  phx-submit="save_storefront_publication"
+                  class="grid gap-4"
+                >
+                  <div class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div class="max-w-2xl">
+                        <p class="text-sm font-semibold">Publish on storefront</p>
+                        <p class="mt-1 text-sm leading-6 text-base-content/68">
+                          Requires a saved storefront, a product title, and at least one finalized original image.
+                        </p>
+                      </div>
+                      <label class="label cursor-pointer gap-3">
+                        <input
+                          id="storefront-publication-enabled"
+                          type="checkbox"
+                          checked={
+                            truthy_field?(@storefront_publication_form[:storefront_enabled].value)
+                          }
+                          phx-click="toggle_storefront_enabled"
+                          class="toggle toggle-primary"
+                        />
+                        <span class="text-sm font-medium">Enabled</span>
+                      </label>
+                    </div>
+                    <p
+                      :for={
+                        error <- form_field_errors(@storefront_publication_form[:storefront_enabled])
+                      }
+                      class="mt-3 text-sm text-error"
+                    >
+                      {error}
+                    </p>
+                  </div>
+
+                  <div class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4">
+                    <p class="text-xs uppercase tracking-[0.2em] text-base-content/45">
+                      Public product URL
+                    </p>
+                    <div class="mt-2 flex items-start gap-2">
+                      <p
+                        id="product-storefront-preview-url"
+                        class="flex-1 break-all text-sm font-medium leading-6 text-base-content"
+                      >
+                        {product_storefront_preview_url(@storefront, @product)}
+                      </p>
+                      <a
+                        href={product_storefront_preview_url(@storefront, @product)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="mt-0.5 shrink-0 text-base-content/40 transition-colors hover:text-base-content"
+                        title="Open in new window"
+                      >
+                        <.icon name="hero-arrow-top-right-on-square" class="size-4" />
+                      </a>
+                    </div>
+                    <p
+                      :if={@product.storefront_published_at}
+                      class="mt-2 text-sm text-base-content/60"
+                    >
+                      Published {Helpers.format_datetime(@product.storefront_published_at)}
+                    </p>
+                    <p class="mt-2 text-sm leading-6 text-base-content/65">
+                      The path is reserved now. Public storefront routing lands in the next storefront step.
+                    </p>
+                  </div>
+
+                  <div
+                    :if={@product.marketplace_listings == []}
+                    class="rounded-[1.5rem] border border-dashed border-base-300 bg-base-100 px-4 py-4 text-sm leading-6 text-base-content/68"
+                  >
+                    No marketplace drafts exist for this product yet. External listing links become editable after AI marketplace copy is generated.
+                  </div>
+
+                  <div
+                    :if={@product.marketplace_listings != []}
+                    id="product-storefront-marketplace-links"
+                    class="grid gap-3"
+                  >
+                    <div
+                      :for={listing <- @product.marketplace_listings}
+                      class="rounded-[1.5rem] border border-base-300 bg-base-100 px-4 py-4"
+                    >
+                      <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p class="text-sm font-semibold">
+                            {Marketplaces.marketplace_label(listing.marketplace)}
+                          </p>
+                          <p class="mt-1 text-xs uppercase tracking-[0.18em] text-base-content/45">
+                            {listing.marketplace}
+                          </p>
+                        </div>
+                        <span class="badge rounded-full border border-base-300 bg-base-50 px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-base-content/60">
+                          {listing.status}
+                        </span>
+                      </div>
+
+                      <div class="mt-4">
+                        <label
+                          for={"marketplace-external-url-#{listing.id}"}
+                          class="label mb-1 text-sm"
+                        >
+                          External listing URL
+                        </label>
+                        <input
+                          id={"marketplace-external-url-#{listing.id}"}
+                          type="url"
+                          name={"storefront_publication[marketplace_urls][#{listing.marketplace}]"}
+                          value={Map.get(@marketplace_url_values, listing.marketplace, "")}
+                          placeholder="https://..."
+                          class={[
+                            "input w-full",
+                            Map.has_key?(@marketplace_url_errors, listing.marketplace) &&
+                              "input-error"
+                          ]}
+                        />
+                        <p
+                          :if={error = Map.get(@marketplace_url_errors, listing.marketplace)}
+                          class="mt-2 text-sm text-error"
+                        >
+                          {error}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-wrap gap-2">
+                    <.button class="btn btn-primary rounded-full">Save storefront settings</.button>
+                    <.link navigate={~p"/app/settings"} class="btn btn-ghost rounded-full">
+                      Open storefront settings
+                    </.link>
+                  </div>
+                </.form>
+              <% else %>
+                <div
+                  id="product-storefront-setup-needed"
+                  class="rounded-[1.5rem] border border-dashed border-base-300 bg-base-100 px-4 py-4 text-sm leading-6 text-base-content/68"
+                >
+                  Save your storefront profile in Settings before publishing products or attaching external marketplace links.
+                </div>
+                <div class="mt-4">
+                  <.link navigate={~p"/app/settings"} class="btn btn-outline rounded-full">
+                    Open settings
+                  </.link>
+                </div>
+              <% end %>
+            </.surface>
+
             <.surface
               :if={@product.lifestyle_generation_runs != []}
               id="product-lifestyle-generation-runs"
@@ -1146,6 +1432,7 @@ defmodule ResellerWeb.ProductsLive.Show do
   defp assign_product(socket, %Product{} = product, opts) do
     rebuild_form? = Keyword.get(opts, :rebuild_form, !socket.assigns.review_form_dirty?)
     use_suggested_tags? = Keyword.get(opts, :use_suggested_tags?, true)
+    storefront = Storefronts.get_storefront_for_user(socket.assigns.current_user)
 
     socket =
       assign(socket,
@@ -1157,12 +1444,16 @@ defmodule ResellerWeb.ProductsLive.Show do
         pipeline_progress: Helpers.pipeline_progress(product),
         product: product,
         product_id: product.id,
+        storefront: storefront,
         review_form:
           if(rebuild_form?,
             do: build_review_form(product, use_suggested_tags?: use_suggested_tags?),
             else: socket.assigns.review_form
           ),
-        review_form_dirty?: if(rebuild_form?, do: false, else: socket.assigns.review_form_dirty?)
+        review_form_dirty?: if(rebuild_form?, do: false, else: socket.assigns.review_form_dirty?),
+        storefront_publication_form: build_storefront_publication_form(product),
+        marketplace_url_values: Marketplaces.external_url_map(product.marketplace_listings),
+        marketplace_url_errors: %{}
       )
 
     if refresh_needed?(product) and connected?(socket) do
@@ -1198,6 +1489,7 @@ defmodule ResellerWeb.ProductsLive.Show do
       "price" => Helpers.suggested_price(product),
       "cost" => Helpers.suggested_cost(product),
       "sku" => product.sku,
+      "storefront_enabled" => product.storefront_enabled,
       "tags" =>
         if(seed_tags? and List.wrap(product.tags) == [],
           do: Helpers.suggested_product_tags(product),
@@ -1215,6 +1507,40 @@ defmodule ResellerWeb.ProductsLive.Show do
 
   defp status_locked?(%Product{status: status}), do: status in ["uploading", "processing"]
   defp status_locked?(_product), do: false
+
+  defp build_storefront_publication_form(%Product{} = product) do
+    product
+    |> Product.update_changeset(%{"storefront_enabled" => product.storefront_enabled})
+    |> to_form(as: :storefront_publication)
+  end
+
+  defp normalize_marketplace_url_values(%{"marketplace_urls" => url_values})
+       when is_map(url_values) do
+    Map.new(url_values, fn {marketplace, url} -> {to_string(marketplace), url} end)
+  end
+
+  defp normalize_marketplace_url_values(_params), do: %{}
+
+  defp marketplace_url_error_message(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> Map.get(:external_url, ["is invalid"])
+    |> List.first()
+  end
+
+  defp form_field_errors(field), do: Enum.map(field.errors, &translate_error/1)
+
+  defp truthy_field?(value), do: value in [true, "true", 1, "1", "on"]
+
+  defp product_storefront_preview_url(nil, _product), do: "Save storefront details first."
+
+  defp product_storefront_preview_url(storefront, product) do
+    ResellerWeb.Endpoint.url() <> Helpers.storefront_product_preview_path(storefront, product)
+  end
 
   defp mutate_product(socket, success_message, action_fun) do
     case action_fun.(socket.assigns.current_user, socket.assigns.product.id) do

@@ -31,6 +31,11 @@ defmodule ResellerWeb.Router do
   scope "/", ResellerWeb do
     pipe_through :browser
 
+    get "/store/:slug", StorefrontController, :index
+    get "/store/:slug/products/:product_ref", StorefrontController, :show_product
+    get "/store/:slug/pages/:page_slug", StorefrontController, :show_page
+    post "/store/:slug/products/:product_ref/inquiries", StorefrontController, :create_inquiry
+
     live_session :current_user, on_mount: [{ResellerWeb.LiveUserAuth, :mount_current_user}] do
       live "/", HomeLive
     end
@@ -46,6 +51,7 @@ defmodule ResellerWeb.Router do
       live "/app/products", ProductsLive.Index, :index
       live "/app/products/new", ProductsLive.New, :new
       live "/app/products/:id", ProductsLive.Show, :show
+      live "/app/inquiries", InquiriesLive, :index
       live "/app/exports", WorkspaceLive, :exports
       live "/app/settings", WorkspaceLive, :settings
     end

@@ -16,10 +16,12 @@
 ## Latest Web Progress
 
 - Completed: Step W5.2 filtered export requests from Products plus saved export history metadata.
+- Storefront seller tooling now exists in the web app: `/app/settings` handles storefront profile, branding, theme presets, and public pages, while `/app/products/:id` handles storefront publish state plus external marketplace URLs.
+- Public storefront routes now exist at `GET "/store/:slug"`, `GET "/store/:slug/products/:product_ref"`, and `GET "/store/:slug/pages/:page_slug"` with storefront-themed browser rendering, catalog search, and shareable product pages.
 - Current homepage route: `live "/"`, `ResellerWeb.HomeLive`
-- Current auth routes: `live "/"`, `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, protected `live "/app"`, `live "/app/products"`, `live "/app/products/new"`, `live "/app/products/:id"`, `live "/app/exports"`, `live "/app/settings"`, legacy redirect `GET "/app/listings" -> "/app/products"`, and protected admin routes under `/admin`
-- Current workspace features: dashboard summaries, a table-first products index with real-time full-text search plus pagination/sorting/date filters, upload-first product intake, AI-seeded product review/editing, lifecycle actions, marketplace listing review, per-user marketplace defaults in settings, filtered export requests from Products, and archive history/import actions in LiveView.
-- Next target: passkey-focused account settings plus richer AI review controls and regeneration actions.
+- Current auth routes: `live "/"`, `live "/sign-up"`, `POST "/sign-up"`, `live "/sign-in"`, `POST "/sign-in"`, `DELETE "/sign-out"`, `GET "/store/:slug"`, `GET "/store/:slug/products/:product_ref"`, `GET "/store/:slug/pages/:page_slug"`, protected `live "/app"`, `live "/app/products"`, `live "/app/products/new"`, `live "/app/products/:id"`, `live "/app/exports"`, `live "/app/settings"`, legacy redirect `GET "/app/listings" -> "/app/products"`, and protected admin routes under `/admin`
+- Current workspace features: dashboard summaries, a table-first products index with real-time full-text search plus pagination/sorting/date filters, upload-first product intake, AI-seeded product review/editing, lifecycle actions, marketplace listing review, per-user marketplace defaults in settings, storefront configuration in settings, storefront publish controls in product review, filtered export requests from Products, archive history/import actions in LiveView, and public storefront catalog/product/page browsing under `/store/:slug`.
+- Next target: storefront inquiry capture and reseller notifications when a public product has no external marketplace URL.
 
 ## 1. Current Web Stack Analysis
 

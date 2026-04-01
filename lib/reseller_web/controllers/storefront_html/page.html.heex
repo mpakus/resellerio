@@ -1,0 +1,44 @@
+<Layouts.storefront
+  flash={@flash}
+  current_user={@current_user}
+  storefront={@storefront}
+  query={@query}
+  active_nav={@page.slug}
+>
+  <nav
+    id="storefront-page-breadcrumbs"
+    class="flex flex-wrap items-center gap-2 text-sm text-[var(--storefront-muted)]"
+    aria-label="Breadcrumb"
+  >
+    <.link href={~p"/store/#{@storefront.slug}"} class="font-medium text-[var(--storefront-text)]">
+      Catalog
+    </.link>
+    <span>/</span>
+    <span>{@page.menu_label}</span>
+  </nav>
+
+  <section
+    id="storefront-page-detail"
+    class="mt-4 overflow-hidden rounded-[2.2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_28px_80px_rgba(15,23,42,0.08)]"
+  >
+    <div class="border-b border-[var(--storefront-border)] px-7 py-8 sm:px-8">
+      <p class="text-[11px] uppercase tracking-[0.34em] text-[var(--storefront-muted)]">
+        Storefront page
+      </p>
+      <h1 class="mt-4 text-4xl font-semibold tracking-[-0.05em] text-[var(--storefront-text)]">
+        {@page.title}
+      </h1>
+      <p class="mt-4 max-w-3xl text-sm leading-7 text-[var(--storefront-muted)]">
+        Shared directly from {@storefront.title}'s public storefront menu.
+      </p>
+    </div>
+
+    <article class="px-7 py-8 sm:px-8">
+      <div class="mx-auto max-w-3xl space-y-5 text-base leading-8 text-[var(--storefront-text)]">
+        <p :for={paragraph <- storefront_plain_text_paragraphs(@page.body)}>
+          {paragraph}
+        </p>
+      </div>
+    </article>
+  </section>
+</Layouts.storefront>

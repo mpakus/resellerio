@@ -12,6 +12,7 @@ defmodule Reseller.Exports do
   alias Reseller.Media
   alias Reseller.Media.Storage
   alias Reseller.Repo
+  alias Reseller.Slugs
 
   @topic_prefix "exports"
   @active_statuses ~w(queued running)
@@ -331,7 +332,7 @@ defmodule Reseller.Exports do
   defp build_file_name(name, requested_at) do
     slug =
       name
-      |> slugify()
+      |> Slugs.slugify()
       |> String.slice(0, 80)
       |> case do
         "" -> "products-export"
@@ -339,15 +340,6 @@ defmodule Reseller.Exports do
       end
 
     "#{slug}-#{Calendar.strftime(requested_at, "%Y%m%d-%H%M%S")}.zip"
-  end
-
-  defp slugify(value) when is_binary(value) do
-    value
-    |> String.downcase()
-    |> String.normalize(:nfd)
-    |> String.replace(~r/[^\p{L}\p{N}\s-]/u, "")
-    |> String.replace(~r/[\s_-]+/u, "-")
-    |> String.trim("-")
   end
 
   defp maybe_put_filter(map, _key, false), do: map

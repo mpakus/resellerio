@@ -4,6 +4,7 @@ defmodule ResellerWeb.Layouts do
   used by your application.
   """
   use ResellerWeb, :html
+  import ResellerWeb.StorefrontComponents
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -91,6 +92,179 @@ defmodule ResellerWeb.Layouts do
       </header>
 
       <main>{render_slot(@inner_block)}</main>
+
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  attr :flash, :map, required: true
+  attr :storefront, :map, required: true
+  attr :current_user, :map, default: nil
+  attr :query, :string, default: nil
+  attr :active_nav, :string, default: "catalog"
+  slot :inner_block, required: true
+
+  def storefront(assigns) do
+    assigns =
+      assigns
+      |> assign(:logo_url, storefront_logo_url(assigns.storefront))
+      |> assign(:header_url, storefront_header_url(assigns.storefront))
+      |> assign(:nav_pages, storefront_nav_pages(assigns.storefront))
+
+    ~H"""
+    <div
+      id="storefront-shell"
+      class="min-h-screen bg-[var(--storefront-page-bg)] text-[var(--storefront-text)]"
+      style={storefront_theme_style(@storefront)}
+    >
+      <header class="relative isolate overflow-hidden border-b border-[var(--storefront-border)]">
+        <div
+          :if={@header_url}
+          class="absolute inset-0 -z-10 overflow-hidden opacity-20"
+        >
+          <img src={@header_url} alt="" class="size-full object-cover" />
+          <div class="absolute inset-0 bg-white/50"></div>
+        </div>
+        <div
+          class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72"
+          style="background: radial-gradient(circle at top, var(--storefront-overlay), transparent 72%);"
+        >
+        </div>
+
+        <div class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex min-w-0 items-center gap-4">
+              <div
+                :if={@logo_url}
+                class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.4rem] border border-[var(--storefront-border)] bg-white/70 shadow-[0_18px_45px_rgba(15,23,42,0.08)]"
+              >
+                <img
+                  src={@logo_url}
+                  alt={"#{@storefront.title} logo"}
+                  class="size-full object-cover"
+                />
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-[11px] uppercase tracking-[0.34em] text-[var(--storefront-muted)]">
+                  Reseller storefront
+                </p>
+                <.link
+                  href={~p"/store/#{@storefront.slug}"}
+                  class="reseller-display mt-2 block truncate text-3xl font-semibold tracking-[-0.04em] text-[var(--storefront-text)]"
+                >
+                  {@storefront.title}
+                </.link>
+                <p
+                  :if={@storefront.tagline}
+                  class="mt-2 max-w-2xl truncate text-sm text-[var(--storefront-muted)]"
+                >
+                  {@storefront.tagline}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <.link
+                href={~p"/"}
+                class="rounded-full border border-[var(--storefront-border)] px-4 py-2 text-sm font-medium text-[var(--storefront-text)] transition hover:bg-white/60"
+              >
+                Resellerio
+              </.link>
+              <%= if @current_user do %>
+                <.link
+                  href={~p"/app"}
+                  class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)]"
+                  style="background-color: var(--storefront-primary);"
+                >
+                  Workspace
+                </.link>
+              <% else %>
+                <.link
+                  href={~p"/sign-in"}
+                  class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.18)]"
+                  style="background-color: var(--storefront-primary);"
+                >
+                  Sign in
+                </.link>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <nav
+              id="storefront-nav"
+              class="flex flex-wrap items-center gap-2 text-sm"
+              aria-label="Storefront navigation"
+            >
+              <.link
+                href={~p"/store/#{@storefront.slug}"}
+                class={[
+                  "rounded-full border px-4 py-2 font-medium transition",
+                  @active_nav == "catalog" &&
+                    "border-transparent text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]",
+                  @active_nav != "catalog" &&
+                    "border-[var(--storefront-border)] text-[var(--storefront-text)] hover:bg-white/60"
+                ]}
+                style={
+                  if @active_nav == "catalog", do: "background-color: var(--storefront-primary);"
+                }
+              >
+                Catalog
+              </.link>
+
+              <.link
+                :for={page <- @nav_pages}
+                href={storefront_page_path(@storefront, page)}
+                class={[
+                  "rounded-full border px-4 py-2 font-medium transition",
+                  @active_nav == page.slug &&
+                    "border-transparent text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]",
+                  @active_nav != page.slug &&
+                    "border-[var(--storefront-border)] text-[var(--storefront-text)] hover:bg-white/60"
+                ]}
+                style={
+                  if @active_nav == page.slug, do: "background-color: var(--storefront-primary);"
+                }
+              >
+                {page.menu_label}
+              </.link>
+            </nav>
+
+            <form
+              id="storefront-search-form"
+              action={~p"/store/#{@storefront.slug}"}
+              method="get"
+              class="flex w-full max-w-xl items-center gap-3 rounded-[1.4rem] border border-[var(--storefront-border)] bg-white/65 px-4 py-3 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            >
+              <.icon
+                name="hero-magnifying-glass"
+                class="size-5 shrink-0 text-[var(--storefront-muted)]"
+              />
+              <input
+                id="storefront-search"
+                type="search"
+                name="q"
+                value={@query}
+                placeholder="Search titles, brands, categories, and notes"
+                class="w-full bg-transparent text-sm text-[var(--storefront-text)] outline-none placeholder:text-[var(--storefront-muted)]"
+              />
+              <button
+                type="submit"
+                class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]"
+                style="background-color: var(--storefront-primary);"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        {render_slot(@inner_block)}
+      </main>
 
       <.flash_group flash={@flash} />
     </div>

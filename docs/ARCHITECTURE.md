@@ -25,8 +25,9 @@ Core business goal:
 ### Main entry surfaces
 
 - Public LiveView marketing page at `/`
+- Public storefront browser routes at `/store/:slug`, `/store/:slug/products/:product_ref`, and `/store/:slug/pages/:page_slug`
 - Browser auth at `/sign-up`, `/sign-in`, `DELETE /sign-out`
-- Authenticated Resellerio workspace at `/app`, `/app/products`, `/app/exports`, `/app/settings`
+- Authenticated Resellerio workspace at `/app`, `/app/products`, `/app/exports`, `/app/inquiries`, `/app/settings`
 - Admin interface at `/admin/...`
 - Versioned JSON API at `/api/v1/...`
 
@@ -45,6 +46,7 @@ flowchart LR
     R --> AC["Accounts"]
     R --> C["Catalog"]
     R --> ME["Media"]
+    R --> ST["Storefronts"]
     R --> EX["Exports"]
     R --> IM["Imports"]
 
@@ -85,6 +87,7 @@ Important note:
 ### Request layers
 
 - Browser HTML/LiveView requests go through the `:browser` pipeline
+- Public storefront browser routes use controller-rendered HTML so disabled storefronts and unpublished content can return real `404` responses
 - JSON requests go through the `:api` pipeline
 - Bearer-protected JSON requests add `ResellerWeb.Plugs.APIAuth`
 - Browser admin routes add `ResellerWeb.BrowserAuth, :ensure_admin`
@@ -191,6 +194,7 @@ Primary modules:
 Responsibilities:
 
 - per-marketplace generated listing persistence
+- seller-managed external listing URL persistence
 - supported marketplace catalog
 - marketplace label normalization for UI and API consumers
 
@@ -202,6 +206,30 @@ Primary modules:
 
 - `Reseller.Marketplaces`
 - `Reseller.Marketplaces.MarketplaceListing`
+
+### `Reseller.Storefronts`
+
+Responsibilities:
+
+- seller storefront identity and branding configuration
+- curated storefront theme preset catalog
+- custom storefront page CRUD
+- public storefront lookup by slug
+- public catalog, product, and page queries with search and visibility filtering
+- storefront inquiry persistence with per-IP and per-storefront rate limiting
+- inquiry notification dispatch
+- owner-scoped inquiry listing with search, pagination, and deletion
+
+Primary modules:
+
+- `Reseller.Storefronts`
+- `Reseller.Storefronts.Storefront`
+- `Reseller.Storefronts.StorefrontAsset`
+- `Reseller.Storefronts.StorefrontPage`
+- `Reseller.Storefronts.StorefrontInquiry`
+- `Reseller.Storefronts.ThemePresets`
+- `Reseller.Storefronts.Notifier`
+- `Reseller.Storefronts.Notifiers.Email`
 
 ### `Reseller.Workers`
 
@@ -267,6 +295,10 @@ Main LiveViews:
 - `ResellerWeb.Auth.SignUpLive`
 - `ResellerWeb.Auth.SignInLive`
 - `ResellerWeb.WorkspaceLive`
+- `ResellerWeb.ProductsLive.Index`
+- `ResellerWeb.ProductsLive.New`
+- `ResellerWeb.ProductsLive.Show`
+- `ResellerWeb.InquiriesLive`
 
 The workspace LiveView currently supports:
 
@@ -279,6 +311,13 @@ The workspace LiveView currently supports:
 - marketplace target settings
 - export requests
 - ZIP import uploads
+- storefront configuration, branding asset uploads, and public page CRUD
+
+`ResellerWeb.InquiriesLive` handles:
+
+- paginated listing of all storefront inquiries for the authenticated seller
+- search across name, contact, and message fields
+- per-row deletion with ownership enforcement
 
 ### JSON API
 
@@ -363,7 +402,22 @@ erDiagram
         float ai_confidence
         datetime sold_at
         datetime archived_at
+        boolean storefront_enabled
+        datetime storefront_published_at
         tsvector search_document
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    storefronts {
+        bigint id PK
+        bigint user_id FK
+        string slug UK
+        string title
+        string tagline
+        text description
+        string theme_id
+        boolean enabled
         datetime inserted_at
         datetime updated_at
     }
@@ -407,6 +461,7 @@ erDiagram
     users ||--o{ api_tokens : issues
     users ||--o{ products : owns
     users ||--o{ product_tabs : owns
+    users ||--|| storefronts : owns
     users ||--o{ exports : requests
     users ||--o{ imports : requests
 ```
@@ -414,7 +469,7 @@ erDiagram
 ### Media, AI, and marketplace tables
 
 ```mermaid
-%% title: Resellerio product, media, and AI schema
+%% title: Resellerio product, storefront, media, and AI schema
 erDiagram
     products {
         bigint id PK
@@ -426,6 +481,8 @@ erDiagram
         string brand
         string category
         string sku
+        boolean storefront_enabled
+        datetime storefront_published_at
     }
 
     product_tabs {
@@ -543,11 +600,71 @@ erDiagram
         string generation_version
         string_array compliance_warnings
         jsonb raw_payload
+        text external_url
+        datetime external_url_added_at
         datetime last_generated_at
         datetime inserted_at
         datetime updated_at
     }
 
+    storefronts {
+        bigint id PK
+        bigint user_id FK
+        string slug UK
+        string title
+        string theme_id
+        boolean enabled
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    storefront_assets {
+        bigint id PK
+        bigint storefront_id FK
+        string kind
+        string storage_key
+        string content_type
+        string original_filename
+        integer width
+        integer height
+        integer byte_size
+        string checksum
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    storefront_pages {
+        bigint id PK
+        bigint storefront_id FK
+        string title
+        string slug
+        string menu_label
+        text body
+        integer position
+        boolean published
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    storefront_inquiries {
+        bigint id PK
+        bigint storefront_id FK
+        bigint product_id FK
+        string full_name
+        string contact
+        text message
+        string source_path
+        string requester_ip
+        string user_agent
+        datetime inserted_at
+        datetime updated_at
+    }
+
+    users ||--|| storefronts : owns
+    storefronts ||--o{ storefront_assets : has
+    storefronts ||--o{ storefront_pages : has
+    storefronts ||--o{ storefront_inquiries : receives
+    products ||--o{ storefront_inquiries : references
     product_tabs ||--o{ products : groups
     products ||--o{ product_images : has
     products ||--o{ product_processing_runs : has
@@ -565,6 +682,10 @@ erDiagram
 | `users` | `Reseller.Accounts.User` | reseller accounts, browser auth principal, admin flag, marketplace defaults |
 | `api_tokens` | `Reseller.Accounts.ApiToken` | mobile/API bearer tokens with expiry and `last_used_at` tracking |
 | `products` | `Reseller.Catalog.Product` | aggregate root for inventory, AI data, media, exports, and lifecycle |
+| `storefronts` | `Reseller.Storefronts.Storefront` | one seller-owned public storefront configuration and slug identity |
+| `storefront_assets` | `Reseller.Storefronts.StorefrontAsset` | logo and header branding assets for a storefront |
+| `storefront_pages` | `Reseller.Storefronts.StorefrontPage` | seller-authored public informational pages |
+| `storefront_inquiries` | `Reseller.Storefronts.StorefrontInquiry` | public request capture linked to a storefront and optional product |
 | `product_tabs` | `Reseller.Catalog.ProductTab` | seller-defined workspace buckets used to group and filter products |
 | `product_images` | `Reseller.Media.ProductImage` | original uploads, processed variants, and lifestyle-generated previews |
 | `product_processing_runs` | `Reseller.Workers.ProductProcessingRun` | async AI pipeline bookkeeping for products |
@@ -579,8 +700,12 @@ erDiagram
 
 - `users.email` is unique.
 - `api_tokens.token_hash` is unique; `api_tokens.user_id` is indexed.
-- `products` has indexes on `user_id`, `user_id + status`, `user_id + product_tab_id`, `product_tab_id`, and a partial unique index on `user_id + sku` when `sku IS NOT NULL`.
+- `products` has indexes on `user_id`, `user_id + status`, `user_id + product_tab_id`, `user_id + storefront_enabled + status`, `product_tab_id`, and a partial unique index on `user_id + sku` when `sku IS NOT NULL`.
 - `products.search_document` is a PostgreSQL `tsvector` maintained by the `products_search_document_update` trigger and indexed with `products_search_document_index`.
+- `storefronts` is unique on both `user_id` and `slug`.
+- `storefront_assets` is unique on `storefront_id + kind`.
+- `storefront_pages` is unique on `storefront_id + slug` and indexed on `storefront_id + position`.
+- `storefront_inquiries` is indexed on `storefront_id + inserted_at` and `product_id + inserted_at`.
 - `product_tabs` is indexed on `user_id` and `user_id + position`, and is unique on `user_id + name`.
 - `product_images.storage_key` is unique.
 - `product_images` is unique on `product_id + kind + position`.
@@ -822,6 +947,7 @@ Adapter:
 Used for:
 
 - export-ready email notifications
+- storefront inquiry email notifications to storefront owners
 
 ## 10. Configuration Architecture
 
@@ -869,7 +995,7 @@ Important test design choice:
 - background jobs are not durable yet
 - passkey architecture is not implemented yet
 - storage lifecycle management is stronger for uploads than for retention/cleanup
-- the workspace currently centralizes many web behaviors in a single `WorkspaceLive`; this is functional today, but future extraction into dedicated LiveViews is likely
+- `WorkspaceLive` still centralizes dashboard, export/import, and settings; further extraction into dedicated LiveViews is likely as complexity grows (`InquiriesLive` is already an example of this direction)
 
 ## 13. Near-Term Evolution
 

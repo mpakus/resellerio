@@ -1,0 +1,273 @@
+<Layouts.storefront
+  flash={@flash}
+  current_user={@current_user}
+  storefront={@storefront}
+  query={@query}
+  active_nav="catalog"
+>
+  <nav
+    id="storefront-product-breadcrumbs"
+    class="flex flex-wrap items-center gap-2 text-sm text-[var(--storefront-muted)]"
+    aria-label="Breadcrumb"
+  >
+    <.link href={~p"/store/#{@storefront.slug}"} class="font-medium text-[var(--storefront-text)]">
+      Catalog
+    </.link>
+    <span>/</span>
+    <span class="truncate">{@product.title || storefront_product_ref(@product)}</span>
+  </nav>
+
+  <section
+    id="storefront-product-detail"
+    class="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]"
+  >
+    <div class="space-y-4">
+      <div class="overflow-hidden rounded-[2.2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_28px_80px_rgba(15,23,42,0.08)]">
+        <div class="aspect-[4/5] bg-white/60">
+          <img
+            :if={storefront_primary_image_url(@product)}
+            src={storefront_primary_image_url(@product)}
+            alt={@product.title || "Storefront product image"}
+            class="size-full object-cover"
+          />
+          <div
+            :if={!storefront_primary_image_url(@product)}
+            class="flex size-full items-center justify-center px-6 text-center text-sm text-[var(--storefront-muted)]"
+          >
+            Product images are still being prepared.
+          </div>
+        </div>
+      </div>
+
+      <div
+        :if={storefront_gallery_images(@product) != []}
+        id="storefront-product-gallery"
+        class="grid grid-cols-2 gap-4 sm:grid-cols-3"
+      >
+        <div
+          :for={image <- storefront_gallery_images(@product)}
+          class="overflow-hidden rounded-[1.4rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+        >
+          <img
+            :if={storefront_image_url(image)}
+            src={storefront_image_url(image)}
+            alt={@product.title || "Storefront gallery image"}
+            class="aspect-[4/5] size-full object-cover"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <article class="rounded-[2.2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] p-7 shadow-[0_28px_80px_rgba(15,23,42,0.08)]">
+        <p class="text-[11px] uppercase tracking-[0.32em] text-[var(--storefront-muted)]">
+          {storefront_product_eyebrow(@product)}
+        </p>
+        <h1 class="mt-4 text-4xl font-semibold tracking-[-0.05em] text-[var(--storefront-text)]">
+          {@product.title || "Untitled product"}
+        </h1>
+        <p class="mt-4 text-2xl font-semibold text-[var(--storefront-text)]">
+          {storefront_price_text(@product)}
+        </p>
+
+        <div :if={storefront_product_highlights(@product) != []} class="mt-6 flex flex-wrap gap-2">
+          <span
+            :for={highlight <- storefront_product_highlights(@product)}
+            class="rounded-full border border-[var(--storefront-border)] bg-white/55 px-3 py-1 text-xs font-medium text-[var(--storefront-text)]"
+          >
+            {highlight}
+          </span>
+        </div>
+
+        <p
+          :if={storefront_product_summary(@product)}
+          class="mt-6 text-sm leading-7 text-[var(--storefront-muted)]"
+        >
+          {storefront_product_summary(@product)}
+        </p>
+      </article>
+
+      <article
+        id="storefront-product-marketplace-links"
+        class="rounded-[2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--storefront-muted)]">
+              {if storefront_marketplace_links(@product) != [],
+                do: "External marketplace links",
+                else: "Send a request"}
+            </p>
+            <h2 class="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--storefront-text)]">
+              {if storefront_marketplace_links(@product) != [],
+                do: "Buy from an active listing",
+                else: "Request this item"}
+            </h2>
+          </div>
+        </div>
+
+        <div :if={storefront_marketplace_links(@product) != []} class="mt-5 flex flex-wrap gap-3">
+          <a
+            :for={listing <- storefront_marketplace_links(@product)}
+            id={"storefront-marketplace-link-#{listing.marketplace}"}
+            href={listing.external_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.16)]"
+            style="background-color: var(--storefront-primary);"
+          >
+            {marketplace_link_copy(listing)}
+          </a>
+        </div>
+
+        <div
+          :if={storefront_marketplace_links(@product) == []}
+          id="storefront-product-request"
+        >
+          <p class="mt-5 text-sm leading-7 text-[var(--storefront-muted)]">
+            This item isn't listed on an external marketplace yet. Send the seller a direct request and they'll get back to you.
+          </p>
+          <.form
+            for={%{}}
+            as={:inquiry}
+            action={
+              ~p"/store/#{@storefront.slug}/products/#{storefront_product_ref(@product)}/inquiries"
+            }
+            method="post"
+            class="mt-5 grid gap-4"
+          >
+            <input
+              type="text"
+              name="inquiry[website]"
+              value=""
+              class="hidden"
+              aria-hidden="true"
+              tabindex="-1"
+              autocomplete="off"
+            />
+            <div>
+              <label
+                for="inquiry_full_name"
+                class="block text-xs uppercase tracking-[0.22em] text-[var(--storefront-muted)] mb-2"
+              >
+                Full Name
+              </label>
+              <input
+                id="inquiry_full_name"
+                type="text"
+                name="inquiry[full_name]"
+                required
+                maxlength="120"
+                placeholder="Your name"
+                class="w-full rounded-2xl border border-[var(--storefront-border)] bg-white/55 px-4 py-3 text-sm text-[var(--storefront-text)] placeholder:text-[var(--storefront-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--storefront-primary)]/40"
+              />
+            </div>
+            <div>
+              <label
+                for="inquiry_contact"
+                class="block text-xs uppercase tracking-[0.22em] text-[var(--storefront-muted)] mb-2"
+              >
+                Phone / Email
+              </label>
+              <input
+                id="inquiry_contact"
+                type="text"
+                name="inquiry[contact]"
+                required
+                maxlength="200"
+                placeholder="How should the seller reach you?"
+                class="w-full rounded-2xl border border-[var(--storefront-border)] bg-white/55 px-4 py-3 text-sm text-[var(--storefront-text)] placeholder:text-[var(--storefront-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--storefront-primary)]/40"
+              />
+            </div>
+            <div>
+              <label
+                for="inquiry_message"
+                class="block text-xs uppercase tracking-[0.22em] text-[var(--storefront-muted)] mb-2"
+              >
+                Message
+              </label>
+              <textarea
+                id="inquiry_message"
+                name="inquiry[message]"
+                required
+                maxlength="5000"
+                rows="4"
+                placeholder="Tell the seller what you'd like to know…"
+                class="w-full rounded-2xl border border-[var(--storefront-border)] bg-white/55 px-4 py-3 text-sm text-[var(--storefront-text)] placeholder:text-[var(--storefront-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--storefront-primary)]/40 resize-none"
+              ></textarea>
+            </div>
+            <button
+              type="submit"
+              class="w-full rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_35px_rgba(15,23,42,0.16)] transition-opacity hover:opacity-90"
+              style="background-color: var(--storefront-primary);"
+            >
+              Send Request
+            </button>
+          </.form>
+        </div>
+      </article>
+
+      <article
+        id="storefront-product-share"
+        class="rounded-[2rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.06)]"
+      >
+        <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--storefront-muted)]">
+          Sharing
+        </p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-[-0.04em] text-[var(--storefront-text)]">
+          Copy the public product URL
+        </h2>
+        <div class="mt-5">
+          <.input
+            id="storefront-share-url"
+            name="share_url"
+            label="Share link"
+            type="text"
+            value={share_url(@storefront, @product)}
+            readonly
+            copyable
+            class="w-full rounded-2xl border border-[var(--storefront-border)] bg-white/55"
+          />
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section
+    :if={storefront_product_attribute_rows(@product) != []}
+    id="storefront-product-attributes"
+    class="mt-8 rounded-[2.1rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] p-7 shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+  >
+    <p class="text-[11px] uppercase tracking-[0.3em] text-[var(--storefront-muted)]">
+      Product details
+    </p>
+    <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        :for={{label, value} <- storefront_product_attribute_rows(@product)}
+        class="rounded-[1.4rem] border border-[var(--storefront-border)] bg-white/50 px-4 py-4"
+      >
+        <p class="text-[11px] uppercase tracking-[0.26em] text-[var(--storefront-muted)]">
+          {label}
+        </p>
+        <p class="mt-2 text-base font-semibold text-[var(--storefront-text)]">{value}</p>
+      </div>
+    </div>
+  </section>
+
+  <section
+    :if={storefront_plain_text_paragraphs(@product.notes || @product.ai_summary) != []}
+    id="storefront-product-description"
+    class="mt-8 rounded-[2.1rem] border border-[var(--storefront-border)] bg-[var(--storefront-surface)] p-7 shadow-[0_24px_70px_rgba(15,23,42,0.06)]"
+  >
+    <p class="text-[11px] uppercase tracking-[0.3em] text-[var(--storefront-muted)]">
+      Product notes
+    </p>
+    <div class="mt-5 space-y-4 text-base leading-8 text-[var(--storefront-text)]">
+      <p :for={
+        paragraph <- storefront_plain_text_paragraphs(@product.notes || @product.ai_summary)
+      }>
+        {paragraph}
+      </p>
+    </div>
+  </section>
+</Layouts.storefront>

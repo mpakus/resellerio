@@ -63,7 +63,8 @@ Avoid:
 
 ### App shell
 
-- Public pages use `<Layouts.app ...>`
+- Marketing pages use `<Layouts.app ...>`
+- Public storefront pages use `<Layouts.storefront ...>` so seller branding, menu pages, and storefront search stay separate from the marketing header
 - Authenticated pages use `<Layouts.app_shell ...>`
 - LiveViews should always start inside the correct layout wrapper
 
@@ -180,6 +181,8 @@ It standardizes:
 - filters and tables stay practical and compact
 - seller-managed product tabs should sit above the table filters as a single horizontal strip, with `+ Add tab` living in the same cluster
 - lightweight create flows like the product-tab modal should reuse the standard fixed-overlay modal treatment already used for exports
+- settings screens can stack one large configuration surface with adjacent supporting surfaces, as long as they stay on the same rounded surface language
+- modal CRUD for lightweight supporting records like product tabs or storefront pages should reuse the same fixed-overlay modal treatment
 - status should always go through `<.status_badge>`
 
 ## Interaction rules

@@ -10,6 +10,7 @@ defmodule ResellerWeb.WorkspaceLiveTest do
   alias Reseller.Exports.Export
   alias Reseller.Imports
   alias Reseller.Repo
+  alias Reseller.Storefronts
 
   test "redirects unauthenticated users to sign in", %{conn: conn} do
     assert {:error, {:redirect, %{to: "/sign-in"}}} = live(conn, "/app")
@@ -255,9 +256,131 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert Accounts.get_user!(user.id).selected_marketplaces == ["ebay", "mercari", "etsy"]
   end
 
+  test "saves storefront settings from the settings screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "storefront@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/settings")
+
+    assert has_element?(view, "#storefront-settings-form")
+
+    view
+    |> form("#storefront-settings-form", %{
+      "storefront" => %{
+        "enabled" => "true",
+        "title" => "Seller Archive",
+        "slug" => "seller-archive",
+        "tagline" => "Curated outerwear",
+        "description" => "Vintage and modern pieces.",
+        "theme_id" => "linen-ink"
+      }
+    })
+    |> render_submit()
+
+    storefront = Storefronts.get_storefront_for_user(user)
+
+    assert storefront.enabled == true
+    assert storefront.title == "Seller Archive"
+    assert storefront.slug == "seller-archive"
+    assert storefront.theme_id == "linen-ink"
+    assert has_element?(view, "#flash-info", "Storefront settings saved.")
+    assert has_element?(view, "#storefront-preview-url", "/store/seller-archive")
+  end
+
+  test "creates and reorders storefront pages from the settings screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "pages@example.com"})
+    _storefront = storefront_fixture(user, %{"slug" => "pages-store"})
+    first_page = storefront_page_fixture(user, %{"title" => "About", "body" => "About copy"})
+
+    second_page =
+      storefront_page_fixture(user, %{"title" => "Shipping", "body" => "Shipping copy"})
+
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app/settings")
+
+    assert has_element?(view, "#storefront-page-#{first_page.id}", "About")
+    assert has_element?(view, "#storefront-page-#{second_page.id}", "Shipping")
+
+    view
+    |> element("#open-storefront-page-modal-button")
+    |> render_click()
+
+    assert has_element?(view, "#storefront-page-form")
+
+    view
+    |> form("#storefront-page-form", %{
+      "storefront_page" => %{
+        "title" => "Returns",
+        "slug" => "returns",
+        "menu_label" => "Returns",
+        "body" => "Return within 14 days.",
+        "published" => "true"
+      }
+    })
+    |> render_submit()
+
+    assert has_element?(view, "#storefront-pages-list", "Returns")
+
+    view
+    |> element(
+      ~s(button[phx-click="move_storefront_page"][phx-value-id="#{first_page.id}"][phx-value-direction="down"])
+    )
+    |> render_click()
+
+    assert Enum.map(Storefronts.list_storefront_pages_for_user(user), & &1.title) == [
+             "Shipping",
+             "About",
+             "Returns"
+           ]
+  end
+
+  test "uploads storefront logo assets from the settings screen", %{conn: conn} do
+    user = user_fixture(%{"email" => "branding@example.com"})
+    _storefront = storefront_fixture(user, %{"slug" => "branding-store"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    with_fake_media_storage(fn ->
+      {:ok, view, _html} = live(conn, "/app/settings")
+
+      upload =
+        file_input(view, "#storefront-logo-form", :storefront_logo, [
+          %{
+            name: "logo.png",
+            content: "fake-logo-binary",
+            type: "image/png"
+          }
+        ])
+
+      render_upload(upload, "logo.png")
+
+      asset = Storefronts.get_storefront_asset_for_user(user, "logo")
+
+      assert asset
+      assert asset.content_type == "image/png"
+      assert has_element?(view, "#flash-info", "Logo uploaded.")
+    end)
+  end
+
   defp assert_route_section(conn, path, selector) do
     {:ok, view, _html} = live(conn, path)
     assert has_element?(view, selector)
+  end
+
+  defp with_fake_media_storage(fun) do
+    previous_media = Application.get_env(:reseller, Reseller.Media)
+
+    Application.put_env(
+      :reseller,
+      Reseller.Media,
+      Keyword.put(previous_media, :storage, Reseller.Support.Fakes.MediaStorage)
+    )
+
+    try do
+      fun.()
+    after
+      Application.put_env(:reseller, Reseller.Media, previous_media)
+    end
   end
 
   defp import_zip_binary do

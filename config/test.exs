@@ -74,3 +74,10 @@ config :reseller, Reseller.Exports,
   from_email: "exports@test.local"
 
 config :reseller, Reseller.Imports, processing_mode: :inline
+
+config :reseller, Reseller.Storefronts,
+  notifier: Reseller.Support.Fakes.StorefrontNotifier,
+  from_email: "storefront@test.local",
+  inquiry_ip_limit: 5,
+  inquiry_storefront_limit: 50,
+  inquiry_window_minutes: 60

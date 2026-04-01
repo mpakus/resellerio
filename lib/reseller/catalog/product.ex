@@ -24,6 +24,8 @@ defmodule Reseller.Catalog.Product do
     field :ai_confidence, :float
     field :sold_at, :utc_datetime
     field :archived_at, :utc_datetime
+    field :storefront_enabled, :boolean, default: false
+    field :storefront_published_at, :utc_datetime
 
     belongs_to :user, Reseller.Accounts.User
     belongs_to :product_tab, Reseller.Catalog.ProductTab
@@ -69,7 +71,9 @@ defmodule Reseller.Catalog.Product do
       :ai_confidence,
       :sold_at,
       :archived_at,
-      :product_tab_id
+      :product_tab_id,
+      :storefront_enabled,
+      :storefront_published_at
     ])
     |> validate_required([:status, :source])
     |> validate_inclusion(:status, @statuses)

@@ -26,6 +26,7 @@ defmodule Reseller.DataCase do
       import Reseller.AccountsFixtures
       import Reseller.CatalogFixtures
       import Reseller.DataCase
+      import Reseller.StorefrontFixtures
     end
   end
 

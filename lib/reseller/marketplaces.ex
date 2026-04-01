@@ -5,6 +5,7 @@ defmodule Reseller.Marketplaces do
 
   import Ecto.Query, warn: false
 
+  alias Ecto.Multi
   alias Reseller.Catalog.Product
   alias Reseller.Marketplaces.MarketplaceListing
   alias Reseller.Repo
@@ -110,6 +111,31 @@ defmodule Reseller.Marketplaces do
     end
   end
 
+  @spec update_external_urls_multi(Product.t(), map()) :: Ecto.Multi.t()
+  def update_external_urls_multi(%Product{} = product, attrs) when is_map(attrs) do
+    url_attrs = normalize_external_url_attrs(attrs)
+
+    list_product_marketplace_listings(product.id)
+    |> Enum.reduce(Multi.new(), fn listing, multi ->
+      if Map.has_key?(url_attrs, listing.marketplace) do
+        Multi.update(
+          multi,
+          {:marketplace_listing, listing.marketplace},
+          MarketplaceListing.update_changeset(listing, %{
+            "external_url" => Map.get(url_attrs, listing.marketplace)
+          })
+        )
+      else
+        multi
+      end
+    end)
+  end
+
+  @spec external_url_map([MarketplaceListing.t()]) :: %{optional(String.t()) => String.t() | nil}
+  def external_url_map(listings) when is_list(listings) do
+    Map.new(listings, fn listing -> {listing.marketplace, listing.external_url} end)
+  end
+
   defp listing_attrs(marketplace, result) do
     output =
       case result do
@@ -165,6 +191,10 @@ defmodule Reseller.Marketplaces do
   end
 
   defp normalize_input_marketplaces(_marketplaces), do: []
+
+  defp normalize_external_url_attrs(attrs) when is_map(attrs) do
+    Map.new(attrs, fn {marketplace, url} -> {to_string(marketplace), url} end)
+  end
 
   defp humanize_marketplace(marketplace) do
     marketplace

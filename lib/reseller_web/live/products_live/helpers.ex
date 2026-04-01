@@ -4,6 +4,7 @@ defmodule ResellerWeb.ProductsLive.Helpers do
   alias Reseller.Catalog.Product
   alias Reseller.Catalog.ProductTab
   alias Reseller.Media
+  alias Reseller.Slugs
 
   @product_filters [
     {"All", "all"},
@@ -181,6 +182,21 @@ defmodule ResellerWeb.ProductsLive.Helpers do
   end
 
   def product_image_groups(_product), do: []
+
+  def storefront_product_preview_path(%{slug: slug}, %Product{} = product)
+      when is_binary(slug) and slug != "" do
+    product_ref =
+      case Slugs.slugify(product.title || "", max_length: 80) do
+        "" -> Integer.to_string(product.id)
+        title_slug -> "#{product.id}-#{title_slug}"
+      end
+
+    "/store/#{slug}/products/#{product_ref}"
+  end
+
+  def storefront_product_preview_path(_storefront, %Product{} = product) do
+    "/store/products/#{product.id}"
+  end
 
   def product_image_management_available?(%Product{status: status})
       when status in ["draft", "review", "ready"],
