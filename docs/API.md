@@ -499,6 +499,300 @@ Unknown or unauthorized tab IDs return:
 }
 ```
 
+### `DELETE /api/v1/product_tabs/:id`
+
+Deletes one seller-defined product tab. Products assigned to the deleted tab are not deleted; their `product_tab_id` is set to `null` by the database cascade.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true
+  }
+}
+```
+
+Unknown or unauthorized tab IDs return `404`.
+
+### `GET /api/v1/storefront`
+
+Returns the authenticated user's storefront configuration. If no storefront has been saved yet, returns an unsaved record with `id: null`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "storefront": {
+      "id": 3,
+      "slug": "my-store",
+      "title": "My Store",
+      "tagline": "Curated resale.",
+      "description": "Secondhand fashion with fast shipping.",
+      "theme_id": "neutral-warm",
+      "enabled": true,
+      "assets": [
+        {
+          "id": 1,
+          "kind": "logo",
+          "storage_key": "users/1/storefronts/3/logo.png",
+          "content_type": "image/png",
+          "original_filename": "logo.png",
+          "width": 400,
+          "height": 400,
+          "byte_size": 45000
+        }
+      ],
+      "pages": [
+        {
+          "id": 2,
+          "title": "About",
+          "slug": "about",
+          "menu_label": "About",
+          "body": "Welcome to my store.",
+          "position": 1,
+          "published": true
+        }
+      ],
+      "inserted_at": "2026-03-29T12:00:00Z",
+      "updated_at": "2026-03-29T12:00:00Z"
+    }
+  }
+}
+```
+
+### `PUT /api/v1/storefront`
+
+Creates or updates the authenticated user's storefront. Safe to call multiple times — upserts on the user's single storefront record.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "storefront": {
+    "slug": "my-store",
+    "title": "My Store",
+    "tagline": "Curated resale.",
+    "description": "Secondhand fashion with fast shipping.",
+    "theme_id": "neutral-warm",
+    "enabled": true
+  }
+}
+```
+
+Response uses the same shape as `GET /api/v1/storefront`.
+
+Validation failures return `422`.
+
+### `GET /api/v1/storefront/pages`
+
+Lists the authenticated user's storefront pages in display order.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "pages": [
+      {
+        "id": 2,
+        "title": "About",
+        "slug": "about",
+        "menu_label": "About",
+        "body": "Welcome to my store.",
+        "position": 1,
+        "published": true,
+        "inserted_at": "2026-03-29T12:00:00Z",
+        "updated_at": "2026-03-29T12:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+### `POST /api/v1/storefront/pages`
+
+Creates one storefront page. Requires a saved storefront.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "page": {
+    "title": "Returns",
+    "slug": "returns",
+    "menu_label": "Returns",
+    "body": "Full refunds within 30 days.",
+    "published": true
+  }
+}
+```
+
+Response status: `201 Created`. Returns the new page using the shape from `GET /api/v1/storefront/pages`.
+
+Returns `422 storefront_not_found` when no storefront profile has been saved yet.
+
+### `PATCH /api/v1/storefront/pages/:page_id`
+
+Updates one storefront page.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body (all fields optional):
+
+```json
+{
+  "page": {
+    "title": "Shipping Policy",
+    "body": "Ships in 1-2 business days.",
+    "published": true
+  }
+}
+```
+
+Unknown or unauthorized page IDs return `404`.
+
+### `DELETE /api/v1/storefront/pages/:page_id`
+
+Deletes one storefront page.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true
+  }
+}
+```
+
+Unknown or unauthorized page IDs return `404`.
+
+### `DELETE /api/v1/storefront/assets/:kind`
+
+Deletes one storefront branding asset. Valid `kind` values are `logo` and `header`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true
+  }
+}
+```
+
+Returns `404` when no asset of that kind exists.
+
+### `GET /api/v1/inquiries`
+
+Lists storefront inquiries for the authenticated user with search and pagination.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Supported query params:
+
+- `q`: full-text search across `full_name`, `contact`, and `message`
+- `page`: 1-based page number
+- `page_size`: optional positive integer, capped at 100 (default 20)
+
+Response:
+
+```json
+{
+  "data": {
+    "inquiries": [
+      {
+        "id": 7,
+        "full_name": "Jane Buyer",
+        "contact": "jane@example.com",
+        "message": "Is this still available?",
+        "source_path": "/store/my-store/products/1-vintage-jacket",
+        "product_id": 12,
+        "inserted_at": "2026-03-30T15:22:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "page_size": 20,
+      "total_count": 1,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+### `DELETE /api/v1/inquiries/:id`
+
+Deletes one storefront inquiry for the authenticated user. Returns `404` for unknown or foreign-owned inquiries.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true
+  }
+}
+```
+
 ### `GET /api/v1/products`
 
 Lists products for the authenticated user using the same filter model as the web workspace.
@@ -1026,6 +1320,33 @@ Response shape:
   }
 }
 ```
+
+### `DELETE /api/v1/products/:id/images/:image_id`
+
+Deletes one uploaded product image and all its associated processed variants (e.g. `background_removed`). The product must be in `draft`, `review`, or `ready` status.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "deleted": true,
+    "product": {
+      "id": 12
+    }
+  }
+}
+```
+
+Returns `404` when the image does not belong to the product or the product does not belong to the authenticated user.
+
+Returns `422 invalid_product_state` when the product is in `uploading`, `processing`, `sold`, or `archived` status.
 
 ### Product Processing Status
 

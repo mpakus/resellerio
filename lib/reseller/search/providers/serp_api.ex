@@ -77,11 +77,53 @@ defmodule Reseller.Search.Providers.SerpApi do
   defp execute_request(request, opts) do
     request_fun = Keyword.get(opts, :request_fun, &default_request/1)
 
-    case request_fun.(request) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, {:request_failed, reason}}
+    t0 = System.monotonic_time(:millisecond)
+
+    result =
+      case request_fun.(request) do
+        {:ok, response} -> {:ok, response}
+        {:error, reason} -> {:error, {:request_failed, reason}}
+      end
+
+    duration_ms = System.monotonic_time(:millisecond) - t0
+    emit_metrics(request, result, duration_ms, opts)
+
+    result
+  end
+
+  defp emit_metrics(request, result, duration_ms, opts) do
+    {status, http_status, error_code} = extract_metrics_fields(result)
+
+    Reseller.Metrics.record_event_safe(%{
+      user_id: Keyword.get(opts, :user_id),
+      product_id: Keyword.get(opts, :product_id),
+      provider: :serp_api,
+      operation: serp_operation(request),
+      status: status,
+      http_status: http_status,
+      duration_ms: duration_ms,
+      error_code: error_code,
+      metadata: %{}
+    })
+  end
+
+  defp extract_metrics_fields({:ok, response}) do
+    status_code = response_field(response, :status) || 200
+
+    if status_code in 200..299 do
+      {"success", status_code, nil}
+    else
+      {"error", status_code, "http_#{status_code}"}
     end
   end
+
+  defp extract_metrics_fields({:error, {:request_failed, _}}),
+    do: {"error", nil, "transport_error"}
+
+  defp extract_metrics_fields({:error, _}), do: {"error", nil, "unknown_error"}
+
+  defp serp_operation(%{params: %{"engine" => "google_lens"}}), do: :lens_matches
+  defp serp_operation(_request), do: :shopping_matches
 
   defp default_request(request) do
     Req.get(url: request.url, params: request.params, receive_timeout: request.receive_timeout)

@@ -11,7 +11,8 @@ defmodule Reseller.Workers do
   @spec start_product_processing(Product.t(), keyword()) ::
           {:ok, ProductProcessingRun.t()} | {:error, Ecto.Changeset.t() | term()}
   def start_product_processing(%Product{} = product, opts \\ []) do
-    with {:ok, run} <- create_processing_run(product) do
+    with :ok <- check_processing_limit(product, opts),
+         {:ok, run} <- create_processing_run(product) do
       case enqueue_run(run, opts) do
         :ok -> {:ok, Repo.get!(ProductProcessingRun, run.id)}
         {:error, reason} -> {:error, reason}
@@ -133,6 +134,17 @@ defmodule Reseller.Workers do
 
       run ->
         run
+    end
+  end
+
+  defp check_processing_limit(%Product{} = product, opts) do
+    if Keyword.get(opts, :skip_limit_check, false) do
+      :ok
+    else
+      case Reseller.Metrics.check_limit(product.user_id) do
+        :ok -> :ok
+        {:error, :limit_exceeded, details} -> {:error, {:limit_exceeded, details}}
+      end
     end
   end
 end

@@ -59,6 +59,24 @@ defmodule ResellerWeb.API.V1.ProductTabController do
     APIError.render(conn, :bad_request, "invalid_request", "product_tab payload is required")
   end
 
+  def delete(conn, %{"id" => id}) do
+    case Catalog.delete_product_tab_for_user(conn.assigns.current_user, id) do
+      {:ok, _product_tab} ->
+        json(conn, %{data: %{deleted: true}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Product tab not found")
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "product_tab_delete_failed",
+          "Could not delete product tab: #{inspect(reason)}"
+        )
+    end
+  end
+
   defp product_tab_json(product_tab) do
     %{
       id: product_tab.id,

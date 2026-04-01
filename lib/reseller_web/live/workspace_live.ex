@@ -755,7 +755,14 @@ defmodule ResellerWeb.WorkspaceLive do
                         class="mt-4 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3"
                       >
                         <label
-                          :for={preset <- visible_theme_presets(@theme_presets, @show_all_themes?, current_theme_id(@storefront_form))}
+                          :for={
+                            preset <-
+                              visible_theme_presets(
+                                @theme_presets,
+                                @show_all_themes?,
+                                current_theme_id(@storefront_form)
+                              )
+                          }
                           for={"storefront-theme-#{preset.id}"}
                           class="block cursor-pointer"
                         >
@@ -831,7 +838,9 @@ defmodule ResellerWeb.WorkspaceLive do
                         class="mt-3 flex items-center gap-1.5 text-sm text-base-content/60 hover:text-base-content transition"
                       >
                         <.icon
-                          name={if @show_all_themes?, do: "hero-chevron-up", else: "hero-chevron-down"}
+                          name={
+                            if @show_all_themes?, do: "hero-chevron-up", else: "hero-chevron-down"
+                          }
                           class="size-4"
                         />
                         {if @show_all_themes?,

@@ -66,6 +66,13 @@ defmodule Reseller.Catalog do
     end
   end
 
+  def delete_product_tab_for_user(%User{} = user, id) do
+    case get_product_tab_for_user(user, id) do
+      nil -> {:error, :not_found}
+      product_tab -> Repo.delete(product_tab)
+    end
+  end
+
   def list_filtered_products_for_user(%User{id: user_id}, opts \\ []) do
     sort = normalize_product_sort(Keyword.get(opts, :sort, :updated_at))
     sort_dir = normalize_product_sort_dir(Keyword.get(opts, :sort_dir, :desc))

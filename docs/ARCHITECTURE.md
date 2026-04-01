@@ -63,6 +63,11 @@ flowchart LR
     EX --> TG
     IM --> TG
     EX --> ML["Swoosh Mailer"]
+
+    GM --> MTR["Metrics"]
+    SA --> MTR
+    PR --> MTR
+    WK --> MTR
 ```
 
 ## 3. Runtime Topology
@@ -285,6 +290,24 @@ Primary modules:
 - `Reseller.Imports.ZipParser`
 - `Reseller.Imports.ArchiveImporter`
 
+### `Reseller.Metrics`
+
+Responsibilities:
+
+- record every Gemini, SerpApi, and Photoroom API call as an `ApiUsageEvent`
+- estimate USD cost per call via configurable pricing rates
+- roll up daily per-user summaries into `UserUsageSummary`
+- provide aggregate queries for admin dashboards
+- gate new product processing runs when a user exceeds configured daily limits
+
+Primary modules:
+
+- `Reseller.Metrics`
+- `Reseller.Metrics.ApiUsageEvent`
+- `Reseller.Metrics.UserUsageSummary`
+- `Reseller.Metrics.CostEstimator`
+- `Reseller.Metrics.UsageSummarizer`
+
 ## 5. Interface Architecture
 
 ### Browser / LiveView
@@ -343,8 +366,15 @@ Current authenticated API surface:
 
 Backpex resources:
 
-- `Users`
+- `Users` — includes API usage metrics panel on the show page
 - `API Tokens`
+- `Products` — includes per-product API usage metrics panel on the show page
+- `Storefronts`
+- `API Usage Events` — append-only log of every external API call at `/admin/api-usage-events`
+
+Custom admin LiveViews:
+
+- `UsageDashboardLive` at `/admin/usage-dashboard` — platform-wide API usage totals, daily trends, top users and products by cost, and error summary
 
 The admin surface is intentionally separated from reseller-facing operations.
 
@@ -695,6 +725,8 @@ erDiagram
 | `marketplace_listings` | `Reseller.Marketplaces.MarketplaceListing` | marketplace-specific generated copy for one product |
 | `exports` | `Reseller.Exports.Export` | ZIP export request history, artifact metadata, stalled/failure state |
 | `imports` | `Reseller.Imports.Import` | ZIP import request history, counters, and failure details |
+| `api_usage_events` | `Reseller.Metrics.ApiUsageEvent` | append-only log of every Gemini, SerpApi, and Photoroom call with token counts and estimated cost |
+| `user_usage_summaries` | `Reseller.Metrics.UserUsageSummary` | daily rollup of API usage per user for fast admin queries |
 
 ## 6.3 Important constraints and indexes
 

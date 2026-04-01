@@ -53,7 +53,12 @@ defmodule Reseller.Workers.ProductProcessingWorker do
   end
 
   defp process_run(run, processor, opts) do
-    case processor.process(run.product, opts) do
+    enriched_opts =
+      opts
+      |> Keyword.put(:user_id, run.product.user_id)
+      |> Keyword.put(:product_id, run.product_id)
+
+    case processor.process(run.product, enriched_opts) do
       {:ok, %{step: step, payload: payload}} ->
         complete_run(run, step, payload)
 
@@ -76,6 +81,8 @@ defmodule Reseller.Workers.ProductProcessingWorker do
       "payload" => payload
     })
     |> Repo.update!()
+
+    refresh_metrics_summary(run)
   end
 
   defp fail_run(run, code, message, payload) do
@@ -92,6 +99,14 @@ defmodule Reseller.Workers.ProductProcessingWorker do
       "payload" => payload
     })
     |> Repo.update!()
+
+    refresh_metrics_summary(run)
+  end
+
+  defp refresh_metrics_summary(run) do
+    if run.product && run.product.user_id do
+      Reseller.Metrics.refresh_user_summary(run.product.user_id)
+    end
   end
 
   defp fail_product_images(product, %{"retryable" => true}),

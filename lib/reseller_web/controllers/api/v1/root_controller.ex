@@ -54,6 +54,57 @@ defmodule ResellerWeb.API.V1.RootController do
             description: "Updates one seller-defined product tab."
           },
           %{
+            method: "DELETE",
+            path: "/api/v1/product_tabs/:id",
+            description: "Deletes one seller-defined product tab."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/storefront",
+            description: "Returns the authenticated user's storefront configuration."
+          },
+          %{
+            method: "PUT",
+            path: "/api/v1/storefront",
+            description: "Creates or updates the authenticated user's storefront."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/storefront/pages",
+            description: "Lists the authenticated user's storefront pages in display order."
+          },
+          %{
+            method: "POST",
+            path: "/api/v1/storefront/pages",
+            description: "Creates one storefront page."
+          },
+          %{
+            method: "PATCH",
+            path: "/api/v1/storefront/pages/:page_id",
+            description: "Updates one storefront page."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/storefront/pages/:page_id",
+            description: "Deletes one storefront page."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/storefront/assets/:kind",
+            description: "Deletes one storefront branding asset by kind (logo or header)."
+          },
+          %{
+            method: "GET",
+            path: "/api/v1/inquiries",
+            description:
+              "Lists storefront inquiries for the authenticated user with search and pagination."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/inquiries/:id",
+            description: "Deletes one storefront inquiry for the authenticated user."
+          },
+          %{
             method: "GET",
             path: "/api/v1/products",
             description:
@@ -109,6 +160,11 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "DELETE",
             path: "/api/v1/products/:id/generated_images/:image_id",
             description: "Deletes one generated lifestyle preview."
+          },
+          %{
+            method: "DELETE",
+            path: "/api/v1/products/:id/images/:image_id",
+            description: "Deletes one uploaded product image and its processed variants."
           },
           %{
             method: "POST",

@@ -3,7 +3,8 @@ defmodule ResellerWeb.DPALive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: ResellerWeb.PageTitle.build("Data Processing Addendum", "Legal"))}
+    {:ok,
+     assign(socket, page_title: ResellerWeb.PageTitle.build("Data Processing Addendum", "Legal"))}
   end
 
   @impl true
@@ -13,8 +14,12 @@ defmodule ResellerWeb.DPALive do
       <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         <div class="prose prose-base max-w-none">
           <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Legal</p>
-          <h1 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em]">Data Processing Addendum</h1>
-          <p class="mt-2 text-sm text-base-content/60">Effective date: June 1, 2025 · Last updated: June 1, 2025</p>
+          <h1 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em]">
+            Data Processing Addendum
+          </h1>
+          <p class="mt-2 text-sm text-base-content/60">
+            Effective date: June 1, 2025 · Last updated: June 1, 2025
+          </p>
 
           <p class="mt-8 text-base leading-7 text-base-content/80">
             This Data Processing Addendum ("DPA") forms part of the agreement between ResellerIO ("Processor") and the customer ("Controller") who uses the ResellerIO Service. It sets out the terms under which ResellerIO processes personal data on behalf of the Controller.
@@ -22,11 +27,26 @@ defmodule ResellerWeb.DPALive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">1. Definitions</h2>
           <ul class="mt-4 list-disc pl-6 space-y-2 text-base leading-7 text-base-content/80">
-            <li><strong>Personal Data</strong> — any information relating to an identified or identifiable natural person processed under this DPA.</li>
-            <li><strong>Processing</strong> — any operation performed on Personal Data, including collection, storage, use, disclosure, and deletion.</li>
-            <li><strong>Sub-processor</strong> — any third party engaged by ResellerIO to process Personal Data.</li>
-            <li><strong>GDPR</strong> — the EU General Data Protection Regulation 2016/679 and any applicable national implementations.</li>
-            <li><strong>CCPA</strong> — the California Consumer Privacy Act (Cal. Civ. Code § 1798.100 et seq.) and the CPRA amendments.</li>
+            <li>
+              <strong>Personal Data</strong>
+              — any information relating to an identified or identifiable natural person processed under this DPA.
+            </li>
+            <li>
+              <strong>Processing</strong>
+              — any operation performed on Personal Data, including collection, storage, use, disclosure, and deletion.
+            </li>
+            <li>
+              <strong>Sub-processor</strong>
+              — any third party engaged by ResellerIO to process Personal Data.
+            </li>
+            <li>
+              <strong>GDPR</strong>
+              — the EU General Data Protection Regulation 2016/679 and any applicable national implementations.
+            </li>
+            <li>
+              <strong>CCPA</strong>
+              — the California Consumer Privacy Act (Cal. Civ. Code § 1798.100 et seq.) and the CPRA amendments.
+            </li>
           </ul>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">2. Scope and Role</h2>
@@ -40,23 +60,33 @@ defmodule ResellerWeb.DPALive do
               <tbody class="divide-y divide-base-300">
                 <tr>
                   <td class="px-4 py-3 font-semibold w-40">Nature</td>
-                  <td class="px-4 py-3">Storage, AI-assisted analysis, image processing, export generation, and delivery of the ResellerIO platform.</td>
+                  <td class="px-4 py-3">
+                    Storage, AI-assisted analysis, image processing, export generation, and delivery of the ResellerIO platform.
+                  </td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-semibold">Purpose</td>
-                  <td class="px-4 py-3">Providing the features described in the Privacy Policy and any order documentation.</td>
+                  <td class="px-4 py-3">
+                    Providing the features described in the Privacy Policy and any order documentation.
+                  </td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-semibold">Duration</td>
-                  <td class="px-4 py-3">For the term of the customer's active subscription or account, plus any legally required retention period thereafter.</td>
+                  <td class="px-4 py-3">
+                    For the term of the customer's active subscription or account, plus any legally required retention period thereafter.
+                  </td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-semibold">Data types</td>
-                  <td class="px-4 py-3">Email addresses, hashed passwords, product descriptions, product images, marketplace copy, pricing data, and usage logs.</td>
+                  <td class="px-4 py-3">
+                    Email addresses, hashed passwords, product descriptions, product images, marketplace copy, pricing data, and usage logs.
+                  </td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3 font-semibold">Data subjects</td>
-                  <td class="px-4 py-3">Users and customers of the Controller who interact with the ResellerIO platform.</td>
+                  <td class="px-4 py-3">
+                    Users and customers of the Controller who interact with the ResellerIO platform.
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -65,13 +95,27 @@ defmodule ResellerWeb.DPALive do
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">4. Processor Obligations</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">ResellerIO shall:</p>
           <ul class="mt-4 list-disc pl-6 space-y-2 text-base leading-7 text-base-content/80">
-            <li>Process Personal Data only on documented instructions from the Controller, unless required to do so by applicable law.</li>
-            <li>Ensure that persons authorised to process the Personal Data have committed to confidentiality.</li>
-            <li>Implement appropriate technical and organisational security measures as described in Section 7.</li>
-            <li>Assist the Controller in responding to Data Subject rights requests within 30 days.</li>
-            <li>Notify the Controller without undue delay (and in any event within 72 hours) upon becoming aware of a Personal Data breach.</li>
-            <li>Delete or return all Personal Data to the Controller upon termination of the Service, at the Controller's choice, unless retention is required by law.</li>
-            <li>Make available all information necessary to demonstrate compliance with this DPA and allow audits conducted by the Controller or an authorised auditor.</li>
+            <li>
+              Process Personal Data only on documented instructions from the Controller, unless required to do so by applicable law.
+            </li>
+            <li>
+              Ensure that persons authorised to process the Personal Data have committed to confidentiality.
+            </li>
+            <li>
+              Implement appropriate technical and organisational security measures as described in Section 7.
+            </li>
+            <li>
+              Assist the Controller in responding to Data Subject rights requests within 30 days.
+            </li>
+            <li>
+              Notify the Controller without undue delay (and in any event within 72 hours) upon becoming aware of a Personal Data breach.
+            </li>
+            <li>
+              Delete or return all Personal Data to the Controller upon termination of the Service, at the Controller's choice, unless retention is required by law.
+            </li>
+            <li>
+              Make available all information necessary to demonstrate compliance with this DPA and allow audits conducted by the Controller or an authorised auditor.
+            </li>
           </ul>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">5. Sub-processors</h2>
@@ -90,7 +134,9 @@ defmodule ResellerWeb.DPALive do
               <tbody class="divide-y divide-base-300">
                 <tr>
                   <td class="px-4 py-3">Google LLC (Gemini API)</td>
-                  <td class="px-4 py-3">AI image analysis, description generation, pricing research</td>
+                  <td class="px-4 py-3">
+                    AI image analysis, description generation, pricing research
+                  </td>
                   <td class="px-4 py-3">USA</td>
                 </tr>
                 <tr>
@@ -131,17 +177,23 @@ defmodule ResellerWeb.DPALive do
           </p>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">7. Security Measures</h2>
-          <p class="mt-4 text-base leading-7 text-base-content/80">ResellerIO implements the following technical and organisational measures:</p>
+          <p class="mt-4 text-base leading-7 text-base-content/80">
+            ResellerIO implements the following technical and organisational measures:
+          </p>
           <ul class="mt-4 list-disc pl-6 space-y-2 text-base leading-7 text-base-content/80">
             <li>TLS encryption in transit for all data exchanges.</li>
-            <li>Encryption at rest for stored objects (AES-256 via AWS S3 server-side encryption).</li>
+            <li>
+              Encryption at rest for stored objects (AES-256 via AWS S3 server-side encryption).
+            </li>
             <li>Password hashing using bcrypt before storage; API tokens hashed before storage.</li>
             <li>Least-privilege access controls and role-based separation for infrastructure.</li>
             <li>Regular dependency and security patching.</li>
             <li>Audit logging for authentication events and API access.</li>
           </ul>
 
-          <h2 class="mt-10 text-2xl font-semibold tracking-tight">8. Data Subject Rights Assistance</h2>
+          <h2 class="mt-10 text-2xl font-semibold tracking-tight">
+            8. Data Subject Rights Assistance
+          </h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
             ResellerIO will, upon request, assist the Controller in fulfilling its obligations to respond to Data Subject rights requests (access, rectification, erasure, restriction, portability, and objection) taking into account the nature of the processing and the information available to ResellerIO.
           </p>
@@ -163,7 +215,10 @@ defmodule ResellerWeb.DPALive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">12. Contact</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            Data protection enquiries: <a href="mailto:privacy@resellerio.com" class="text-primary underline">privacy@resellerio.com</a>
+            Data protection enquiries:
+            <a href="mailto:privacy@resellerio.com" class="text-primary underline">
+              privacy@resellerio.com
+            </a>
           </p>
 
           <div class="mt-12 flex gap-4">

@@ -48,6 +48,7 @@
 - Deployment: the repo now includes a production-focused `Dockerfile`, `.dockerignore`, and `docker-compose.yml` with release migrations on boot
 - Parallel next target: `docs/PLAN-GENERATE-IMAGE.md` Step GI7 cost controls and rollout guardrails for lifestyle images.
 - Broader platform next target: add passkey authentication and device-friendly browser/API flows.
+- Metrics and limits: `Reseller.Metrics` now tracks every Gemini, SerpApi, and Photoroom API call per product and per user, estimates cost, rolls up daily summaries, and enforces configurable daily limits. Admin dashboard at `/admin/usage-dashboard`, event log at `/admin/api-usage-events`, and per-user/per-product panels in Backpex show pages. See `docs/METRICS-LIMITS-PLAN.md`.
 
 ## Working Rules
 

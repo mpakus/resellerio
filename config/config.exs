@@ -90,6 +90,40 @@ config :reseller, Reseller.Exports,
 
 config :reseller, Reseller.Imports, processing_mode: :async
 
+config :reseller, Reseller.Metrics,
+  daily_limits: %{
+    gemini_calls: 200,
+    serp_api_calls: 100,
+    photoroom_calls: 200,
+    cost_usd: "10.00"
+  },
+  pricing: [
+    gemini: [
+      default_input_per_million: "0.10",
+      default_output_per_million: "0.40",
+      default_per_image: "0",
+      models: %{
+        "gemini-2.5-flash" => %{
+          input_per_million: "0.10",
+          output_per_million: "0.40",
+          per_image: "0"
+        },
+        "gemini-2.5-flash-image" => %{
+          input_per_million: "0.10",
+          output_per_million: "0.40",
+          per_image: "0"
+        },
+        "gemini-2.0-pro" => %{
+          input_per_million: "1.25",
+          output_per_million: "10.00",
+          per_image: "0"
+        }
+      }
+    ],
+    serp_api: [per_call: "0.0025"],
+    photoroom: [per_edit: "0.01"]
+  ]
+
 config :reseller, Reseller.Storefronts,
   notifier: Reseller.Storefronts.Notifiers.Email,
   from_email: "storefront@resellerio.local",

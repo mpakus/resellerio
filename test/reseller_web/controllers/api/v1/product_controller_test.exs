@@ -285,6 +285,31 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            }
   end
 
+  test "DELETE /api/v1/products/:id/images/:image_id deletes an owned image", %{
+    conn: conn,
+    user: user
+  } do
+    product = lifestyle_ready_product_fixture(user)
+    [image | _] = product.images
+
+    conn = delete(conn, "/api/v1/products/#{product.id}/images/#{image.id}")
+
+    assert %{"data" => %{"deleted" => true, "product" => %{"id" => _}}} =
+             json_response(conn, 200)
+  end
+
+  test "DELETE /api/v1/products/:id/images/:image_id returns 404 for another user's product", %{
+    conn: conn
+  } do
+    other_user = user_fixture(%{"email" => "other-del-img@example.com"})
+    other_product = lifestyle_ready_product_fixture(other_user)
+    [other_image | _] = other_product.images
+
+    conn = delete(conn, "/api/v1/products/#{other_product.id}/images/#{other_image.id}")
+
+    assert json_response(conn, 404)
+  end
+
   test "POST /api/v1/products/:id/mark_sold marks the product as sold", %{conn: conn, user: user} do
     product = product_fixture(user, %{"status" => "ready", "title" => "Ready to sell"})
 

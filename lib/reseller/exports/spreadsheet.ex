@@ -164,7 +164,6 @@ defmodule Reseller.Exports.Spreadsheet do
   defp join_values(values) when is_list(values), do: Enum.join(values, ", ")
   defp join_values(value), do: string_value(value)
 
-
   defp string_value(nil), do: ""
   defp string_value(value) when is_binary(value), do: value
   defp string_value(value) when is_integer(value), do: Integer.to_string(value)

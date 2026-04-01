@@ -49,6 +49,7 @@ defmodule Reseller.Catalog.Product do
   def manual_statuses, do: @manual_statuses
 
   def create_changeset(product, attrs), do: create_changeset(product, attrs, nil)
+
   def create_changeset(product, attrs, _metadata) do
     attrs = normalize_attrs(attrs)
 

@@ -137,7 +137,13 @@ defmodule Reseller.AI.Providers.Gemini do
     retry_backoff_ms =
       Keyword.get(opts, :retry_backoff_ms, config(opts)[:retry_backoff_ms] || 500)
 
-    execute_request(request, request_fun, sleep_fun, max_retries, retry_backoff_ms, 0)
+    t0 = System.monotonic_time(:millisecond)
+    result = execute_request(request, request_fun, sleep_fun, max_retries, retry_backoff_ms, 0)
+    duration_ms = System.monotonic_time(:millisecond) - t0
+
+    emit_metrics(request, result, duration_ms, opts)
+
+    result
   end
 
   defp execute_request(request, request_fun, sleep_fun, max_retries, retry_backoff_ms, attempt) do
@@ -174,6 +180,61 @@ defmodule Reseller.AI.Providers.Gemini do
           {:error, {:request_failed, reason}}
         end
     end
+  end
+
+  defp emit_metrics(request, result, duration_ms, opts) do
+    {status, http_status, usage, error_code} = extract_metrics_fields(result)
+
+    Reseller.Metrics.record_event_safe(%{
+      user_id: Keyword.get(opts, :user_id),
+      product_id: Keyword.get(opts, :product_id),
+      provider: :gemini,
+      operation: request.operation,
+      model: request.model,
+      status: status,
+      http_status: http_status,
+      image_count: count_request_images(request),
+      input_tokens: get_in(usage, ["promptTokenCount"]),
+      output_tokens: get_in(usage, ["candidatesTokenCount"]),
+      total_tokens: get_in(usage, ["totalTokenCount"]),
+      duration_ms: duration_ms,
+      error_code: error_code,
+      metadata: %{}
+    })
+  end
+
+  defp extract_metrics_fields({:ok, response}) do
+    status_code = response_field(response, :status) || 200
+    body = response_field(response, :body) || %{}
+    usage = Map.get(body, "usageMetadata")
+
+    if status_code in 200..299 do
+      {"success", status_code, usage, nil}
+    else
+      error_code =
+        body
+        |> Map.get("error", %{})
+        |> Map.get("status")
+
+      {"error", status_code, usage, error_code}
+    end
+  end
+
+  defp extract_metrics_fields({:error, {:request_failed, _reason}}) do
+    {"error", nil, nil, "transport_error"}
+  end
+
+  defp extract_metrics_fields({:error, _reason}) do
+    {"error", nil, nil, "unknown_error"}
+  end
+
+  defp count_request_images(request) do
+    request.body
+    |> Map.get("contents", [])
+    |> Enum.flat_map(fn content -> Map.get(content, "parts", []) end)
+    |> Enum.count(fn part ->
+      Map.has_key?(part, "inline_data") or Map.has_key?(part, "file_data")
+    end)
   end
 
   defp default_request(request) do

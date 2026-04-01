@@ -82,6 +82,8 @@ defmodule ResellerWeb.Router do
       live_resources "/api-tokens", ApiTokenLive, only: [:index, :show]
       live_resources "/products", ProductLive, only: [:index, :show, :edit]
       live_resources "/storefronts", StorefrontLive, only: [:index, :show, :edit]
+      live_resources "/api-usage-events", ApiUsageEventLive, only: [:index, :show]
+      live "/usage-dashboard", UsageDashboardLive
     end
   end
 
@@ -106,6 +108,16 @@ defmodule ResellerWeb.Router do
       get "/product_tabs", ProductTabController, :index
       post "/product_tabs", ProductTabController, :create
       patch "/product_tabs/:id", ProductTabController, :update
+      delete "/product_tabs/:id", ProductTabController, :delete
+      get "/storefront", StorefrontController, :show
+      put "/storefront", StorefrontController, :upsert
+      get "/storefront/pages", StorefrontController, :list_pages
+      post "/storefront/pages", StorefrontController, :create_page
+      patch "/storefront/pages/:page_id", StorefrontController, :update_page
+      delete "/storefront/pages/:page_id", StorefrontController, :delete_page
+      delete "/storefront/assets/:kind", StorefrontController, :delete_asset
+      get "/inquiries", InquiryController, :index
+      delete "/inquiries/:id", InquiryController, :delete
       get "/products", ProductController, :index
       post "/products", ProductController, :create
       get "/products/:id", ProductController, :show
@@ -127,6 +139,8 @@ defmodule ResellerWeb.Router do
       delete "/products/:id/generated_images/:image_id",
              ProductController,
              :delete_generated_image
+
+      delete "/products/:id/images/:image_id", ProductController, :delete_image
 
       post "/products/:id/mark_sold", ProductController, :mark_sold
       post "/products/:id/archive", ProductController, :archive

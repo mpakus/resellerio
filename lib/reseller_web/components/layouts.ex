@@ -439,6 +439,19 @@ defmodule ResellerWeb.Layouts do
             <.icon name="hero-building-storefront" class="size-4" /> Storefronts
           </span>
         </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item
+          current_url={@current_url}
+          navigate="/admin/api-usage-events/"
+        >
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-chart-bar" class="size-4" /> API Events
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/usage-dashboard">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-presentation-chart-line" class="size-4" /> Usage Dashboard
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
       </:sidebar>
 
       {render_slot(@inner_block)}

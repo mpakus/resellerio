@@ -13,8 +13,12 @@ defmodule ResellerWeb.PrivacyLive do
       <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
         <div class="prose prose-base max-w-none">
           <p class="text-xs uppercase tracking-[0.3em] text-base-content/50">Legal</p>
-          <h1 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em]">Privacy Policy</h1>
-          <p class="mt-2 text-sm text-base-content/60">Effective date: June 1, 2025 · Last updated: June 1, 2025</p>
+          <h1 class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em]">
+            Privacy Policy
+          </h1>
+          <p class="mt-2 text-sm text-base-content/60">
+            Effective date: June 1, 2025 · Last updated: June 1, 2025
+          </p>
 
           <p class="mt-8 text-base leading-7 text-base-content/80">
             ResellerIO ("we", "us", or "our") operates the ResellerIO platform, including the web application at resellerio.com and any associated mobile applications or APIs (collectively, the "Service"). This Privacy Policy explains what information we collect, how we use it, and your rights regarding that information.
@@ -50,14 +54,18 @@ defmodule ResellerWeb.PrivacyLive do
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">2. How We Use Your Information</h2>
           <ul class="mt-4 list-disc pl-6 space-y-2 text-base leading-7 text-base-content/80">
             <li>To create and manage your account and deliver the Service.</li>
-            <li>To process your product images through AI pipelines (background removal, lifestyle generation, description drafting, pricing research).</li>
+            <li>
+              To process your product images through AI pipelines (background removal, lifestyle generation, description drafting, pricing research).
+            </li>
             <li>To generate marketplace-specific listing copy.</li>
             <li>To send transactional emails such as export-ready notifications.</li>
             <li>To maintain security, prevent abuse, and debug issues.</li>
             <li>To comply with legal obligations.</li>
           </ul>
 
-          <h2 class="mt-10 text-2xl font-semibold tracking-tight">3. Third-Party Service Providers</h2>
+          <h2 class="mt-10 text-2xl font-semibold tracking-tight">
+            3. Third-Party Service Providers
+          </h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
             We share data with third-party providers only as necessary to operate the Service. All providers listed below are located in or process data in the United States:
           </p>
@@ -73,7 +81,9 @@ defmodule ResellerWeb.PrivacyLive do
               <tbody class="divide-y divide-base-300">
                 <tr>
                   <td class="px-4 py-3">Google Gemini API</td>
-                  <td class="px-4 py-3">AI description drafting, recognition, and pricing research</td>
+                  <td class="px-4 py-3">
+                    AI description drafting, recognition, and pricing research
+                  </td>
                   <td class="px-4 py-3">Product images, titles, category metadata</td>
                 </tr>
                 <tr>
@@ -137,12 +147,17 @@ defmodule ResellerWeb.PrivacyLive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">10. Contact</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            For privacy questions or requests: <a href="mailto:privacy@resellerio.com" class="text-primary underline">privacy@resellerio.com</a>
+            For privacy questions or requests:
+            <a href="mailto:privacy@resellerio.com" class="text-primary underline">
+              privacy@resellerio.com
+            </a>
           </p>
 
           <div class="mt-12 flex gap-4">
             <.link navigate={~p"/"} class="btn btn-ghost rounded-full">← Back to home</.link>
-            <.link navigate={~p"/dpa"} class="btn btn-outline rounded-full">Data Processing Addendum →</.link>
+            <.link navigate={~p"/dpa"} class="btn btn-outline rounded-full">
+              Data Processing Addendum →
+            </.link>
           </div>
         </div>
       </div>

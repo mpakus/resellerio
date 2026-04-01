@@ -104,13 +104,30 @@ defmodule Reseller.AI.RecognitionPipeline do
 
   defp ai_opts(opts) do
     opts
-    |> Keyword.take([:request_fun, :model, :config, :recognize_result, :reconcile_result])
+    |> Keyword.take([
+      :request_fun,
+      :model,
+      :config,
+      :recognize_result,
+      :reconcile_result,
+      :user_id,
+      :product_id
+    ])
     |> Keyword.put_new(:provider, Keyword.get(opts, :ai_provider, AI.provider()))
   end
 
   defp search_opts(opts) do
     opts
-    |> Keyword.take([:request_fun, :config, :query, :hl, :gl, :lens_result])
+    |> Keyword.take([
+      :request_fun,
+      :config,
+      :query,
+      :hl,
+      :gl,
+      :lens_result,
+      :user_id,
+      :product_id
+    ])
     |> Keyword.put_new(:provider, Keyword.get(opts, :search_provider, Search.provider()))
   end
 end

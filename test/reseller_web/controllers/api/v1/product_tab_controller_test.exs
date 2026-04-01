@@ -80,4 +80,33 @@ defmodule ResellerWeb.API.V1.ProductTabControllerTest do
              }
            }
   end
+
+  test "DELETE /api/v1/product_tabs/:id deletes an owned tab", %{conn: conn, user: user} do
+    product_tab = product_tab_fixture(user, %{"name" => "Shoes"})
+
+    conn = delete(conn, "/api/v1/product_tabs/#{product_tab.id}")
+
+    assert json_response(conn, 200) == %{"data" => %{"deleted" => true}}
+  end
+
+  test "DELETE /api/v1/product_tabs/:id returns not found for another user's tab", %{conn: conn} do
+    other_user = user_fixture(%{"email" => "other-del-tab@example.com"})
+    product_tab = product_tab_fixture(other_user, %{"name" => "Other"})
+
+    conn = delete(conn, "/api/v1/product_tabs/#{product_tab.id}")
+
+    assert json_response(conn, 404) == %{
+             "error" => %{
+               "code" => "not_found",
+               "detail" => "Product tab not found",
+               "status" => 404
+             }
+           }
+  end
+
+  test "DELETE /api/v1/product_tabs/:id returns 401 when unauthenticated", %{conn: conn} do
+    unauthed_conn = build_conn()
+    conn = delete(unauthed_conn, "/api/v1/product_tabs/1")
+    assert json_response(conn, 401)
+  end
 end

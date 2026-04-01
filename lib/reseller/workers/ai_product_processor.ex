@@ -505,7 +505,17 @@ defmodule Reseller.Workers.AIProductProcessor do
 
   defp search_opts(opts) do
     opts
-    |> Keyword.take([:request_fun, :config, :query, :hl, :gl, :shopping_result, :lens_result])
+    |> Keyword.take([
+      :request_fun,
+      :config,
+      :query,
+      :hl,
+      :gl,
+      :shopping_result,
+      :lens_result,
+      :user_id,
+      :product_id
+    ])
     |> Keyword.put_new(:provider, Keyword.get(opts, :search_provider, Search.provider()))
   end
 

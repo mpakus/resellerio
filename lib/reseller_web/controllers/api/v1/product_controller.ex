@@ -314,6 +314,34 @@ defmodule ResellerWeb.API.V1.ProductController do
     end
   end
 
+  def delete_image(conn, %{"id" => product_id, "image_id" => image_id}) do
+    case parse_integer(image_id) do
+      nil ->
+        APIError.render(conn, :not_found, "not_found", "Product image not found")
+
+      parsed_image_id ->
+        case Catalog.delete_product_image_for_user(
+               conn.assigns.current_user,
+               product_id,
+               parsed_image_id
+             ) do
+          {:ok, product} ->
+            json(conn, %{data: %{product: product_json(product), deleted: true}})
+
+          {:error, :not_found} ->
+            APIError.render(conn, :not_found, "not_found", "Product image not found")
+
+          {:error, :invalid_product_state} ->
+            APIError.render(
+              conn,
+              :unprocessable_entity,
+              "invalid_product_state",
+              "Images can be changed only while the product is in draft, review, or ready"
+            )
+        end
+    end
+  end
+
   def archive(conn, %{"id" => product_id}) do
     case Catalog.archive_product_for_user(conn.assigns.current_user, product_id) do
       {:ok, product} ->
