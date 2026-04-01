@@ -15,7 +15,7 @@ defmodule ResellerWeb.ProductsLive.New do
      socket
      |> allow_upload(:product_images,
        accept: @image_upload_accept,
-       max_entries: 5,
+       max_entries: 10,
        max_file_size: 25_000_000
      )
      |> assign(

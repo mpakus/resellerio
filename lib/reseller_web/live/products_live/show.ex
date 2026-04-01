@@ -19,7 +19,7 @@ defmodule ResellerWeb.ProductsLive.Show do
      socket
      |> allow_upload(:product_images,
        accept: @image_upload_accept,
-       max_entries: 5,
+       max_entries: 10,
        max_file_size: 25_000_000
      )
      |> assign(
@@ -734,7 +734,7 @@ defmodule ResellerWeb.ProductsLive.Show do
                     phx-click="retry_processing"
                     class="btn btn-outline btn-sm rounded-full"
                   >
-                    Retry AI
+                    {Helpers.retry_processing_label(@product)}
                   </button>
                   <button
                     :if={@product.status != "sold"}

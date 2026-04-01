@@ -12,7 +12,7 @@ defmodule Reseller.Media.FinalizeUploadBatch do
     batch
     |> cast(attrs, [])
     |> cast_embed(:uploads, required: true, with: &FinalizeUploadSpec.changeset/2)
-    |> validate_length(:uploads, min: 1, max: 5)
+    |> validate_length(:uploads, min: 1, max: 10)
     |> validate_unique_upload_ids()
   end
 

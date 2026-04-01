@@ -238,11 +238,15 @@ defmodule ResellerWeb.ProductsLive.Helpers do
 
   def retry_processing_available?(%Product{} = product) do
     product.images != [] and
-      product.status in ["review", "ready"] and
-      match?(%{status: "failed"}, List.first(product.processing_runs || []))
+      (product.status == "processing" or
+         (product.status in ["review", "ready"] and
+            match?(%{status: "failed"}, List.first(product.processing_runs || []))))
   end
 
   def retry_processing_available?(_product), do: false
+
+  def retry_processing_label(%Product{status: "processing"}), do: "Resume processing"
+  def retry_processing_label(_product), do: "Retry AI"
 
   def pipeline_progress(%Product{} = product) do
     data = pipeline_data(product)

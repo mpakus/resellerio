@@ -12,6 +12,6 @@ defmodule Reseller.Media.UploadBatch do
     batch
     |> cast(attrs, [])
     |> cast_embed(:uploads, required: true, with: &UploadSpec.changeset/2)
-    |> validate_length(:uploads, min: 1, max: 5)
+    |> validate_length(:uploads, min: 1, max: 10)
   end
 end
