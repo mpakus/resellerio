@@ -11,7 +11,7 @@ defmodule ResellerWeb.Auth.SignInLiveTest do
     assert has_element?(view, "#sign-in-form")
     assert has_element?(view, "#sign-in-submit")
     assert has_element?(view, ~s(a[href="/sign-up"]))
-    assert render(view) =~ "Return to your Resellerio workspace"
+    assert render(view) =~ "Return to your ResellerIO workspace"
     assert html =~ "Sign In - Authentication - Resellio - AI Inventory for Resellers"
   end
 

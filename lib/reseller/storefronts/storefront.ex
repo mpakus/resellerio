@@ -27,7 +27,9 @@ defmodule Reseller.Storefronts.Storefront do
   end
 
   def create_changeset(storefront, attrs), do: changeset(storefront, attrs)
+  def create_changeset(storefront, attrs, _metadata), do: changeset(storefront, attrs)
   def update_changeset(storefront, attrs), do: changeset(storefront, attrs)
+  def update_changeset(storefront, attrs, _metadata), do: changeset(storefront, attrs)
 
   defp changeset(storefront, attrs) do
     storefront

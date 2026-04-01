@@ -515,7 +515,9 @@ defmodule ResellerWeb.ProductsLive.Index do
                           />
                         </div>
                         <div>
-                          <div class="font-semibold">{product.title || "Untitled product"}</div>
+                          <.link navigate={~p"/app/products/#{product.id}"} class="font-semibold hover:text-primary">
+                            {product.title || "Untitled product"}
+                          </.link>
                           <div class="text-xs uppercase tracking-[0.2em] text-base-content/50">
                             {product.brand || "No brand"} · {product.category || "No category"}
                           </div>

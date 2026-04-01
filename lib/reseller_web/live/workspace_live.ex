@@ -508,7 +508,7 @@ defmodule ResellerWeb.WorkspaceLive do
                   <.feature_tile
                     patch={~p"/app/exports"}
                     title="Request export"
-                    description="Generate a Resellerio ZIP archive without leaving the dashboard."
+                    description="Generate a ResellerIO ZIP archive without leaving the dashboard."
                     accent="secondary"
                     class="rounded-2xl bg-base-50/95"
                   >
@@ -546,7 +546,7 @@ defmodule ResellerWeb.WorkspaceLive do
                   <.header>
                     Import archive
                     <:subtitle>
-                      Upload a Resellerio ZIP to recreate products, images, and generated AI metadata.
+                      Upload a ResellerIO ZIP to recreate products, images, and generated AI metadata.
                     </:subtitle>
                   </.header>
 
@@ -559,7 +559,7 @@ defmodule ResellerWeb.WorkspaceLive do
                     <.upload_panel
                       id="import-archive-upload-panel"
                       title="ZIP archive"
-                      description="Upload one `.zip` file exported from Resellerio."
+                      description="Upload one `.zip` file exported from ResellerIO."
                       upload={@uploads.import_archive}
                       cancel_event="cancel-import-archive"
                       errors={Enum.map(upload_errors(@uploads.import_archive), &error_to_string/1)}
@@ -1362,10 +1362,10 @@ defmodule ResellerWeb.WorkspaceLive do
   defp section_eyebrow(:settings), do: "Settings"
   defp section_eyebrow(_section), do: "Workspace"
 
-  defp section_heading(:dashboard), do: "Your Resellerio workspace is now operational."
+  defp section_heading(:dashboard), do: "Your ResellerIO workspace is now operational."
   defp section_heading(:exports), do: "Run archive exports and imports from the web."
   defp section_heading(:settings), do: "Manage your workspace defaults."
-  defp section_heading(_section), do: "Your Resellerio workspace is ready."
+  defp section_heading(_section), do: "Your ResellerIO workspace is ready."
 
   defp section_description(:dashboard) do
     "The dashboard now links straight into the web workflows for product intake and archive generation."
@@ -1380,7 +1380,7 @@ defmodule ResellerWeb.WorkspaceLive do
   end
 
   defp section_description(_section) do
-    "Protected browser session is active and the Resellerio workspace now covers core operational flows."
+    "Protected browser session is active and the ResellerIO workspace now covers core operational flows."
   end
 
   defp dashboard_stats(products, exports, imports) do

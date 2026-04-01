@@ -1,6 +1,6 @@
 defmodule Reseller.Imports.ZipParser do
   @moduledoc """
-  Parses Resellerio export ZIP archives into product payloads and image binaries.
+  Parses ResellerIO export ZIP archives into product payloads and image binaries.
   """
 
   def parse_archive(archive_binary) when is_binary(archive_binary) do

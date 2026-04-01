@@ -1,8 +1,8 @@
-# Resellerio UI/UX System
+# ResellerIO UI/UX System
 
 ## Purpose
 
-This document defines the visual system for the Resellerio web app so LiveView screens feel like one product instead of a set of unrelated pages.
+This document defines the visual system for the ResellerIO web app so LiveView screens feel like one product instead of a set of unrelated pages.
 
 The current UI direction is:
 
@@ -33,7 +33,7 @@ Avoid:
 
 ### 2. Editorial hierarchy
 
-Resellerio uses serif display typography to make core screens feel branded and intentional, while body and control text stay simple and readable.
+ResellerIO uses serif display typography to make core screens feel branded and intentional, while body and control text stay simple and readable.
 
 Use:
 

@@ -23,7 +23,7 @@ defmodule Reseller.Exports.Notifiers.Email do
       new()
       |> to(user.email)
       |> from(from_email)
-      |> subject("Your Resellerio export is ready")
+      |> subject("Your ResellerIO export is ready")
       |> text_body("""
       Your export ##{export.id} is ready.
 

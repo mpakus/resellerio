@@ -1,4 +1,4 @@
-# Resellerio Web App Plan
+# ResellerIO Web App Plan
 
 ## Progress Tracker
 

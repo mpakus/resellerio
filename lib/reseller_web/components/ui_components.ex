@@ -1,6 +1,6 @@
 defmodule ResellerWeb.UIComponents do
   @moduledoc """
-  Shared UI primitives for the Resellerio web interface.
+  Shared UI primitives for the ResellerIO web interface.
   """
   use Phoenix.Component
 

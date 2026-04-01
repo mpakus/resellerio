@@ -1,6 +1,6 @@
-# Resellerio
+# ResellerIO
 
-Resellerio is a Phoenix backend for a mobile app used by resellers to create and manage product inventory from photos.
+ResellerIO is a Phoenix backend for a mobile app used by resellers to create and manage product inventory from photos.
 
 The long-term product flow is:
 
@@ -28,7 +28,7 @@ Implemented already:
 - Protected web workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`
 - Web product intake with browser photo uploads and product creation
 - Web product detail editing with seller-managed tags and statuses, plus sold/archive/restore/delete lifecycle actions
-- Web export requests and ZIP imports from the Resellerio workspace
+- Web export requests and ZIP imports from the ResellerIO workspace
 - Backpex admin interface under `/admin` for admin users
 - AI foundation contexts `Reseller.AI` and `Reseller.Search`
 - Req-backed Gemini and SerpApi client modules with tests
@@ -307,7 +307,7 @@ The compose setup will:
 - recognized products can now also receive generated `marketplace_listings` during the same processing run
 - recognized products can now also receive a Photoroom-backed `background_removed` image variant during the same processing run
 - authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
-- authenticated users can now import Resellerio ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
+- authenticated users can now import ResellerIO ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
 - authenticated users can now update product details, delete products, mark products as sold, archive them, and restore archived products through explicit lifecycle endpoints
 
 ## Admin Access

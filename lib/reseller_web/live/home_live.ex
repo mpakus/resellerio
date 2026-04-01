@@ -130,7 +130,7 @@ defmodule ResellerWeb.HomeLive do
               <br />in minutes, not hours.
             </h1>
             <p class="mt-6 max-w-xl text-lg leading-7 text-base-content/68">
-              Resellerio gives secondhand sellers one powerful platform — photo capture, AI product drafting, image cleanup, background removal, AR lifestyle shots, and marketplace-specific copy, all in one place.
+              ResellerIO gives secondhand sellers one powerful platform — photo capture, AI product drafting, image cleanup, background removal, AR lifestyle shots, and marketplace-specific copy, all in one place.
             </p>
             <div class="mt-10 flex flex-col gap-3 sm:flex-row">
               <%= if @current_user do %>
@@ -318,7 +318,7 @@ defmodule ResellerWeb.HomeLive do
               From a pile of clothes to published listings — in under five minutes.
             </h2>
             <p class="mt-4 text-base leading-7 text-base-content/65">
-              Resellerio handles the full pipeline so you spend your time sourcing inventory, not retyping descriptions. Here's exactly what happens from the moment you pick up your phone.
+              ResellerIO handles the full pipeline so you spend your time sourcing inventory, not retyping descriptions. Here's exactly what happens from the moment you pick up your phone.
             </p>
           </div>
 
@@ -339,7 +339,7 @@ defmodule ResellerWeb.HomeLive do
                   Shoot or upload — raw and unedited is fine
                 </h3>
                 <p class="mt-3 leading-7 text-base-content/65">
-                  Take photos straight from your phone or drag a folder of images into the browser. Resellerio accepts any number of shots per item — front, back, tag, detail. Keep your originals untouched; we never overwrite them. The moment your last photo lands, background processing begins automatically.
+                  Take photos straight from your phone or drag a folder of images into the browser. ResellerIO accepts any number of shots per item — front, back, tag, detail. Keep your originals untouched; we never overwrite them. The moment your last photo lands, background processing begins automatically.
                 </p>
                 <div class="mt-4 flex flex-wrap gap-2">
                   <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -410,7 +410,7 @@ defmodule ResellerWeb.HomeLive do
                   Clean images, removed backgrounds, AR lifestyle shots
                 </h3>
                 <p class="mt-3 leading-7 text-base-content/65">
-                  Resellerio processes your photos in parallel. Backgrounds are stripped cleanly so items pop on any marketplace. If you want lifestyle context, the AI places your item in realistic settings — on a model, on a shelf, in a styled flat lay — without booking a shoot. All processed variants are stored alongside your originals.
+                  ResellerIO processes your photos in parallel. Backgrounds are stripped cleanly so items pop on any marketplace. If you want lifestyle context, the AI places your item in realistic settings — on a model, on a shelf, in a styled flat lay — without booking a shoot. All processed variants are stored alongside your originals.
                 </p>
                 <div class="mt-4 flex flex-wrap gap-2">
                   <span class="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
@@ -441,7 +441,7 @@ defmodule ResellerWeb.HomeLive do
                   AI hunts comparable sold listings to anchor your price
                 </h3>
                 <p class="mt-3 leading-7 text-base-content/65">
-                  Before you set a price, Resellerio queries real sold-listing data for items matching your product's brand, category, condition, and size. You get a suggested price range — low, mid, and high — based on what buyers have actually paid, not just what sellers are asking.
+                  Before you set a price, ResellerIO queries real sold-listing data for items matching your product's brand, category, condition, and size. You get a suggested price range — low, mid, and high — based on what buyers have actually paid, not just what sellers are asking.
                 </p>
                 <div class="mt-4 rounded-[1.25rem] border border-base-300/70 bg-base-100 p-4">
                   <div class="flex items-center justify-between text-sm">
@@ -549,7 +549,7 @@ defmodule ResellerWeb.HomeLive do
               Everything a reseller needs — in one AI-powered platform.
             </h2>
             <p class="mt-4 text-base leading-7 text-base-content/65">
-              From raw photos to published listings, Resellerio handles the entire pipeline so you can focus on sourcing more inventory.
+              From raw photos to published listings, ResellerIO handles the entire pipeline so you can focus on sourcing more inventory.
             </p>
           </div>
 
@@ -632,7 +632,7 @@ defmodule ResellerWeb.HomeLive do
                 Your item. A real-life setting. Zero photoshoot.
               </h2>
               <p class="mt-4 text-base leading-7 text-base-content/65">
-                Buyers don't just want to see a product on a white background — they want to imagine owning it. Resellerio's AI takes your raw photo and generates realistic lifestyle scenes: a jacket on a model, sneakers styled on pavement, a bag on a café table.
+                Buyers don't just want to see a product on a white background — they want to imagine owning it. ResellerIO's AI takes your raw photo and generates realistic lifestyle scenes: a jacket on a model, sneakers styled on pavement, a bag on a café table.
               </p>
               <p class="mt-3 text-base leading-7 text-base-content/65">
                 No studio. No model. No editing skills. Just your item — placed in a scene that sells.
@@ -694,7 +694,7 @@ defmodule ResellerWeb.HomeLive do
                 Write once, sell everywhere.
               </h2>
               <p class="mt-4 text-base leading-7 text-base-content/65">
-                Resellerio generates listing copy tuned to the voice, rules, and buyer expectations of every major resale platform. No more copy-pasting and manually rewriting for each channel.
+                ResellerIO generates listing copy tuned to the voice, rules, and buyer expectations of every major resale platform. No more copy-pasting and manually rewriting for each channel.
               </p>
             </div>
 
@@ -738,7 +738,7 @@ defmodule ResellerWeb.HomeLive do
                 Your brand. Your store. Zero extra fees.
               </h2>
               <p class="mt-4 text-base leading-7 text-base-content/65">
-                Every Resellerio account comes with a fully brandable public storefront. Set your colours, upload a logo, write your story, and give buyers a clean browsing experience — on your terms.
+                Every ResellerIO account comes with a fully brandable public storefront. Set your colours, upload a logo, write your story, and give buyers a clean browsing experience — on your terms.
               </p>
               <ul class="mt-6 space-y-3 text-sm text-base-content/70">
                 <li class="flex items-start gap-3">
@@ -812,10 +812,10 @@ defmodule ResellerWeb.HomeLive do
                   id="home-final-cta"
                   class="reseller-display mt-4 text-4xl font-semibold tracking-[-0.03em] text-balance"
                 >
-                  Resellerio — AI Inventory for Resellers. List faster. Earn more.
+                  ResellerIO — AI Inventory for Resellers. List faster. Earn more.
                 </h2>
                 <p class="mt-4 max-w-2xl text-base leading-7 text-base-content/70">
-                  Join resellers already using Resellerio to cut listing time, nail pricing, and sell across every major marketplace — all from one calm workspace.
+                  Join resellers already using ResellerIO to cut listing time, nail pricing, and sell across every major marketplace — all from one calm workspace.
                 </p>
               </div>
 

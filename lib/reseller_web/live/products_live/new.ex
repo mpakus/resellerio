@@ -131,7 +131,7 @@ defmodule ResellerWeb.ProductsLive.New do
             <.header>
               Start with photos
               <:subtitle>
-                Upload up to five images. Resellerio will create the product, finalize the uploads, and start the AI pipeline automatically.
+                Upload up to five images. ResellerIO will create the product, finalize the uploads, and start the AI pipeline automatically.
               </:subtitle>
             </.header>
 

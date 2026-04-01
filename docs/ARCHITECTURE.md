@@ -1,8 +1,8 @@
-# Resellerio Architecture
+# ResellerIO Architecture
 
 ## 1. Purpose
 
-Resellerio is a Phoenix 1.8 application that powers:
+ResellerIO is a Phoenix 1.8 application that powers:
 
 - a mobile-first reseller product workflow
 - a LiveView web workspace for the same core product operations
@@ -27,7 +27,7 @@ Core business goal:
 - Public LiveView marketing page at `/`
 - Public storefront browser routes at `/store/:slug`, `/store/:slug/products/:product_ref`, and `/store/:slug/pages/:page_slug`
 - Browser auth at `/sign-up`, `/sign-in`, `DELETE /sign-out`
-- Authenticated Resellerio workspace at `/app`, `/app/products`, `/app/exports`, `/app/inquiries`, `/app/settings`
+- Authenticated ResellerIO workspace at `/app`, `/app/products`, `/app/exports`, `/app/inquiries`, `/app/settings`
 - Admin interface at `/admin/...`
 - Versioned JSON API at `/api/v1/...`
 
@@ -35,7 +35,7 @@ Core business goal:
 
 ```mermaid
 flowchart LR
-    U["Resellerio User"] --> W["Phoenix LiveView Web UI"]
+    U["ResellerIO User"] --> W["Phoenix LiveView Web UI"]
     U --> M["Mobile Client / API Consumer"]
     A["Admin User"] --> B["Backpex Admin"]
 
@@ -357,7 +357,7 @@ The diagrams below reflect the current migrated PostgreSQL schema. Embedded Ecto
 ### Auth, inventory, and transfer tables
 
 ```mermaid
-%% title: Resellerio auth, inventory, and transfer schema
+%% title: ResellerIO auth, inventory, and transfer schema
 erDiagram
     users {
         bigint id PK
@@ -469,7 +469,7 @@ erDiagram
 ### Media, AI, and marketplace tables
 
 ```mermaid
-%% title: Resellerio product, storefront, media, and AI schema
+%% title: ResellerIO product, storefront, media, and AI schema
 erDiagram
     products {
         bigint id PK

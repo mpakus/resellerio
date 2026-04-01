@@ -140,7 +140,7 @@ defmodule ResellerWeb.API.V1.RootController do
             method: "POST",
             path: "/api/v1/imports",
             description:
-              "Queues a Resellerio ZIP import for the authenticated user using Products.xls, manifest.json, and images."
+              "Queues a ResellerIO ZIP import for the authenticated user using Products.xls, manifest.json, and images."
           },
           %{
             method: "GET",

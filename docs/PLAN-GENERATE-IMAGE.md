@@ -1,4 +1,4 @@
-# Resellerio Lifestyle Image Generation Plan
+# ResellerIO Lifestyle Image Generation Plan
 
 ## Progress Tracker
 

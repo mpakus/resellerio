@@ -46,7 +46,7 @@ defmodule ResellerWeb.Layouts do
               <.icon name="hero-sparkles" class="size-5 text-primary" />
             </div>
             <div>
-              <p class="reseller-display text-xl font-semibold leading-none">Resellerio</p>
+              <p class="reseller-display text-xl font-semibold leading-none">ResellerIO</p>
               <p class="text-xs uppercase tracking-[0.28em] text-base-content/55">AI Inventory</p>
             </div>
           </.link>
@@ -191,7 +191,7 @@ defmodule ResellerWeb.Layouts do
                 href={~p"/"}
                 class="rounded-full border border-[var(--storefront-border)] px-4 py-2 text-sm font-medium text-[var(--storefront-text)] transition hover:bg-white/60"
               >
-                Resellerio
+                ResellerIO
               </.link>
               <%= if @current_user do %>
                 <.link
@@ -303,7 +303,7 @@ defmodule ResellerWeb.Layouts do
     <div class="min-h-screen bg-base-200/45 text-base-content lg:grid lg:grid-cols-[280px_1fr]">
       <aside class="hidden border-r border-base-300 bg-base-100 lg:flex lg:flex-col">
         <div class="border-b border-base-300 px-6 py-6">
-          <p class="reseller-display text-3xl font-semibold tracking-[-0.03em]">Resellerio</p>
+          <p class="reseller-display text-3xl font-semibold tracking-[-0.03em]">ResellerIO</p>
           <p class="mt-2 text-xs uppercase tracking-[0.3em] text-base-content/50">Workspace shell</p>
         </div>
 
@@ -331,6 +331,22 @@ defmodule ResellerWeb.Layouts do
                   {item.label}
                 </.link>
               <% end %>
+            </li>
+            <li :if={@current_user.is_admin}>
+              <a
+                href="/admin/users/"
+                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
+              >
+                Admin
+              </a>
+            </li>
+            <li>
+              <a
+                href="/"
+                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
+              >
+                Home
+              </a>
             </li>
           </ul>
         </nav>
@@ -408,6 +424,16 @@ defmodule ResellerWeb.Layouts do
         <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/api-tokens/">
           <span class="inline-flex items-center gap-2">
             <.icon name="hero-key" class="size-4" /> API Tokens
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/products/">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-squares-2x2" class="size-4" /> Products
+          </span>
+        </Backpex.HTML.Layout.sidebar_item>
+        <Backpex.HTML.Layout.sidebar_item current_url={@current_url} navigate="/admin/storefronts/">
+          <span class="inline-flex items-center gap-2">
+            <.icon name="hero-building-storefront" class="size-4" /> Storefronts
           </span>
         </Backpex.HTML.Layout.sidebar_item>
       </:sidebar>

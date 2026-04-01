@@ -28,7 +28,7 @@ defmodule ResellerWeb.Auth.SignInLive do
               <div class="mb-8">
                 <p class="text-sm uppercase tracking-[0.3em] text-base-content/50">Sign in</p>
                 <h1 class="mt-3 text-3xl font-semibold tracking-[-0.03em]">
-                  Return to your Resellerio workspace
+                  Return to your ResellerIO workspace
                 </h1>
               </div>
 

@@ -28,7 +28,7 @@ defmodule Reseller.Exports.Notifiers.EmailTest do
     assert_email_sent(
       to: "mailer@example.com",
       from: "exports@test.local",
-      subject: "Your Resellerio export is ready",
+      subject: "Your ResellerIO export is ready",
       text_body: ~r/exports\/123\.zip/
     )
   end

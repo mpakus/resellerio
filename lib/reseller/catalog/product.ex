@@ -48,7 +48,8 @@ defmodule Reseller.Catalog.Product do
   def statuses, do: @statuses
   def manual_statuses, do: @manual_statuses
 
-  def create_changeset(product, attrs) do
+  def create_changeset(product, attrs), do: create_changeset(product, attrs, nil)
+  def create_changeset(product, attrs, _metadata) do
     attrs = normalize_attrs(attrs)
 
     product
@@ -94,7 +95,8 @@ defmodule Reseller.Catalog.Product do
     |> unique_constraint(:sku)
   end
 
-  def update_changeset(product, attrs), do: create_changeset(product, attrs)
+  def update_changeset(product, attrs), do: create_changeset(product, attrs, nil)
+  def update_changeset(product, attrs, _metadata), do: create_changeset(product, attrs, nil)
 
   defp normalize_attrs(attrs) when is_map(attrs) do
     cond do

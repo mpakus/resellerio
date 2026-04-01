@@ -100,12 +100,7 @@ defmodule Reseller.Exports.Spreadsheet do
        fn payload -> get_in(payload, ["price_research", "suggested_target_price"]) end},
       {"Price Rationale",
        fn payload -> get_in(payload, ["price_research", "rationale_summary"]) end},
-      {"Marketplace Count", fn payload -> length(List.wrap(payload["marketplace_listings"])) end},
-      {"Marketplace Listings JSON",
-       fn payload -> json_value(payload["marketplace_listings"]) end},
-      {"Description Draft JSON", fn payload -> json_value(payload["description_draft"]) end},
-      {"Price Research JSON", fn payload -> json_value(payload["price_research"]) end},
-      {"Images JSON", fn payload -> json_value(payload["images"]) end}
+      {"Marketplace Count", fn payload -> length(List.wrap(payload["marketplace_listings"])) end}
     ]
   end
 
@@ -169,8 +164,6 @@ defmodule Reseller.Exports.Spreadsheet do
   defp join_values(values) when is_list(values), do: Enum.join(values, ", ")
   defp join_values(value), do: string_value(value)
 
-  defp json_value(nil), do: nil
-  defp json_value(value), do: Jason.encode!(value)
 
   defp string_value(nil), do: ""
   defp string_value(value) when is_binary(value), do: value

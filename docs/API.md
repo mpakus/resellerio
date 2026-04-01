@@ -1,4 +1,4 @@
-# Resellerio API Reference
+# ResellerIO API Reference
 
 ## Overview
 
@@ -199,7 +199,7 @@ Example response:
       {
         "method": "POST",
         "path": "/api/v1/imports",
-        "description": "Queues a Resellerio ZIP import for the authenticated user using Products.xls, manifest.json, and images."
+        "description": "Queues a ResellerIO ZIP import for the authenticated user using Products.xls, manifest.json, and images."
       },
       {
         "method": "GET",
@@ -1360,7 +1360,7 @@ Unknown or unauthorized export IDs return:
 ### `POST /api/v1/imports`
 
 Queues an import for the authenticated user. The current API accepts the ZIP archive as base64 in JSON, stores the source archive, and then recreates products in the background.
-Resellerio-generated archives should include `Products.xls`, `manifest.json`, and `images/*`.
+ResellerIO-generated archives should include `Products.xls`, `manifest.json`, and `images/*`.
 
 Required header:
 

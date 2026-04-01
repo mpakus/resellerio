@@ -1,4 +1,4 @@
-# Resellerio Public Storefront Plan
+# ResellerIO Public Storefront Plan
 
 ## Progress Tracker
 

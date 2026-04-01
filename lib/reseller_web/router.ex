@@ -78,6 +78,8 @@ defmodule ResellerWeb.Router do
       on_mount: [Backpex.InitAssigns, {ResellerWeb.LiveUserAuth, :ensure_admin}] do
       live_resources "/users", UserLive, only: [:index, :show, :edit]
       live_resources "/api-tokens", ApiTokenLive, only: [:index, :show]
+      live_resources "/products", ProductLive, only: [:index, :show, :edit]
+      live_resources "/storefronts", StorefrontLive, only: [:index, :show, :edit]
     end
   end
 

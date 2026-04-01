@@ -1,4 +1,4 @@
-# Resellerio Backend Plan
+# ResellerIO Backend Plan
 
 ## Progress Tracker
 
