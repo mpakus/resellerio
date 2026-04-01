@@ -38,6 +38,8 @@ defmodule ResellerWeb.Router do
 
     live_session :current_user, on_mount: [{ResellerWeb.LiveUserAuth, :mount_current_user}] do
       live "/", HomeLive
+      live "/privacy", PrivacyLive
+      live "/dpa", DPALive
     end
 
     live_session :redirect_if_authenticated,
