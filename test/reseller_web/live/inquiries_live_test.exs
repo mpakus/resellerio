@@ -39,7 +39,11 @@ defmodule ResellerWeb.InquiriesLiveTest do
     assert render(view) =~ "jane@example.com"
     assert render(view) =~ "Is the jacket available?"
     assert render(view) =~ "/store/inq-list-store/products/1-jacket"
-    assert has_element?(view, ~s(a[href="/store/inq-list-store/products/1-jacket"][target="_blank"]))
+
+    assert has_element?(
+             view,
+             ~s(a[href="/store/inq-list-store/products/1-jacket"][target="_blank"])
+           )
   end
 
   test "does not show other users' inquiries", %{conn: conn} do
@@ -48,7 +52,9 @@ defmodule ResellerWeb.InquiriesLiveTest do
     conn = init_test_session(conn, %{user_id: user.id})
 
     _my_storefront = storefront_fixture(user, %{"slug" => "inq-owner-store", "enabled" => true})
-    _other_storefront = storefront_fixture(other_user, %{"slug" => "inq-other-store", "enabled" => true})
+
+    _other_storefront =
+      storefront_fixture(other_user, %{"slug" => "inq-other-store", "enabled" => true})
 
     inquiry_fixture(user, %{"full_name" => "My Buyer", "message" => "Mine"})
     inquiry_fixture(other_user, %{"full_name" => "Stranger Buyer", "message" => "Not mine"})
@@ -65,8 +71,17 @@ defmodule ResellerWeb.InquiriesLiveTest do
     conn = init_test_session(conn, %{user_id: user.id})
     _storefront = storefront_fixture(user, %{"slug" => "inq-search-store", "enabled" => true})
 
-    inquiry_fixture(user, %{"full_name" => "Alice", "contact" => "alice@example.com", "message" => "About coat"})
-    inquiry_fixture(user, %{"full_name" => "Bob", "contact" => "bob@example.com", "message" => "Jacket size?"})
+    inquiry_fixture(user, %{
+      "full_name" => "Alice",
+      "contact" => "alice@example.com",
+      "message" => "About coat"
+    })
+
+    inquiry_fixture(user, %{
+      "full_name" => "Bob",
+      "contact" => "bob@example.com",
+      "message" => "Jacket size?"
+    })
 
     {:ok, view, _html} = live(conn, "/app/inquiries?q=jacket")
 
@@ -152,6 +167,7 @@ defmodule ResellerWeb.InquiriesLiveTest do
 
     for path <- ["/app", "/app/inquiries", "/app/exports", "/app/settings"] do
       {:ok, view, _html} = live(conn, path)
+
       assert has_element?(view, ~s(a[href="/app/inquiries"]), "Inquiries"),
              "Expected Inquiries nav link on #{path}"
     end

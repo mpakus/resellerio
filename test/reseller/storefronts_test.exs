@@ -378,7 +378,9 @@ defmodule Reseller.StorefrontsTest do
     user = user_fixture()
     other_user = user_fixture()
     _storefront = storefront_fixture(user, %{"slug" => "user-inquiries", "enabled" => true})
-    _other_storefront = storefront_fixture(other_user, %{"slug" => "other-inquiries", "enabled" => true})
+
+    _other_storefront =
+      storefront_fixture(other_user, %{"slug" => "other-inquiries", "enabled" => true})
 
     inquiry_fixture(user, %{"full_name" => "Alice", "message" => "Is the jacket available?"})
     inquiry_fixture(user, %{"full_name" => "Bob", "message" => "What size is it?"})
@@ -400,10 +402,29 @@ defmodule Reseller.StorefrontsTest do
     user = user_fixture()
     _storefront = storefront_fixture(user, %{"slug" => "search-inquiries", "enabled" => true})
 
-    inquiry_fixture(user, %{"full_name" => "Alice Jacket", "contact" => "alice@example.com", "message" => "About the coat"})
-    inquiry_fixture(user, %{"full_name" => "Bob", "contact" => "bob@example.com", "message" => "Asking about jacket sizing"})
-    inquiry_fixture(user, %{"full_name" => "Carol", "contact" => "carol@jacket.com", "message" => "Just browsing"})
-    inquiry_fixture(user, %{"full_name" => "Dave", "contact" => "dave@example.com", "message" => "Hello"})
+    inquiry_fixture(user, %{
+      "full_name" => "Alice Jacket",
+      "contact" => "alice@example.com",
+      "message" => "About the coat"
+    })
+
+    inquiry_fixture(user, %{
+      "full_name" => "Bob",
+      "contact" => "bob@example.com",
+      "message" => "Asking about jacket sizing"
+    })
+
+    inquiry_fixture(user, %{
+      "full_name" => "Carol",
+      "contact" => "carol@jacket.com",
+      "message" => "Just browsing"
+    })
+
+    inquiry_fixture(user, %{
+      "full_name" => "Dave",
+      "contact" => "dave@example.com",
+      "message" => "Hello"
+    })
 
     name_result = Storefronts.list_inquiries_for_user(user, query: "alice jacket")
     assert name_result.total_count == 1
@@ -462,7 +483,10 @@ defmodule Reseller.StorefrontsTest do
   test "delete_inquiry_for_user/2 returns not_found for another user's inquiry" do
     user = user_fixture()
     other_user = user_fixture()
-    _storefront = storefront_fixture(other_user, %{"slug" => "other-delete-inquiries", "enabled" => true})
+
+    _storefront =
+      storefront_fixture(other_user, %{"slug" => "other-delete-inquiries", "enabled" => true})
+
     other_inquiry = inquiry_fixture(other_user)
 
     assert {:error, :not_found} = Storefronts.delete_inquiry_for_user(user, other_inquiry.id)
