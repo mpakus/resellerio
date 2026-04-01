@@ -452,7 +452,15 @@ defmodule Reseller.Metrics do
   defp normalize_provider("gemini"), do: :gemini
   defp normalize_provider("serp_api"), do: :serp_api
   defp normalize_provider("photoroom"), do: :photoroom
-  defp normalize_provider(p) when is_binary(p), do: String.to_atom(p)
+
+  defp normalize_provider(p) when is_binary(p) do
+    try do
+      String.to_existing_atom(p)
+    rescue
+      ArgumentError -> :unknown
+    end
+  end
+
   defp normalize_provider(_), do: :unknown
 
   defp operation_key(""), do: "unknown"

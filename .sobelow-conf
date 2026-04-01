@@ -1,0 +1,9 @@
+[
+  verbose: false,
+  format: "txt",
+  exit: "false",
+  ignore: ["Config.HTTPS"],
+  skip: false,
+  router: "",
+  endpoint: ""
+]

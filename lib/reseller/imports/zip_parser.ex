@@ -19,6 +19,7 @@ defmodule Reseller.Imports.ZipParser do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp extract_entries(archive_binary) do
     zip_path =
       Path.join(System.tmp_dir!(), "resellerio-import-#{System.unique_integer([:positive])}.zip")

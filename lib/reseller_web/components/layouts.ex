@@ -106,6 +106,7 @@ defmodule ResellerWeb.Layouts do
           </a>
           <a href={~p"/privacy"} class="hover:text-base-content transition-colors">Privacy Policy</a>
           <a href={~p"/dpa"} class="hover:text-base-content transition-colors">DPA</a>
+          <.link navigate={~p"/docs/api"} class="hover:text-base-content transition-colors">API Docs</.link>
           <a href={~p"/api/v1"} class="hover:text-base-content transition-colors">API v1</a>
           <a href="https://made-by-human.com" target="_blank" rel="noopener noreferrer">
             <img

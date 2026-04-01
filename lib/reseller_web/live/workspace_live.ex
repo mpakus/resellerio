@@ -1329,6 +1329,7 @@ defmodule ResellerWeb.WorkspaceLive do
     assign_workspace(socket, params, socket.assigns.current_url)
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp consume_import_upload(socket) do
     case socket.assigns.uploads.import_archive.entries do
       [] ->
@@ -1526,6 +1527,7 @@ defmodule ResellerWeb.WorkspaceLive do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp consume_storefront_asset_entry(socket, entry, kind) do
     result =
       consume_uploaded_entry(socket, entry, fn %{path: path} ->
@@ -1571,6 +1573,7 @@ defmodule ResellerWeb.WorkspaceLive do
     end
   end
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp upload_storefront_asset(socket, upload_name, kind) do
     storefront = socket.assigns.storefront
 

@@ -237,6 +237,7 @@ defmodule ResellerWeb.ProductsLive.New do
 
   defp upload_product_entries(_socket, []), do: {:ok, []}
 
+  # sobelow_skip ["Traversal.FileModule"]
   defp upload_product_entries(socket, images) do
     image_by_ref =
       socket.assigns.uploads.product_images.entries

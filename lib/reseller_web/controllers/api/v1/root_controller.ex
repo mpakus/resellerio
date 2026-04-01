@@ -167,6 +167,16 @@ defmodule ResellerWeb.API.V1.RootController do
             description: "Deletes one uploaded product image and its processed variants."
           },
           %{
+            method: "PATCH",
+            path: "/api/v1/products/:id/images/:image_id/storefront",
+            description: "Updates storefront visibility and display order for one product image."
+          },
+          %{
+            method: "PUT",
+            path: "/api/v1/products/:id/images/storefront_order",
+            description: "Sets storefront_position for an ordered list of image IDs."
+          },
+          %{
             method: "POST",
             path: "/api/v1/products/:id/mark_sold",
             description: "Marks one product as sold."

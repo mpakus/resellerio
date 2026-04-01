@@ -9,7 +9,11 @@ defmodule ResellerWeb.Router do
     plug ResellerWeb.BrowserAuth, :fetch_current_user
     plug :put_root_layout, html: {ResellerWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+
+    plug :put_secure_browser_headers, %{
+      "content-security-policy" =>
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' wss: ws:; media-src 'self' https:; frame-ancestors 'none'"
+    }
   end
 
   pipeline :api do
@@ -40,6 +44,7 @@ defmodule ResellerWeb.Router do
       live "/", HomeLive
       live "/privacy", PrivacyLive
       live "/dpa", DPALive
+      live "/docs/api", APIDocsLive
     end
 
     live_session :redirect_if_authenticated,
