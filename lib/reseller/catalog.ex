@@ -220,7 +220,7 @@ defmodule Reseller.Catalog do
           Marketplaces.update_external_urls_multi(updated_product, marketplace_url_attrs)
         end)
         |> Multi.run(:refreshed_product, fn repo, %{product: updated_product} ->
-          {:ok, repo.preload(updated_product, product_preload())}
+          {:ok, repo.preload(updated_product, product_preload(), force: true)}
         end)
         |> Repo.transaction()
         |> case do

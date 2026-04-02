@@ -120,7 +120,8 @@ Returns the same response shape as registration. Invalid credentials return `401
 ### Token Lifecycle
 
 - Store the `token` securely (Keychain / EncryptedSharedPreferences).
-- Tokens expire at `expires_at`. There is no refresh endpoint — prompt the user to sign in again on `401`.
+- Tokens currently expire 365 days after issuance, at `expires_at`.
+- There is no refresh endpoint — prompt the user to sign in again on `401`.
 - The scheme is case-insensitive: both `Bearer` and `bearer` work.
 
 ---
@@ -183,6 +184,15 @@ GET /api/v1/products/:id
 
 Returns the full product payload including `images`, `description_draft`, `price_research`, `marketplace_listings`, `latest_processing_run`, and `latest_lifestyle_generation_run`.
 
+Notable mobile-facing fields now included in the product payload:
+
+- `storefront_enabled`
+- `storefront_published_at`
+- `images[*].storefront_visible`
+- `images[*].storefront_position`
+- `marketplace_listings[*].external_url`
+- `marketplace_listings[*].external_url_added_at`
+
 ### Create a Product
 
 ```
@@ -218,11 +228,25 @@ Returns `201 Created`.
 PATCH /api/v1/products/:id
 ```
 
-**Editable fields:** `title`, `brand`, `category`, `product_tab_id`, `condition`, `color`, `size`, `material`, `price`, `cost`, `sku`, `tags`, `notes`, `status`
+**Editable fields:** `title`, `brand`, `category`, `product_tab_id`, `condition`, `color`, `size`, `material`, `price`, `cost`, `sku`, `tags`, `notes`, `status`, `storefront_enabled`
 
 **Allowed manual status transitions:** `draft`, `review`, `ready`, `sold`, `archived`
 
 System statuses (`uploading`, `processing`) and system fields (`source`) cannot be set manually.
+
+Seller-managed marketplace URLs can also be updated with a top-level `marketplace_external_urls` object:
+
+```json
+{
+  "product": {
+    "storefront_enabled": true
+  },
+  "marketplace_external_urls": {
+    "ebay": "https://www.ebay.com/itm/1234567890",
+    "depop": null
+  }
+}
+```
 
 ### Delete a Product
 
@@ -253,11 +277,33 @@ Unarchive restores to `sold` (if previously sold) or `ready`.
 
 ## Image Uploads & Processing
 
-ResellerIO uses a three-step upload flow:
+ResellerIO uses a signed-upload flow for both new products and existing products.
 
 ### Step 1 — Create product with upload metadata
 
 Include `uploads` in `POST /api/v1/products`. Each entry needs `filename`, `content_type`, and `byte_size`.
+
+### Existing Product Uploads
+
+To add new images from the mobile review screen without recreating the product, call:
+
+```
+POST /api/v1/products/:id/prepare_uploads
+```
+
+```json
+{
+  "uploads": [
+    {
+      "filename": "shoe-side.jpg",
+      "content_type": "image/jpeg",
+      "byte_size": 345678
+    }
+  ]
+}
+```
+
+This returns the same `upload_instructions` shape as `POST /api/v1/products`, but for an existing product. It only works while the product is in `draft`, `review`, or `ready`.
 
 ### Step 2 — Upload files directly to storage
 
@@ -523,6 +569,7 @@ Safe to call repeatedly — upserts on the user's single record.
 | Create page | `POST` | `/api/v1/storefront/pages` |
 | Update page | `PATCH` | `/api/v1/storefront/pages/:page_id` |
 | Delete page | `DELETE` | `/api/v1/storefront/pages/:page_id` |
+| Reorder pages | `PUT` | `/api/v1/storefront/pages/order` |
 
 **Create/update body:**
 
@@ -539,6 +586,40 @@ Safe to call repeatedly — upserts on the user's single record.
 ```
 
 A storefront must be saved before you can create pages.
+
+### Reorder Storefront Pages
+
+```
+PUT /api/v1/storefront/pages/order
+```
+
+```json
+{
+  "page_ids": [7, 5, 6]
+}
+```
+
+### Prepare Branding Asset Uploads
+
+Use signed uploads for storefront `logo` and `header` assets:
+
+```
+POST /api/v1/storefront/assets/:kind/prepare_upload
+```
+
+```json
+{
+  "asset": {
+    "filename": "logo.png",
+    "content_type": "image/png",
+    "byte_size": 48000,
+    "width": 400,
+    "height": 400
+  }
+}
+```
+
+The response includes both the storefront `asset` record and an `upload_instruction` for direct upload.
 
 ### Delete Branding Assets
 
@@ -685,6 +766,7 @@ Include field-level details:
 | `202` | Accepted for background processing (exports, imports, reprocess) |
 | `400` | Malformed request (e.g. missing required payload key) |
 | `401` | Missing, expired, or invalid bearer token |
+| `402` | Monthly plan limit exceeded for a paid user |
 | `404` | Resource not found or belongs to another user |
 | `422` | Validation failed or invalid state transition |
 | `502` | Upstream service unavailable (e.g. storage signing failed) |
@@ -698,8 +780,21 @@ Include field-level details:
 | `validation_failed` | Input validation errors (check `fields`) |
 | `invalid_product_state` | The product is in a status that doesn't allow this action |
 | `invalid_uploads` | Upload IDs don't belong to the product |
+| `limit_exceeded` | The user has reached a monthly plan limit; use `upgrade_url` for the upgrade CTA |
 | `storage_unavailable` | Object storage is not configured |
 | `upload_signing_failed` | Could not generate pre-signed upload URL |
+
+### Limit Exceeded Responses (402)
+
+```json
+{
+  "error": "limit_exceeded",
+  "operation": "ai_drafts",
+  "used": 51,
+  "limit": 50,
+  "upgrade_url": "https://resellerio.com/pricing"
+}
+```
 
 ---
 
@@ -720,6 +815,7 @@ Include field-level details:
 |--------|------|-------------|
 | `GET` | `/api/v1/me` | Get current user |
 | `PATCH` | `/api/v1/me` | Update marketplace preferences |
+| `GET` | `/api/v1/me/usage` | Get current usage, limits, and addon credits |
 
 ### Products
 
@@ -730,6 +826,7 @@ Include field-level details:
 | `GET` | `/api/v1/products/:id` | Get one product |
 | `PATCH` | `/api/v1/products/:id` | Update product fields |
 | `DELETE` | `/api/v1/products/:id` | Delete product |
+| `POST` | `/api/v1/products/:id/prepare_uploads` | Prepare new uploads for an existing product |
 | `POST` | `/api/v1/products/:id/finalize_uploads` | Finalize uploaded images → start AI |
 | `POST` | `/api/v1/products/:id/reprocess` | Retry AI processing |
 | `POST` | `/api/v1/products/:id/mark_sold` | Mark as sold |
@@ -772,6 +869,8 @@ Include field-level details:
 | `POST` | `/api/v1/storefront/pages` | Create page |
 | `PATCH` | `/api/v1/storefront/pages/:page_id` | Update page |
 | `DELETE` | `/api/v1/storefront/pages/:page_id` | Delete page |
+| `PUT` | `/api/v1/storefront/pages/order` | Reorder storefront pages |
+| `POST` | `/api/v1/storefront/assets/:kind/prepare_upload` | Prepare logo/header upload |
 | `DELETE` | `/api/v1/storefront/assets/:kind` | Delete logo or header |
 
 ### Inquiries

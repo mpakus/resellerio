@@ -38,7 +38,7 @@ config :phoenix_live_view,
 
 config :reseller,
   password_hash_iterations: 1_000,
-  api_token_ttl_days: 30
+  api_token_ttl_days: 365
 
 config :reseller, Reseller.AI, provider: Reseller.Support.Fakes.AIProvider
 

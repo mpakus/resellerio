@@ -6,7 +6,8 @@ defmodule ResellerWeb.APIDocsLive do
     {:ok,
      assign(socket,
        page_title: ResellerWeb.PageTitle.build("API Documentation", "Developers"),
-       open_endpoints: MapSet.new()
+       open_endpoints: MapSet.new(),
+       openapi_path: ResellerWeb.API.V1.APISpec.openapi_path()
      )}
   end
 
@@ -28,7 +29,6 @@ defmodule ResellerWeb.APIDocsLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-
         <%!-- Header --%>
         <div class="text-center">
           <p class="text-xs font-semibold uppercase tracking-[0.35em] text-primary">
@@ -51,6 +51,12 @@ defmodule ResellerWeb.APIDocsLive do
             <span class="inline-flex items-center rounded-full border border-base-300 bg-base-200/80 px-4 py-2 text-sm font-medium text-base-content/70">
               Versioned at /api/v1
             </span>
+            <a
+              href={@openapi_path}
+              class="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/12"
+            >
+              OpenAPI JSON
+            </a>
           </div>
         </div>
 
@@ -63,21 +69,27 @@ defmodule ResellerWeb.APIDocsLive do
             </p>
             <div class="mt-6 grid gap-4 sm:grid-cols-3">
               <div class="rounded-2xl border border-base-300/60 bg-base-100 p-5">
-                <div class="flex size-9 items-center justify-center rounded-xl bg-primary/12 text-sm font-bold text-primary">1</div>
+                <div class="flex size-9 items-center justify-center rounded-xl bg-primary/12 text-sm font-bold text-primary">
+                  1
+                </div>
                 <p class="mt-3 text-sm font-semibold">Register</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   POST /api/v1/auth/register with email &amp; password to get a bearer token.
                 </p>
               </div>
               <div class="rounded-2xl border border-base-300/60 bg-base-100 p-5">
-                <div class="flex size-9 items-center justify-center rounded-xl bg-secondary/12 text-sm font-bold text-secondary">2</div>
+                <div class="flex size-9 items-center justify-center rounded-xl bg-secondary/12 text-sm font-bold text-secondary">
+                  2
+                </div>
                 <p class="mt-3 text-sm font-semibold">Authenticate</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   Add Authorization: Bearer &lt;token&gt; to every subsequent request.
                 </p>
               </div>
               <div class="rounded-2xl border border-base-300/60 bg-base-100 p-5">
-                <div class="flex size-9 items-center justify-center rounded-xl bg-accent/12 text-sm font-bold text-accent">3</div>
+                <div class="flex size-9 items-center justify-center rounded-xl bg-accent/12 text-sm font-bold text-accent">
+                  3
+                </div>
                 <p class="mt-3 text-sm font-semibold">Create a Product</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   POST /api/v1/products with title, brand, and optional image uploads.
@@ -113,11 +125,25 @@ defmodule ResellerWeb.APIDocsLive do
                 </tr>
                 <tr>
                   <td class="whitespace-nowrap px-4 py-3 font-medium">Error shape</td>
-                  <td class="px-4 py-3"><code>&#123;"error": &#123;"code": "...", "detail": "...", "status": 404&#125;&#125;</code></td>
+                  <td class="px-4 py-3">
+                    <code>
+                      &#123;"error": &#123;"code": "...", "detail": "...", "status": 404&#125;&#125;
+                    </code>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="whitespace-nowrap px-4 py-3 font-medium">OpenAPI</td>
+                  <td class="px-4 py-3">
+                    <a href={@openapi_path} class="font-medium text-primary hover:underline">
+                      {@openapi_path}
+                    </a>
+                  </td>
                 </tr>
                 <tr>
                   <td class="whitespace-nowrap px-4 py-3 font-medium">Discovery</td>
-                  <td class="px-4 py-3"><code class="text-primary">GET /api/v1</code> returns all endpoints</td>
+                  <td class="px-4 py-3">
+                    <code class="text-primary">GET /api/v1</code> returns all endpoints
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -141,11 +167,25 @@ defmodule ResellerWeb.APIDocsLive do
               args={[
                 %{name: "email", type: "string", required: true, desc: "Account email address"},
                 %{name: "password", type: "string", required: true, desc: "Minimum 8 characters"},
-                %{name: "device_name", type: "string", required: false, desc: "Human-readable device label for the issued token"},
-                %{name: "selected_marketplaces", type: "array<string>", required: false, desc: "Marketplace IDs to enable for AI copy generation"}
+                %{
+                  name: "device_name",
+                  type: "string",
+                  required: false,
+                  desc: "Human-readable device label for the issued token"
+                },
+                %{
+                  name: "selected_marketplaces",
+                  type: "array<string>",
+                  required: false,
+                  desc: "Marketplace IDs to enable for AI copy generation"
+                }
               ]}
-              request_example={~s({\n  "email": "seller@example.com",\n  "password": "very-secure-password",\n  "device_name": "iPhone",\n  "selected_marketplaces": ["ebay", "depop", "poshmark"]\n})}
-              response_example={~s({\n  "data": {\n    "token": "eyJhbGciOi...",\n    "token_type": "Bearer",\n    "expires_at": "2026-04-28T18:00:00Z",\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "confirmed_at": null,\n      "selected_marketplaces": ["ebay", "depop", "poshmark"]\n    },\n    "supported_marketplaces": [\n      {"id": "ebay", "label": "eBay"},\n      {"id": "depop", "label": "Depop"}\n    ]\n  }\n})}
+              request_example={
+                ~s({\n  "email": "seller@example.com",\n  "password": "very-secure-password",\n  "device_name": "iPhone",\n  "selected_marketplaces": ["ebay", "depop", "poshmark"]\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "token": "eyJhbGciOi...",\n    "token_type": "Bearer",\n    "expires_at": "2026-04-28T18:00:00Z",\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "confirmed_at": null,\n      "selected_marketplaces": ["ebay", "depop", "poshmark"]\n    },\n    "supported_marketplaces": [\n      {"id": "ebay", "label": "eBay"},\n      {"id": "depop", "label": "Depop"}\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="auth-login"
@@ -156,10 +196,19 @@ defmodule ResellerWeb.APIDocsLive do
               args={[
                 %{name: "email", type: "string", required: true, desc: "Account email"},
                 %{name: "password", type: "string", required: true, desc: "Account password"},
-                %{name: "device_name", type: "string", required: false, desc: "Device label for the issued token"}
+                %{
+                  name: "device_name",
+                  type: "string",
+                  required: false,
+                  desc: "Device label for the issued token"
+                }
               ]}
-              request_example={~s({\n  "email": "seller@example.com",\n  "password": "very-secure-password",\n  "device_name": "Pixel"\n})}
-              response_example={~s({\n  "data": {\n    "token": "eyJhbGciOi...",\n    "token_type": "Bearer",\n    "expires_at": "2026-04-28T18:00:00Z",\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "selected_marketplaces": ["ebay", "depop"]\n    }\n  }\n})}
+              request_example={
+                ~s({\n  "email": "seller@example.com",\n  "password": "very-secure-password",\n  "device_name": "Pixel"\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "token": "eyJhbGciOi...",\n    "token_type": "Bearer",\n    "expires_at": "2026-04-28T18:00:00Z",\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "selected_marketplaces": ["ebay", "depop"]\n    }\n  }\n})
+              }
             />
           </.endpoint_group>
           <%!-- User --%>
@@ -172,7 +221,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "me-get")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "confirmed_at": null,\n      "selected_marketplaces": ["ebay", "depop", "poshmark"]\n    },\n    "supported_marketplaces": [\n      {"id": "ebay", "label": "eBay"},\n      {"id": "depop", "label": "Depop"},\n      {"id": "poshmark", "label": "Poshmark"}\n    ]\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "confirmed_at": null,\n      "selected_marketplaces": ["ebay", "depop", "poshmark"]\n    },\n    "supported_marketplaces": [\n      {"id": "ebay", "label": "eBay"},\n      {"id": "depop", "label": "Depop"},\n      {"id": "poshmark", "label": "Poshmark"}\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="me-patch"
@@ -181,10 +232,32 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Update marketplace preferences"
               open={open?(@open_endpoints, "me-patch")}
               args={[
-                %{name: "user.selected_marketplaces", type: "array<string>", required: true, desc: "Marketplace IDs to use for AI copy generation. Pass [] to disable generation."}
+                %{
+                  name: "user.selected_marketplaces",
+                  type: "array<string>",
+                  required: true,
+                  desc:
+                    "Marketplace IDs to use for AI copy generation. Pass [] to disable generation."
+                }
               ]}
-              request_example={~s({\n  "user": {\n    "selected_marketplaces": ["ebay", "mercari", "etsy"]\n  }\n})}
-              response_example={~s({\n  "data": {\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "selected_marketplaces": ["ebay", "mercari", "etsy"]\n    }\n  }\n})}
+              request_example={
+                ~s({\n  "user": {\n    "selected_marketplaces": ["ebay", "mercari", "etsy"]\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "user": {\n      "id": 1,\n      "email": "seller@example.com",\n      "selected_marketplaces": ["ebay", "mercari", "etsy"]\n    }\n  }\n})
+              }
+            />
+            <.endpoint
+              id="me-usage"
+              method="GET"
+              path="/api/v1/me/usage"
+              desc="Get current monthly usage, limits, and addon credits"
+              open={open?(@open_endpoints, "me-usage")}
+              args={[]}
+              request_example={nil}
+              response_example={
+                ~s({\n  "data": {\n    "usage": {\n      "ai_drafts": 0,\n      "background_removals": 0,\n      "lifestyle": 0,\n      "price_research": 0\n    },\n    "limits": {\n      "ai_drafts": 25,\n      "background_removals": 25,\n      "lifestyle": 10,\n      "price_research": 25\n    },\n    "addon_credits": {}\n  }\n})
+              }
             />
           </.endpoint_group>
           <%!-- Products --%>
@@ -196,18 +269,55 @@ defmodule ResellerWeb.APIDocsLive do
               desc="List products with filters, sorting, and pagination"
               open={open?(@open_endpoints, "products-list")}
               args={[
-                %{name: "status", type: "string", required: false, desc: "all · draft · uploading · processing · review · ready · sold · archived"},
-                %{name: "query", type: "string", required: false, desc: "Full-text search across title, brand, category"},
-                %{name: "product_tab_id", type: "integer", required: false, desc: "Filter by seller-owned product tab"},
-                %{name: "updated_from", type: "date", required: false, desc: "ISO date lower bound (inclusive)"},
-                %{name: "updated_to", type: "date", required: false, desc: "ISO date upper bound (inclusive)"},
-                %{name: "sort", type: "string", required: false, desc: "title · status · price · updated_at · inserted_at"},
+                %{
+                  name: "status",
+                  type: "string",
+                  required: false,
+                  desc: "all · draft · uploading · processing · review · ready · sold · archived"
+                },
+                %{
+                  name: "query",
+                  type: "string",
+                  required: false,
+                  desc: "Full-text search across title, brand, category"
+                },
+                %{
+                  name: "product_tab_id",
+                  type: "integer",
+                  required: false,
+                  desc: "Filter by seller-owned product tab"
+                },
+                %{
+                  name: "updated_from",
+                  type: "date",
+                  required: false,
+                  desc: "ISO date lower bound (inclusive)"
+                },
+                %{
+                  name: "updated_to",
+                  type: "date",
+                  required: false,
+                  desc: "ISO date upper bound (inclusive)"
+                },
+                %{
+                  name: "sort",
+                  type: "string",
+                  required: false,
+                  desc: "title · status · price · updated_at · inserted_at"
+                },
                 %{name: "dir", type: "string", required: false, desc: "asc or desc (default: desc)"},
                 %{name: "page", type: "integer", required: false, desc: "1-based page number"},
-                %{name: "page_size", type: "integer", required: false, desc: "Items per page, max 100 (default 15)"}
+                %{
+                  name: "page_size",
+                  type: "integer",
+                  required: false,
+                  desc: "Items per page, max 100 (default 15)"
+                }
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "products": [\n      {\n        "id": 1,\n        "status": "ready",\n        "title": "Vintage blazer",\n        "brand": "Ralph Lauren",\n        "category": "Blazers",\n        "price": "89.00",\n        "tags": ["vintage", "wool"],\n        "images": [],\n        "latest_processing_run": null\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 15, "total_count": 1, "total_pages": 1},\n    "filters": {"status": "all", "query": null, "sort": "updated_at", "dir": "desc"}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "products": [\n      {\n        "id": 1,\n        "status": "ready",\n        "title": "Vintage blazer",\n        "brand": "Ralph Lauren",\n        "category": "Blazers",\n        "price": "89.00",\n        "tags": ["vintage", "wool"],\n        "images": [],\n        "latest_processing_run": null\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 15, "total_count": 1, "total_pages": 1},\n    "filters": {"status": "all", "query": null, "sort": "updated_at", "dir": "desc"}\n  }\n})
+              }
             />
             <.endpoint
               id="products-create"
@@ -219,12 +329,32 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "product.title", type: "string", required: false, desc: "Product title"},
                 %{name: "product.brand", type: "string", required: false, desc: "Brand name"},
                 %{name: "product.category", type: "string", required: false, desc: "Category"},
-                %{name: "product.product_tab_id", type: "integer", required: false, desc: "Seller-owned tab assignment"},
-                %{name: "product.tags", type: "array<string>", required: false, desc: "Freeform tag list"},
-                %{name: "uploads", type: "array<object>", required: false, desc: "Upload intents: {filename, content_type, byte_size}. Returns signed upload_instructions."}
+                %{
+                  name: "product.product_tab_id",
+                  type: "integer",
+                  required: false,
+                  desc: "Seller-owned tab assignment"
+                },
+                %{
+                  name: "product.tags",
+                  type: "array<string>",
+                  required: false,
+                  desc: "Freeform tag list"
+                },
+                %{
+                  name: "uploads",
+                  type: "array<object>",
+                  required: false,
+                  desc:
+                    "Upload intents: {filename, content_type, byte_size}. Returns signed upload_instructions."
+                }
               ]}
-              request_example={~s({\n  "product": {\n    "title": "Nike Air Max",\n    "brand": "Nike",\n    "category": "Sneakers",\n    "tags": ["running", "air-max"]\n  },\n  "uploads": [\n    {"filename": "shoe-1.jpg", "content_type": "image/jpeg", "byte_size": 345678}\n  ]\n})}
-              response_example={~s({\n  "data": {\n    "product": {\n      "id": 1,\n      "status": "uploading",\n      "title": "Nike Air Max",\n      "images": [{"id": 1, "kind": "original", "processing_status": "pending_upload"}]\n    },\n    "upload_instructions": [\n      {\n        "image_id": 1,\n        "method": "PUT",\n        "upload_url": "https://bucket.tigris.dev/...",\n        "headers": {"content-type": "image/jpeg"},\n        "expires_at": "2026-03-29T18:40:00Z"\n      }\n    ]\n  }\n})}
+              request_example={
+                ~s({\n  "product": {\n    "title": "Nike Air Max",\n    "brand": "Nike",\n    "category": "Sneakers",\n    "tags": ["running", "air-max"]\n  },\n  "uploads": [\n    {"filename": "shoe-1.jpg", "content_type": "image/jpeg", "byte_size": 345678}\n  ]\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "product": {\n      "id": 1,\n      "status": "uploading",\n      "title": "Nike Air Max",\n      "images": [{"id": 1, "kind": "original", "processing_status": "pending_upload"}]\n    },\n    "upload_instructions": [\n      {\n        "image_id": 1,\n        "method": "PUT",\n        "upload_url": "https://bucket.tigris.dev/...",\n        "headers": {"content-type": "image/jpeg"},\n        "expires_at": "2026-03-29T18:40:00Z"\n      }\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="products-get"
@@ -236,7 +366,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90",\n      "brand": "Nike",\n      "price": "125.00",\n      "tags": ["running", "air-max"],\n      "description_draft": {\n        "suggested_title": "Nike Air Max 90",\n        "short_description": "Classic Nike Air Max 90 sneakers in white mesh."\n      },\n      "price_research": {\n        "suggested_target_price": "125.00",\n        "pricing_confidence": 0.82\n      },\n      "marketplace_listings": [\n        {"marketplace": "ebay", "status": "generated", "generated_title": "Nike Air Max 90 Sneakers White Mesh"}\n      ],\n      "images": [\n        {"id": 31, "kind": "original", "processing_status": "ready"},\n        {"id": 32, "kind": "background_removed", "processing_status": "ready"}\n      ]\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90",\n      "brand": "Nike",\n      "price": "125.00",\n      "tags": ["running", "air-max"],\n      "storefront_enabled": true,\n      "storefront_published_at": "2026-03-29T12:00:00Z",\n      "description_draft": {\n        "suggested_title": "Nike Air Max 90",\n        "short_description": "Classic Nike Air Max 90 sneakers in white mesh."\n      },\n      "price_research": {\n        "suggested_target_price": "125.00",\n        "pricing_confidence": 0.82\n      },\n      "marketplace_listings": [\n        {"marketplace": "ebay", "status": "generated", "generated_title": "Nike Air Max 90 Sneakers White Mesh", "external_url": "https://www.ebay.com/itm/1234567890"}\n      ],\n      "images": [\n        {"id": 31, "kind": "original", "processing_status": "ready", "storefront_visible": true, "storefront_position": 1},\n        {"id": 32, "kind": "background_removed", "processing_status": "ready", "storefront_visible": false, "storefront_position": null}\n      ]\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="products-update"
@@ -253,16 +385,57 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "product.color", type: "string", required: false, desc: "Color"},
                 %{name: "product.size", type: "string", required: false, desc: "Size"},
                 %{name: "product.material", type: "string", required: false, desc: "Material"},
-                %{name: "product.price", type: "decimal string", required: false, desc: "Sale price (e.g. \"99.00\")"},
-                %{name: "product.cost", type: "decimal string", required: false, desc: "Purchase cost"},
+                %{
+                  name: "product.price",
+                  type: "decimal string",
+                  required: false,
+                  desc: "Sale price (e.g. \"99.00\")"
+                },
+                %{
+                  name: "product.cost",
+                  type: "decimal string",
+                  required: false,
+                  desc: "Purchase cost"
+                },
                 %{name: "product.sku", type: "string", required: false, desc: "Custom SKU"},
                 %{name: "product.notes", type: "string", required: false, desc: "Internal notes"},
-                %{name: "product.product_tab_id", type: "integer|null", required: false, desc: "Tab assignment; null to unassign"},
-                %{name: "product.tags", type: "array<string>", required: false, desc: "Replaces the existing tag list"},
-                %{name: "product.status", type: "string", required: false, desc: "draft · review · ready · sold · archived (system statuses not editable)"}
+                %{
+                  name: "product.product_tab_id",
+                  type: "integer|null",
+                  required: false,
+                  desc: "Tab assignment; null to unassign"
+                },
+                %{
+                  name: "product.tags",
+                  type: "array<string>",
+                  required: false,
+                  desc: "Replaces the existing tag list"
+                },
+                %{
+                  name: "product.status",
+                  type: "string",
+                  required: false,
+                  desc: "draft · review · ready · sold · archived (system statuses not editable)"
+                },
+                %{
+                  name: "product.storefront_enabled",
+                  type: "boolean",
+                  required: false,
+                  desc: "Publish or unpublish the product on the seller storefront"
+                },
+                %{
+                  name: "marketplace_external_urls",
+                  type: "object",
+                  required: false,
+                  desc: "Marketplace-to-URL map for seller-managed live listing URLs"
+                }
               ]}
-              request_example={~s({\n  "product": {\n    "title": "Nike Air Max 90 White",\n    "price": "119.00",\n    "condition": "used_good",\n    "notes": "Measured and cleaned",\n    "tags": ["nike", "air-max", "sneakers"]\n  }\n})}
-              response_example={~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90 White",\n      "price": "119.00",\n      "tags": ["nike", "air-max", "sneakers"]\n    }\n  }\n})}
+              request_example={
+                ~s({\n  "product": {\n    "title": "Nike Air Max 90 White",\n    "price": "119.00",\n    "condition": "used_good",\n    "notes": "Measured and cleaned",\n    "tags": ["nike", "air-max", "sneakers"],\n    "storefront_enabled": true\n  },\n  "marketplace_external_urls": {\n    "ebay": "https://www.ebay.com/itm/1234567890"\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90 White",\n      "price": "119.00",\n      "tags": ["nike", "air-max", "sneakers"],\n      "storefront_enabled": true,\n      "marketplace_listings": [\n        {"marketplace": "ebay", "external_url": "https://www.ebay.com/itm/1234567890"}\n      ]\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="products-delete"
@@ -277,6 +450,28 @@ defmodule ResellerWeb.APIDocsLive do
               response_example={~s({\n  "data": {"deleted": true}\n})}
             />
             <.endpoint
+              id="products-prepare"
+              method="POST"
+              path="/api/v1/products/:id/prepare_uploads"
+              desc="Prepare new uploads for an existing product"
+              open={open?(@open_endpoints, "products-prepare")}
+              args={[
+                %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
+                %{
+                  name: "uploads",
+                  type: "array<object>",
+                  required: true,
+                  desc: "Upload intents: {filename, content_type, byte_size}"
+                }
+              ]}
+              request_example={
+                ~s({\n  "uploads": [\n    {"filename": "shoe-2.jpg", "content_type": "image/jpeg", "byte_size": 345678}\n  ]\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "product": {\n      "id": 1,\n      "status": "draft",\n      "images": [{"id": 2, "kind": "original", "processing_status": "pending_upload"}]\n    },\n    "upload_instructions": [\n      {\n        "image_id": 2,\n        "method": "PUT",\n        "upload_url": "https://bucket.tigris.dev/...",\n        "headers": {"content-type": "image/jpeg"},\n        "expires_at": "2026-03-29T18:40:00Z"\n      }\n    ]\n  }\n})
+              }
+            />
+            <.endpoint
               id="products-finalize"
               method="POST"
               path="/api/v1/products/:id/finalize_uploads"
@@ -284,10 +479,19 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "products-finalize")}
               args={[
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
-                %{name: "uploads", type: "array<object>", required: true, desc: "List of finalized uploads: {id (image_id), checksum, width, height}"}
+                %{
+                  name: "uploads",
+                  type: "array<object>",
+                  required: true,
+                  desc: "List of finalized uploads: {id (image_id), checksum, width, height}"
+                }
               ]}
-              request_example={~s({\n  "uploads": [\n    {"id": 1, "checksum": "abc123", "width": 1200, "height": 1600}\n  ]\n})}
-              response_example={~s({\n  "data": {\n    "product": {"id": 1, "status": "processing"},\n    "processing_run": {"id": 12, "status": "queued", "step": "queued"}\n  }\n})}
+              request_example={
+                ~s({\n  "uploads": [\n    {"id": 1, "checksum": "abc123", "width": 1200, "height": 1600}\n  ]\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "product": {"id": 1, "status": "processing"},\n    "processing_run": {"id": 12, "status": "queued", "step": "queued"}\n  }\n})
+              }
             />
             <.endpoint
               id="products-reprocess"
@@ -296,10 +500,17 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Retry AI processing after a failure"
               open={open?(@open_endpoints, "products-reprocess")}
               args={[
-                %{name: "id", type: "integer", required: true, desc: "Product ID (path param). Must have finalized images."}
+                %{
+                  name: "id",
+                  type: "integer",
+                  required: true,
+                  desc: "Product ID (path param). Must have finalized images."
+                }
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "product": {"id": 12, "status": "processing"},\n    "processing_run": {"id": 18, "status": "queued", "step": "queued", "error_code": null}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product": {"id": 12, "status": "processing"},\n    "processing_run": {"id": 18, "status": "queued", "step": "queued", "error_code": null}\n  }\n})
+              }
             />
             <.endpoint
               id="products-mark-sold"
@@ -311,7 +522,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {"product": {"id": 12, "status": "sold", "sold_at": "2026-04-01T10:00:00Z"}}\n})}
+              response_example={
+                ~s({\n  "data": {"product": {"id": 12, "status": "sold", "sold_at": "2026-04-01T10:00:00Z"}}\n})
+              }
             />
             <.endpoint
               id="products-archive"
@@ -323,7 +536,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {"product": {"id": 12, "status": "archived", "archived_at": "2026-04-01T10:00:00Z"}}\n})}
+              response_example={
+                ~s({\n  "data": {"product": {"id": 12, "status": "archived", "archived_at": "2026-04-01T10:00:00Z"}}\n})
+              }
             />
             <.endpoint
               id="products-unarchive"
@@ -332,7 +547,12 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Restore an archived product"
               open={open?(@open_endpoints, "products-unarchive")}
               args={[
-                %{name: "id", type: "integer", required: true, desc: "Product ID (path param). Returns to sold if sold_at is set, otherwise ready."}
+                %{
+                  name: "id",
+                  type: "integer",
+                  required: true,
+                  desc: "Product ID (path param). Returns to sold if sold_at is set, otherwise ready."
+                }
               ]}
               request_example={nil}
               response_example={~s({\n  "data": {"product": {"id": 12, "status": "ready"}}\n})}
@@ -347,11 +567,18 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Delete an uploaded image and its variants"
               open={open?(@open_endpoints, "images-delete")}
               args={[
-                %{name: "id", type: "integer", required: true, desc: "Product ID (path param). Must be in draft, review, or ready status."},
+                %{
+                  name: "id",
+                  type: "integer",
+                  required: true,
+                  desc: "Product ID (path param). Must be in draft, review, or ready status."
+                },
                 %{name: "image_id", type: "integer", required: true, desc: "Image ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "deleted": true,\n    "product": {"id": 12, "status": "ready", "images": []}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "deleted": true,\n    "product": {"id": 12, "status": "ready", "images": []}\n  }\n})
+              }
             />
             <.endpoint
               id="images-storefront"
@@ -362,11 +589,23 @@ defmodule ResellerWeb.APIDocsLive do
               args={[
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
                 %{name: "image_id", type: "integer", required: true, desc: "Image ID (path param)"},
-                %{name: "storefront_visible", type: "boolean", required: false, desc: "Show image in the public storefront gallery"},
-                %{name: "storefront_position", type: "integer|null", required: false, desc: "Explicit display order (1-based); null falls back to upload position"}
+                %{
+                  name: "storefront_visible",
+                  type: "boolean",
+                  required: false,
+                  desc: "Show image in the public storefront gallery"
+                },
+                %{
+                  name: "storefront_position",
+                  type: "integer|null",
+                  required: false,
+                  desc: "Explicit display order (1-based); null falls back to upload position"
+                }
               ]}
               request_example={~s({\n  "storefront_visible": true,\n  "storefront_position": 1\n})}
-              response_example={~s({\n  "data": {\n    "product": {"id": 12, "status": "ready", "images": [...]}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product": {"id": 12, "status": "ready", "images": [...]}\n  }\n})
+              }
             />
             <.endpoint
               id="images-storefront-order"
@@ -376,10 +615,17 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "images-storefront-order")}
               args={[
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
-                %{name: "image_ids", type: "array<integer>", required: true, desc: "Ordered list of image IDs — positions 1-to-N assigned in order"}
+                %{
+                  name: "image_ids",
+                  type: "array<integer>",
+                  required: true,
+                  desc: "Ordered list of image IDs — positions 1-to-N assigned in order"
+                }
               ]}
               request_example={~s({\n  "image_ids": [42, 17, 99]\n})}
-              response_example={~s({\n  "data": {\n    "product": {"id": 12, "status": "ready", "images": [...]}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product": {"id": 12, "status": "ready", "images": [...]}\n  }\n})
+              }
             />
           </.endpoint_group>
           <%!-- Lifestyle --%>
@@ -391,11 +637,24 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Generate AI lifestyle previews"
               open={open?(@open_endpoints, "lifestyle-generate")}
               args={[
-                %{name: "id", type: "integer", required: true, desc: "Product ID (path param). Must be in review, ready, sold, or archived status."},
-                %{name: "scene_key", type: "string", required: false, desc: "Specific scene to regenerate (e.g. casual_lifestyle). Omit to generate the full default scene set."}
+                %{
+                  name: "id",
+                  type: "integer",
+                  required: true,
+                  desc: "Product ID (path param). Must be in review, ready, sold, or archived status."
+                },
+                %{
+                  name: "scene_key",
+                  type: "string",
+                  required: false,
+                  desc:
+                    "Specific scene to regenerate (e.g. casual_lifestyle). Omit to generate the full default scene set."
+                }
               ]}
               request_example={~s({\n  "scene_key": "casual_lifestyle"\n})}
-              response_example={~s({\n  "data": {\n    "lifestyle_generation_run": {\n      "id": 19,\n      "status": "completed",\n      "step": "lifestyle_generated",\n      "requested_count": 3,\n      "completed_count": 3\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "lifestyle_generation_run": {\n      "id": 19,\n      "status": "completed",\n      "step": "lifestyle_generated",\n      "requested_count": 3,\n      "completed_count": 3\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="lifestyle-runs"
@@ -407,7 +666,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "runs": [\n      {\n        "id": 19,\n        "status": "completed",\n        "step": "lifestyle_generated",\n        "scene_family": "apparel",\n        "requested_count": 3,\n        "completed_count": 3\n      }\n    ]\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "runs": [\n      {\n        "id": 19,\n        "status": "completed",\n        "step": "lifestyle_generated",\n        "scene_family": "apparel",\n        "requested_count": 3,\n        "completed_count": 3\n      }\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="lifestyle-approve"
@@ -417,10 +678,17 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "lifestyle-approve")}
               args={[
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
-                %{name: "image_id", type: "integer", required: true, desc: "Generated image ID (path param)"}
+                %{
+                  name: "image_id",
+                  type: "integer",
+                  required: true,
+                  desc: "Generated image ID (path param)"
+                }
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "images": [\n        {"id": 44, "kind": "lifestyle_generated", "seller_approved": true, "approved_at": "2026-04-01T11:00:00Z"}\n      ]\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "images": [\n        {"id": 44, "kind": "lifestyle_generated", "seller_approved": true, "approved_at": "2026-04-01T11:00:00Z"}\n      ]\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="lifestyle-delete"
@@ -430,10 +698,17 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "lifestyle-delete")}
               args={[
                 %{name: "id", type: "integer", required: true, desc: "Product ID (path param)"},
-                %{name: "image_id", type: "integer", required: true, desc: "Generated image ID (path param)"}
+                %{
+                  name: "image_id",
+                  type: "integer",
+                  required: true,
+                  desc: "Generated image ID (path param)"
+                }
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {"deleted": true, "product": {"id": 12, "status": "ready", "images": [...]}}\n})}
+              response_example={
+                ~s({\n  "data": {"deleted": true, "product": {"id": 12, "status": "ready", "images": [...]}}\n})
+              }
             />
           </.endpoint_group>
           <%!-- Product Tabs --%>
@@ -446,7 +721,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "tabs-list")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "product_tabs": [\n      {"id": 4, "name": "Outerwear", "position": 1, "inserted_at": "2026-03-31T12:00:00Z"}\n    ]\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product_tabs": [\n      {"id": 4, "name": "Outerwear", "position": 1, "inserted_at": "2026-03-31T12:00:00Z"}\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="tabs-create"
@@ -455,10 +732,17 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Create a tab"
               open={open?(@open_endpoints, "tabs-create")}
               args={[
-                %{name: "product_tab.name", type: "string", required: true, desc: "Display name of the tab"}
+                %{
+                  name: "product_tab.name",
+                  type: "string",
+                  required: true,
+                  desc: "Display name of the tab"
+                }
               ]}
               request_example={~s({\n  "product_tab": {"name": "Shoes"}\n})}
-              response_example={~s({\n  "data": {\n    "product_tab": {"id": 5, "name": "Shoes", "position": 2}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "product_tab": {"id": 5, "name": "Shoes", "position": 2}\n  }\n})
+              }
             />
             <.endpoint
               id="tabs-update"
@@ -471,7 +755,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "product_tab.name", type: "string", required: true, desc: "New display name"}
               ]}
               request_example={~s({\n  "product_tab": {"name": "Sneakers"}\n})}
-              response_example={~s({\n  "data": {"product_tab": {"id": 5, "name": "Sneakers", "position": 2}}\n})}
+              response_example={
+                ~s({\n  "data": {"product_tab": {"id": 5, "name": "Sneakers", "position": 2}}\n})
+              }
             />
             <.endpoint
               id="tabs-delete"
@@ -480,7 +766,13 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Delete a tab"
               open={open?(@open_endpoints, "tabs-delete")}
               args={[
-                %{name: "id", type: "integer", required: true, desc: "Tab ID (path param). Products assigned to this tab have their product_tab_id set to null."}
+                %{
+                  name: "id",
+                  type: "integer",
+                  required: true,
+                  desc:
+                    "Tab ID (path param). Products assigned to this tab have their product_tab_id set to null."
+                }
               ]}
               request_example={nil}
               response_example={~s({\n  "data": {"deleted": true}\n})}
@@ -496,7 +788,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "storefront-get")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "neutral-warm",\n      "enabled": true,\n      "assets": [{"id": 1, "kind": "logo", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "neutral-warm",\n      "enabled": true,\n      "assets": [{"id": 1, "kind": "logo", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="storefront-put"
@@ -505,15 +799,49 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Create or update storefront"
               open={open?(@open_endpoints, "storefront-put")}
               args={[
-                %{name: "storefront.slug", type: "string", required: true, desc: "URL slug for the public store (lowercase, hyphens allowed)"},
-                %{name: "storefront.title", type: "string", required: false, desc: "Store display name"},
-                %{name: "storefront.tagline", type: "string", required: false, desc: "Short tagline shown in the header"},
-                %{name: "storefront.description", type: "string", required: false, desc: "Longer store description"},
-                %{name: "storefront.theme_id", type: "string", required: false, desc: "Theme preset ID"},
-                %{name: "storefront.enabled", type: "boolean", required: false, desc: "Whether the store is publicly visible"}
+                %{
+                  name: "storefront.slug",
+                  type: "string",
+                  required: true,
+                  desc: "URL slug for the public store (lowercase, hyphens allowed)"
+                },
+                %{
+                  name: "storefront.title",
+                  type: "string",
+                  required: false,
+                  desc: "Store display name"
+                },
+                %{
+                  name: "storefront.tagline",
+                  type: "string",
+                  required: false,
+                  desc: "Short tagline shown in the header"
+                },
+                %{
+                  name: "storefront.description",
+                  type: "string",
+                  required: false,
+                  desc: "Longer store description"
+                },
+                %{
+                  name: "storefront.theme_id",
+                  type: "string",
+                  required: false,
+                  desc: "Theme preset ID"
+                },
+                %{
+                  name: "storefront.enabled",
+                  type: "boolean",
+                  required: false,
+                  desc: "Whether the store is publicly visible"
+                }
               ]}
-              request_example={~s({\n  "storefront": {\n    "slug": "my-store",\n    "title": "My Store",\n    "tagline": "Curated resale.",\n    "theme_id": "neutral-warm",\n    "enabled": true\n  }\n})}
-              response_example={~s({\n  "data": {\n    "storefront": {"id": 3, "slug": "my-store", "title": "My Store", "enabled": true}\n  }\n})}
+              request_example={
+                ~s({\n  "storefront": {\n    "slug": "my-store",\n    "title": "My Store",\n    "tagline": "Curated resale.",\n    "theme_id": "neutral-warm",\n    "enabled": true\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "storefront": {"id": 3, "slug": "my-store", "title": "My Store", "enabled": true}\n  }\n})
+              }
             />
             <.endpoint
               id="storefront-pages-list"
@@ -523,7 +851,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "storefront-pages-list")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "pages": [\n      {"id": 2, "title": "About", "slug": "about", "menu_label": "About", "published": true, "position": 1}\n    ]\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "pages": [\n      {"id": 2, "title": "About", "slug": "about", "menu_label": "About", "published": true, "position": 1}\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="storefront-pages-create"
@@ -533,13 +863,32 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "storefront-pages-create")}
               args={[
                 %{name: "page.title", type: "string", required: true, desc: "Page heading"},
-                %{name: "page.slug", type: "string", required: true, desc: "URL slug (lowercase, hyphens)"},
-                %{name: "page.menu_label", type: "string", required: false, desc: "Navigation label (defaults to title)"},
+                %{
+                  name: "page.slug",
+                  type: "string",
+                  required: true,
+                  desc: "URL slug (lowercase, hyphens)"
+                },
+                %{
+                  name: "page.menu_label",
+                  type: "string",
+                  required: false,
+                  desc: "Navigation label (defaults to title)"
+                },
                 %{name: "page.body", type: "string", required: false, desc: "Page content"},
-                %{name: "page.published", type: "boolean", required: false, desc: "Whether page is publicly visible"}
+                %{
+                  name: "page.published",
+                  type: "boolean",
+                  required: false,
+                  desc: "Whether page is publicly visible"
+                }
               ]}
-              request_example={~s({\n  "page": {\n    "title": "Returns",\n    "slug": "returns",\n    "body": "Full refunds within 30 days.",\n    "published": true\n  }\n})}
-              response_example={~s({\n  "data": {\n    "page": {"id": 3, "title": "Returns", "slug": "returns", "published": true, "position": 2}\n  }\n})}
+              request_example={
+                ~s({\n  "page": {\n    "title": "Returns",\n    "slug": "returns",\n    "body": "Full refunds within 30 days.",\n    "published": true\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "page": {"id": 3, "title": "Returns", "slug": "returns", "published": true, "position": 2}\n  }\n})
+              }
             />
             <.endpoint
               id="storefront-pages-update"
@@ -554,8 +903,12 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "page.menu_label", type: "string", required: false, desc: "Navigation label"},
                 %{name: "page.published", type: "boolean", required: false, desc: "Visibility toggle"}
               ]}
-              request_example={~s({\n  "page": {"title": "Shipping Policy", "body": "Ships in 1-2 business days.", "published": true}\n})}
-              response_example={~s({\n  "data": {"page": {"id": 3, "title": "Shipping Policy", "published": true}}\n})}
+              request_example={
+                ~s({\n  "page": {"title": "Shipping Policy", "body": "Ships in 1-2 business days.", "published": true}\n})
+              }
+              response_example={
+                ~s({\n  "data": {"page": {"id": 3, "title": "Shipping Policy", "published": true}}\n})
+              }
             />
             <.endpoint
               id="storefront-pages-delete"
@@ -568,6 +921,66 @@ defmodule ResellerWeb.APIDocsLive do
               ]}
               request_example={nil}
               response_example={~s({\n  "data": {"deleted": true}\n})}
+            />
+            <.endpoint
+              id="storefront-pages-reorder"
+              method="PUT"
+              path="/api/v1/storefront/pages/order"
+              desc="Reorder storefront pages"
+              open={open?(@open_endpoints, "storefront-pages-reorder")}
+              args={[
+                %{
+                  name: "page_ids",
+                  type: "array<integer>",
+                  required: true,
+                  desc: "Ordered list of storefront page IDs"
+                }
+              ]}
+              request_example={~s({\n  "page_ids": [7, 5, 6]\n})}
+              response_example={
+                ~s({\n  "data": {\n    "pages": [\n      {"id": 7, "title": "Shipping", "position": 1},\n      {"id": 5, "title": "About", "position": 2}\n    ]\n  }\n})
+              }
+            />
+            <.endpoint
+              id="storefront-assets-prepare"
+              method="POST"
+              path="/api/v1/storefront/assets/:kind/prepare_upload"
+              desc="Prepare a signed upload for logo or header assets"
+              open={open?(@open_endpoints, "storefront-assets-prepare")}
+              args={[
+                %{name: "kind", type: "string", required: true, desc: "logo or header (path param)"},
+                %{name: "asset.filename", type: "string", required: true, desc: "Original filename"},
+                %{
+                  name: "asset.content_type",
+                  type: "string",
+                  required: true,
+                  desc: "Image MIME type"
+                },
+                %{
+                  name: "asset.byte_size",
+                  type: "integer",
+                  required: false,
+                  desc: "File size in bytes"
+                },
+                %{
+                  name: "asset.width",
+                  type: "integer",
+                  required: false,
+                  desc: "Image width in pixels"
+                },
+                %{
+                  name: "asset.height",
+                  type: "integer",
+                  required: false,
+                  desc: "Image height in pixels"
+                }
+              ]}
+              request_example={
+                ~s({\n  "asset": {\n    "filename": "logo.png",\n    "content_type": "image/png",\n    "byte_size": 48000,\n    "width": 400,\n    "height": 400\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "asset": {"id": 9, "kind": "logo", "content_type": "image/png", "original_filename": "logo.png"},\n    "upload_instruction": {\n      "method": "PUT",\n      "upload_url": "https://bucket.tigris.dev/...",\n      "headers": {"content-type": "image/png"},\n      "expires_at": "2026-03-29T18:40:00Z"\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="storefront-assets-delete"
@@ -591,12 +1004,24 @@ defmodule ResellerWeb.APIDocsLive do
               desc="List storefront inquiries with search and pagination"
               open={open?(@open_endpoints, "inquiries-list")}
               args={[
-                %{name: "q", type: "string", required: false, desc: "Full-text search across full_name, contact, and message"},
+                %{
+                  name: "q",
+                  type: "string",
+                  required: false,
+                  desc: "Full-text search across full_name, contact, and message"
+                },
                 %{name: "page", type: "integer", required: false, desc: "1-based page number"},
-                %{name: "page_size", type: "integer", required: false, desc: "Items per page, max 100 (default 20)"}
+                %{
+                  name: "page_size",
+                  type: "integer",
+                  required: false,
+                  desc: "Items per page, max 100 (default 20)"
+                }
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "inquiries": [\n      {\n        "id": 7,\n        "full_name": "Jane Buyer",\n        "contact": "jane@example.com",\n        "message": "Is this still available?",\n        "product_id": 12,\n        "inserted_at": "2026-03-30T15:22:00Z"\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 20, "total_count": 1, "total_pages": 1}\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "inquiries": [\n      {\n        "id": 7,\n        "full_name": "Jane Buyer",\n        "contact": "jane@example.com",\n        "message": "Is this still available?",\n        "product_id": 12,\n        "inserted_at": "2026-03-30T15:22:00Z"\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 20, "total_count": 1, "total_pages": 1}\n  }\n})
+              }
             />
             <.endpoint
               id="inquiries-delete"
@@ -621,15 +1046,49 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Queue a filtered ZIP export"
               open={open?(@open_endpoints, "exports-create")}
               args={[
-                %{name: "export.name", type: "string", required: false, desc: "Human-readable label for the export"},
-                %{name: "export.filters.query", type: "string", required: false, desc: "Text search filter"},
-                %{name: "export.filters.product_tab_id", type: "integer", required: false, desc: "Tab filter"},
-                %{name: "export.filters.status", type: "string", required: false, desc: "Status filter (e.g. ready)"},
-                %{name: "export.filters.updated_from", type: "date", required: false, desc: "ISO date lower bound"},
-                %{name: "export.filters.updated_to", type: "date", required: false, desc: "ISO date upper bound"}
+                %{
+                  name: "export.name",
+                  type: "string",
+                  required: false,
+                  desc: "Human-readable label for the export"
+                },
+                %{
+                  name: "export.filters.query",
+                  type: "string",
+                  required: false,
+                  desc: "Text search filter"
+                },
+                %{
+                  name: "export.filters.product_tab_id",
+                  type: "integer",
+                  required: false,
+                  desc: "Tab filter"
+                },
+                %{
+                  name: "export.filters.status",
+                  type: "string",
+                  required: false,
+                  desc: "Status filter (e.g. ready)"
+                },
+                %{
+                  name: "export.filters.updated_from",
+                  type: "date",
+                  required: false,
+                  desc: "ISO date lower bound"
+                },
+                %{
+                  name: "export.filters.updated_to",
+                  type: "date",
+                  required: false,
+                  desc: "ISO date upper bound"
+                }
               ]}
-              request_example={~s({\n  "export": {\n    "name": "Ready inventory",\n    "filters": {\n      "status": "ready",\n      "updated_from": "2026-03-01",\n      "updated_to": "2026-03-31"\n    }\n  }\n})}
-              response_example={~s({\n  "data": {\n    "export": {\n      "id": 1,\n      "name": "Ready inventory",\n      "status": "queued",\n      "product_count": 4,\n      "download_url": null,\n      "requested_at": "2026-03-30T01:10:00Z",\n      "completed_at": null,\n      "expires_at": null\n    }\n  }\n})}
+              request_example={
+                ~s({\n  "export": {\n    "name": "Ready inventory",\n    "filters": {\n      "status": "ready",\n      "updated_from": "2026-03-01",\n      "updated_to": "2026-03-31"\n    }\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "export": {\n      "id": 1,\n      "name": "Ready inventory",\n      "status": "queued",\n      "product_count": 4,\n      "download_url": null,\n      "requested_at": "2026-03-30T01:10:00Z",\n      "completed_at": null,\n      "expires_at": null\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="exports-get"
@@ -641,7 +1100,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Export ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "export": {\n      "id": 1,\n      "status": "completed",\n      "product_count": 4,\n      "download_url": "https://bucket.tigris.dev/exports/...",\n      "expires_at": "2026-04-07T01:10:00Z",\n      "completed_at": "2026-03-30T01:15:00Z"\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "export": {\n      "id": 1,\n      "status": "completed",\n      "product_count": 4,\n      "download_url": "https://bucket.tigris.dev/exports/...",\n      "expires_at": "2026-04-07T01:10:00Z",\n      "completed_at": "2026-03-30T01:15:00Z"\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="imports-create"
@@ -650,11 +1111,25 @@ defmodule ResellerWeb.APIDocsLive do
               desc="Queue a ZIP import (base64-encoded)"
               open={open?(@open_endpoints, "imports-create")}
               args={[
-                %{name: "import.filename", type: "string", required: true, desc: "Original filename of the ZIP archive"},
-                %{name: "import.archive_base64", type: "string", required: true, desc: "Base64-encoded ZIP. Should contain Products.xls, manifest.json, and images/"}
+                %{
+                  name: "import.filename",
+                  type: "string",
+                  required: true,
+                  desc: "Original filename of the ZIP archive"
+                },
+                %{
+                  name: "import.archive_base64",
+                  type: "string",
+                  required: true,
+                  desc: "Base64-encoded ZIP. Should contain Products.xls, manifest.json, and images/"
+                }
               ]}
-              request_example={~s({\n  "import": {\n    "filename": "catalog.zip",\n    "archive_base64": "<base64 encoded zip>"\n  }\n})}
-              response_example={~s({\n  "data": {\n    "import": {\n      "id": 1,\n      "status": "queued",\n      "source_filename": "catalog.zip",\n      "total_products": 0,\n      "imported_products": 0,\n      "failed_products": 0,\n      "requested_at": "2026-03-30T02:10:00Z"\n    }\n  }\n})}
+              request_example={
+                ~s({\n  "import": {\n    "filename": "catalog.zip",\n    "archive_base64": "<base64 encoded zip>"\n  }\n})
+              }
+              response_example={
+                ~s({\n  "data": {\n    "import": {\n      "id": 1,\n      "status": "queued",\n      "source_filename": "catalog.zip",\n      "total_products": 0,\n      "imported_products": 0,\n      "failed_products": 0,\n      "requested_at": "2026-03-30T02:10:00Z"\n    }\n  }\n})
+              }
             />
             <.endpoint
               id="imports-get"
@@ -666,7 +1141,9 @@ defmodule ResellerWeb.APIDocsLive do
                 %{name: "id", type: "integer", required: true, desc: "Import ID (path param)"}
               ]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "import": {\n      "id": 1,\n      "status": "completed",\n      "total_products": 12,\n      "imported_products": 11,\n      "failed_products": 1,\n      "finished_at": "2026-03-30T02:13:00Z",\n      "failure_details": {"items": [{"row": 3, "error": "Missing title"}]}\n    }\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "import": {\n      "id": 1,\n      "status": "completed",\n      "total_products": 12,\n      "imported_products": 11,\n      "failed_products": 1,\n      "finished_at": "2026-03-30T02:13:00Z",\n      "failure_details": {"items": [{"row": 3, "error": "Missing title"}]}\n    }\n  }\n})
+              }
             />
           </.endpoint_group>
 
@@ -680,7 +1157,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "system-root")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {\n    "name": "resellerio",\n    "version": "v1",\n    "endpoints": [\n      {"method": "GET", "path": "/api/v1", "description": "Returns API metadata..."}\n    ]\n  }\n})}
+              response_example={
+                ~s({\n  "data": {\n    "name": "resellerio",\n    "version": "v1",\n    "endpoints": [\n      {"method": "GET", "path": "/api/v1", "description": "Returns API metadata..."}\n    ]\n  }\n})
+              }
             />
             <.endpoint
               id="system-health"
@@ -690,7 +1169,9 @@ defmodule ResellerWeb.APIDocsLive do
               open={open?(@open_endpoints, "system-health")}
               args={[]}
               request_example={nil}
-              response_example={~s({\n  "data": {"name": "resellerio", "status": "ok", "version": "0.1.0"}\n})}
+              response_example={
+                ~s({\n  "data": {"name": "resellerio", "status": "ok", "version": "0.1.0"}\n})
+              }
             />
           </.endpoint_group>
         </div>
@@ -698,7 +1179,8 @@ defmodule ResellerWeb.APIDocsLive do
         <div class="mt-12">
           <h2 class="text-2xl font-semibold tracking-tight">Error Codes</h2>
           <p class="mt-2 text-sm text-base-content/60">
-            All errors follow the same shape. Validation errors (422) include a <code>fields</code> map with per-field messages.
+            All errors follow the same shape. Validation errors (422) include a <code>fields</code>
+            map with per-field messages.
           </p>
           <div class="mt-4 overflow-hidden rounded-2xl border border-base-300">
             <table class="w-full text-sm">
@@ -719,6 +1201,13 @@ defmodule ResellerWeb.APIDocsLive do
                   <td class="px-4 py-3">404</td>
                   <td class="px-4 py-3"><code>not_found</code></td>
                   <td class="px-4 py-3">Resource not found or not owned by you</td>
+                </tr>
+                <tr>
+                  <td class="px-4 py-3">402</td>
+                  <td class="px-4 py-3"><code>limit_exceeded</code></td>
+                  <td class="px-4 py-3">
+                    Monthly plan limit reached; response includes an absolute <code>upgrade_url</code>
+                  </td>
                 </tr>
                 <tr>
                   <td class="px-4 py-3">422</td>
@@ -750,14 +1239,25 @@ defmodule ResellerWeb.APIDocsLive do
           <h3 class="text-lg font-semibold">Retryable AI Error Codes</h3>
           <p class="mt-2 text-sm text-base-content/60">
             These appear in <code>latest_processing_run.error_code</code>. Use
-            <code>POST /products/:id/reprocess</code> to retry.
+            <code>POST /products/:id/reprocess</code>
+            to retry.
           </p>
           <div class="mt-4 flex flex-wrap gap-2">
-            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">ai_quota_exhausted</code>
-            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">ai_rate_limited</code>
-            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">ai_media_fetch_failed</code>
-            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">ai_provider_timeout</code>
-            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">ai_grounding_request_invalid</code>
+            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">
+              ai_quota_exhausted
+            </code>
+            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">
+              ai_rate_limited
+            </code>
+            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">
+              ai_media_fetch_failed
+            </code>
+            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">
+              ai_provider_timeout
+            </code>
+            <code class="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs text-warning">
+              ai_grounding_request_invalid
+            </code>
           </div>
         </div>
 
@@ -766,13 +1266,21 @@ defmodule ResellerWeb.APIDocsLive do
           <.surface tag="div" variant="ghost" padding="lg" class="rounded-[2rem]">
             <h2 class="text-xl font-semibold">Resources</h2>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
-              <a href="/api/v1" class="group rounded-2xl border border-base-300/60 bg-base-100 p-5 transition hover:border-primary/30">
+              <a
+                href="/api/v1"
+                class="group rounded-2xl border border-base-300/60 bg-base-100 p-5 transition hover:border-primary/30"
+              >
                 <p class="font-semibold group-hover:text-primary">Live Endpoint Directory</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   GET /api/v1 — returns all endpoints with descriptions, always up to date.
                 </p>
               </a>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="group rounded-2xl border border-base-300/60 bg-base-100 p-5 transition hover:border-primary/30">
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group rounded-2xl border border-base-300/60 bg-base-100 p-5 transition hover:border-primary/30"
+              >
                 <p class="font-semibold group-hover:text-primary">Mobile API Guide &#8599;</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   Human-readable guide with examples, upload flow walkthrough, and status reference.

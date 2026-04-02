@@ -7,6 +7,8 @@ This backend is API-first and intended primarily for a mobile client.
 Current public API base:
 
 - `/api/v1`
+- Machine-readable OpenAPI document: `/api/v1/openapi.json`
+- Interactive docs UI: `/docs/api`
 
 ## Response Shape
 
@@ -38,7 +40,7 @@ Authentication rules:
 
 - Send `Authorization: Bearer <token>` on every protected request.
 - The auth scheme is accepted case-insensitively, so `Bearer` and `bearer` both work.
-- Tokens expire at the `expires_at` value returned by the auth endpoints.
+- Mobile bearer tokens currently expire 365 days after issuance, at the `expires_at` value returned by the auth endpoints.
 - Tokens are stored server-side with `context: "mobile"` and the optional `device_name` supplied by the client.
 - Successful protected requests update `api_tokens.last_used_at`.
 
@@ -70,6 +72,8 @@ Example response:
     "name": "resellerio",
     "version": "v1",
     "docs_path": "/docs/API.md",
+    "docs_ui_path": "/docs/api",
+    "openapi_path": "/api/v1/openapi.json",
     "endpoints": [
       {
         "method": "GET",
@@ -118,6 +122,51 @@ Example response:
       },
       {
         "method": "GET",
+        "path": "/api/v1/storefront",
+        "description": "Returns the authenticated user's storefront configuration."
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/storefront",
+        "description": "Creates or updates the authenticated user's storefront."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/storefront/pages",
+        "description": "Lists the authenticated user's storefront pages in display order."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/storefront/pages",
+        "description": "Creates one storefront page."
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/v1/storefront/pages/:page_id",
+        "description": "Updates one storefront page."
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/storefront/pages/:page_id",
+        "description": "Deletes one storefront page."
+      },
+      {
+        "method": "PUT",
+        "path": "/api/v1/storefront/pages/order",
+        "description": "Sets display positions for storefront pages using an ordered list of page IDs."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/storefront/assets/:kind/prepare_upload",
+        "description": "Creates or replaces a storefront logo or header asset record and returns a signed upload instruction."
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/v1/storefront/assets/:kind",
+        "description": "Deletes one storefront branding asset by kind."
+      },
+      {
+        "method": "GET",
         "path": "/api/v1/products",
         "description": "Lists products for the authenticated user with filtering, sorting, and pagination."
       },
@@ -134,12 +183,17 @@ Example response:
       {
         "method": "PATCH",
         "path": "/api/v1/products/:id",
-        "description": "Updates seller-managed product fields, including tags and manual statuses."
+        "description": "Updates seller-managed product fields, storefront publication flags, and marketplace external URLs."
       },
       {
         "method": "DELETE",
         "path": "/api/v1/products/:id",
         "description": "Deletes one product and its related records."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/products/:id/prepare_uploads",
+        "description": "Creates upload placeholders for an existing product and returns signed upload instructions."
       },
       {
         "method": "POST",
@@ -417,6 +471,38 @@ Notes:
 
 - `selected_marketplaces` may be an empty array if the user wants to skip marketplace-copy generation for future runs.
 - future processing and reprocessing runs generate `marketplace_listings` only for the selected marketplaces on the owning user account.
+
+### `GET /api/v1/me/usage`
+
+Returns current monthly usage counters, plan limits, and addon credits for the authenticated user.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "usage": {
+      "ai_drafts": 0,
+      "background_removals": 0,
+      "lifestyle": 0,
+      "price_research": 0
+    },
+    "limits": {
+      "ai_drafts": 25,
+      "background_removals": 25,
+      "lifestyle": 10,
+      "price_research": 25
+    },
+    "addon_credits": {}
+  }
+}
+```
 
 ### `GET /api/v1/product_tabs`
 
@@ -724,6 +810,100 @@ Response:
 
 Unknown or unauthorized page IDs return `404`.
 
+### `PUT /api/v1/storefront/pages/order`
+
+Reorders storefront pages by assigning positions from an ordered list of page IDs.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "page_ids": [7, 5, 6]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "pages": [
+      {
+        "id": 7,
+        "title": "Shipping",
+        "position": 1
+      },
+      {
+        "id": 5,
+        "title": "About",
+        "position": 2
+      }
+    ]
+  }
+}
+```
+
+Unknown page IDs return `404`. Duplicate page IDs return `422`.
+
+### `POST /api/v1/storefront/assets/:kind/prepare_upload`
+
+Creates or replaces a storefront branding asset record and returns a signed upload instruction. Valid `kind` values are `logo` and `header`.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "asset": {
+    "filename": "logo.png",
+    "content_type": "image/png",
+    "byte_size": 48000,
+    "width": 400,
+    "height": 400
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "asset": {
+      "id": 9,
+      "kind": "logo",
+      "storage_key": "users/1/storefronts/3/logo/uuid.png",
+      "content_type": "image/png",
+      "original_filename": "logo.png",
+      "width": 400,
+      "height": 400,
+      "byte_size": 48000
+    },
+    "upload_instruction": {
+      "method": "PUT",
+      "upload_url": "https://bucket.example.tigris.dev/...",
+      "headers": {
+        "content-type": "image/png"
+      },
+      "expires_at": "2026-03-29T18:40:00Z"
+    }
+  }
+}
+```
+
+Returns `422 storefront_not_found` when no storefront profile has been saved yet.
+
 ### `DELETE /api/v1/storefront/assets/:kind`
 
 Deletes one storefront branding asset. Valid `kind` values are `logo` and `header`.
@@ -945,6 +1125,8 @@ Response:
         "position": 1
       },
       "tags": ["running", "air-max"],
+      "storefront_enabled": false,
+      "storefront_published_at": null,
       "latest_processing_run": null,
       "description_draft": null,
       "price_research": null,
@@ -957,7 +1139,9 @@ Response:
           "storage_key": "users/1/products/1/originals/uuid.jpg",
           "content_type": "image/jpeg",
           "processing_status": "pending_upload",
-          "original_filename": "shoe-1.jpg"
+          "original_filename": "shoe-1.jpg",
+          "storefront_visible": false,
+          "storefront_position": null
         }
       ]
     },
@@ -1005,8 +1189,11 @@ Product payload notes:
 
 - `product_tab_id` is optional and links a product to a seller-defined workspace tab.
 - `product_tab` returns the current tab summary when one is assigned.
+- `storefront_enabled` and `storefront_published_at` reflect whether the product is currently published on the seller's storefront.
 - `latest_processing_run` returns the newest core AI-processing run, if one exists.
 - `latest_lifestyle_generation_run` returns the newest dedicated lifestyle-image generation run, if one exists.
+- `marketplace_listings[*].external_url` stores the seller-managed live listing URL for each marketplace when available.
+- `images[*].storefront_visible` and `images[*].storefront_position` control storefront gallery selection and ordering.
 - each image now reserves lifecycle metadata for AI-generated lifestyle previews:
   - `lifestyle_generation_run_id`
   - `scene_key`
@@ -1023,6 +1210,8 @@ Example excerpt:
     "product": {
       "id": 12,
       "status": "ready",
+      "storefront_enabled": true,
+      "storefront_published_at": "2026-03-29T12:00:00Z",
       "latest_lifestyle_generation_run": {
         "id": 4,
         "status": "completed",
@@ -1034,6 +1223,12 @@ Example excerpt:
         "completed_count": 1
       },
       "images": [
+        {
+          "id": 31,
+          "kind": "original",
+          "storefront_visible": true,
+          "storefront_position": 1
+        },
         {
           "id": 44,
           "kind": "lifestyle_generated",
@@ -1071,7 +1266,11 @@ Request body:
     "price": "99.00",
     "notes": "Measured and cleaned",
     "tags": ["outerwear", "denim"],
-    "status": "review"
+    "status": "review",
+    "storefront_enabled": true
+  },
+  "marketplace_external_urls": {
+    "ebay": "https://www.ebay.com/itm/1234567890"
   }
 }
 ```
@@ -1092,6 +1291,9 @@ Editable fields currently include:
 - `tags`
 - `notes`
 - `status`
+- `storefront_enabled`
+
+Seller-managed marketplace URLs can be updated with the top-level `marketplace_external_urls` object. Each key must be a supported marketplace ID and each value must be a valid `http` or `https` URL (or `null` / blank to clear a saved URL).
 
 Manual status values accepted by this endpoint are:
 
@@ -1122,6 +1324,65 @@ Response:
   }
 }
 ```
+
+### `POST /api/v1/products/:id/prepare_uploads`
+
+Creates upload placeholders for an existing product and returns signed upload instructions so mobile can match the web review-screen upload flow.
+
+Required header:
+
+```text
+Authorization: Bearer <token>
+```
+
+Request body:
+
+```json
+{
+  "uploads": [
+    {
+      "filename": "detail-2.jpg",
+      "content_type": "image/jpeg",
+      "byte_size": 345678
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "product": {
+      "id": 12,
+      "status": "draft",
+      "images": [
+        {
+          "id": 52,
+          "kind": "original",
+          "processing_status": "pending_upload",
+          "original_filename": "detail-2.jpg"
+        }
+      ]
+    },
+    "upload_instructions": [
+      {
+        "image_id": 52,
+        "storage_key": "users/1/products/12/originals/uuid.jpg",
+        "method": "PUT",
+        "upload_url": "https://bucket.example.tigris.dev/...",
+        "headers": {
+          "content-type": "image/jpeg"
+        },
+        "expires_at": "2026-03-29T18:40:00Z"
+      }
+    ]
+  }
+}
+```
+
+This endpoint returns `422 invalid_product_state` unless the product is still in `draft`, `review`, or `ready`.
 
 ### `POST /api/v1/products/:id/finalize_uploads`
 
@@ -1205,6 +1466,18 @@ Current behavior notes:
 - on worker failure, the product falls back to `review`
 - non-retryable worker failures move in-flight images from `processing` to `failed`
 - retryable AI capacity failures keep original uploads retryable by moving them back to `uploaded`
+
+When a paid user has exhausted their plan limit, `prepare_uploads`, `finalize_uploads`, `reprocess`, and `generate_lifestyle_images` return `402` with an absolute upgrade URL:
+
+```json
+{
+  "error": "limit_exceeded",
+  "operation": "ai_drafts",
+  "used": 51,
+  "limit": 50,
+  "upgrade_url": "https://resellerio.com/pricing"
+}
+```
 
 ## Restart Product Processing
 
@@ -1605,7 +1878,8 @@ Product payloads may include a `marketplace_listings` array after AI processing 
       "generated_tags": ["nike", "air max 90", "sneakers"],
       "generated_price_suggestion": "129.00",
       "generation_version": "gemini-marketplace-v1",
-      "compliance_warnings": []
+      "compliance_warnings": [],
+      "external_url": "https://www.ebay.com/itm/1234567890"
     },
     {
       "id": 12,
@@ -1616,7 +1890,8 @@ Product payloads may include a `marketplace_listings` array after AI processing 
       "generated_tags": ["nike", "runners", "streetwear"],
       "generated_price_suggestion": "127.00",
       "generation_version": "gemini-marketplace-v1",
-      "compliance_warnings": []
+      "compliance_warnings": [],
+      "external_url": null
     }
   ]
 }
@@ -1877,3 +2152,46 @@ Unknown or unauthorized import IDs return:
 - Keep error payloads stable for mobile clients.
 - Prefer explicit, machine-readable statuses and error codes.
 - Protected endpoints should use bearer-token authentication.
+
+---
+
+## Webhook Endpoint
+
+### `POST /webhooks/lemonsqueezy`
+
+Receives LemonSqueezy subscription and payment events.
+
+**Authentication:** HMAC-SHA256 signature in `X-Signature` header (hex-encoded). Secret configured via `LEMONSQUEEZY_WEBHOOK_SECRET`.
+
+**Pipeline:** Outside all auth pipelines. No CSRF. No session.
+
+**Response:** `200` if signature valid (processing is async). `401` for bad signature. `400` for unparseable body.
+
+**Handled events:**
+
+| Event | Action |
+|---|---|
+| `subscription_created` | Assign plan to user, send welcome email |
+| `subscription_updated` | Update plan tier/status/variant |
+| `subscription_renewed` | Extend `plan_expires_at`, reset reminder flags, send renewal email |
+| `subscription_cancelled` | Set `plan_status: "canceling"`, set `plan_expires_at` |
+| `subscription_expired` | Revert user to free plan, send expiry email |
+| `subscription_payment_failed` | Set `plan_status: "past_due"`, send payment failure email |
+| `order_created` | Credit add-on pack to user's `addon_credits` |
+
+**User attribution (priority order):**
+1. `custom_data.user_id` embedded in checkout URL
+2. `user_email` in payload matched against registered accounts
+3. `ls_subscription_id` matched against existing subscription records
+
+**Limit exceeded (402)** — returned by `prepare_uploads`, `finalize_uploads`, `reprocess`, and `generate_lifestyle_images` for paid users over their monthly limit:
+
+```json
+{
+  "error": "limit_exceeded",
+  "operation": "ai_drafts",
+  "used": 52,
+  "limit": 50,
+  "upgrade_url": "https://resellerio.com/pricing"
+}
+```

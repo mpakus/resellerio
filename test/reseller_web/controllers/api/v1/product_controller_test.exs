@@ -4,6 +4,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
   import Ecto.Query
 
   alias Reseller.AI
+  alias Reseller.Billing
   alias Reseller.Repo
 
   setup %{conn: conn} do
@@ -493,6 +494,145 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
            } = json_response(conn, 200)
   end
 
+  test "GET /api/v1/products/:id includes storefront publication and marketplace url fields", %{
+    conn: conn,
+    user: user
+  } do
+    product = lifestyle_ready_product_fixture(user)
+    [image | _rest] = product.images
+    published_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    from(p in Reseller.Catalog.Product, where: p.id == ^product.id)
+    |> Repo.update_all(set: [storefront_enabled: true, storefront_published_at: published_at])
+
+    from(i in Reseller.Media.ProductImage, where: i.id == ^image.id)
+    |> Repo.update_all(set: [storefront_visible: true, storefront_position: 1])
+
+    assert {:ok, _listing} =
+             Reseller.Marketplaces.upsert_marketplace_listing(product, "ebay", %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Generated eBay title",
+                 "generated_description" => "Generated eBay description",
+                 "generated_tags" => ["ebay", "reseller"],
+                 "generated_price_suggestion" => 120,
+                 "generation_version" => "gemini-marketplace-v1",
+                 "compliance_warnings" => []
+               }
+             })
+
+    assert {:ok, _updated_product} =
+             Reseller.Catalog.update_product_review_for_user(user, product.id, %{}, %{
+               "ebay" => "https://example.com/ebay/#{product.id}"
+             })
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "storefront_enabled" => true,
+                 "storefront_published_at" => storefront_published_at,
+                 "images" => [
+                   %{
+                     "id" => image_id,
+                     "storefront_visible" => true,
+                     "storefront_position" => 1
+                   }
+                   | _
+                 ],
+                 "marketplace_listings" => [
+                   %{
+                     "marketplace" => "ebay",
+                     "external_url" => external_url
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert image_id == image.id
+    assert storefront_published_at == DateTime.to_iso8601(published_at)
+    assert external_url == "https://example.com/ebay/#{product.id}"
+  end
+
+  test "PATCH /api/v1/products/:id accepts marketplace external urls", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"title" => "Seller product"})
+
+    assert {:ok, _listing} =
+             Reseller.Marketplaces.upsert_marketplace_listing(product, "ebay", %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Generated eBay title",
+                 "generated_description" => "Generated eBay description",
+                 "generated_tags" => ["ebay", "reseller"],
+                 "generated_price_suggestion" => 120,
+                 "generation_version" => "gemini-marketplace-v1",
+                 "compliance_warnings" => []
+               }
+             })
+
+    conn =
+      patch(conn, "/api/v1/products/#{product.id}", %{
+        "marketplace_external_urls" => %{
+          "ebay" => "https://example.com/listings/#{product.id}"
+        }
+      })
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "marketplace_listings" => [
+                   %{
+                     "marketplace" => "ebay",
+                     "external_url" => external_url
+                   }
+                 ]
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert external_url == "https://example.com/listings/#{product.id}"
+  end
+
+  test "PATCH /api/v1/products/:id validates marketplace external urls", %{conn: conn, user: user} do
+    product = product_fixture(user, %{"title" => "Seller product"})
+
+    assert {:ok, _listing} =
+             Reseller.Marketplaces.upsert_marketplace_listing(product, "ebay", %{
+               provider: :gemini,
+               model: "gemini-marketplace",
+               output: %{
+                 "generated_title" => "Generated eBay title",
+                 "generated_description" => "Generated eBay description",
+                 "generated_tags" => ["ebay", "reseller"],
+                 "generated_price_suggestion" => 120,
+                 "generation_version" => "gemini-marketplace-v1",
+                 "compliance_warnings" => []
+               }
+             })
+
+    conn =
+      patch(conn, "/api/v1/products/#{product.id}", %{
+        "marketplace_external_urls" => %{
+          "ebay" => "ftp://example.com/listings/#{product.id}"
+        }
+      })
+
+    assert %{
+             "error" => %{
+               "code" => "validation_failed",
+               "fields" => %{
+                 "marketplace_external_urls" => %{
+                   "ebay" => ["must be a valid http or https URL"]
+                 }
+               }
+             }
+           } = json_response(conn, 422)
+  end
+
   test "GET /api/v1/products/:id includes lifestyle generation metadata", %{
     conn: conn,
     user: user
@@ -744,6 +884,76 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
 
     assert image_id == image.id
     assert finalized_id == image.id
+  end
+
+  test "POST /api/v1/products/:id/prepare_uploads creates upload instructions for an existing product",
+       %{conn: conn, user: user} do
+    product = product_fixture(user, %{"title" => "Upload more photos"})
+
+    conn =
+      post(conn, "/api/v1/products/#{product.id}/prepare_uploads", %{
+        "uploads" => [
+          %{
+            "filename" => "shoe-2.jpg",
+            "content_type" => "image/jpeg",
+            "byte_size" => 456_789
+          }
+        ]
+      })
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "status" => "draft",
+                 "images" => [
+                   %{
+                     "content_type" => "image/jpeg",
+                     "original_filename" => "shoe-2.jpg",
+                     "processing_status" => "pending_upload"
+                   }
+                 ]
+               },
+               "upload_instructions" => [
+                 %{
+                   "method" => "PUT",
+                   "headers" => %{"content-type" => "image/jpeg"},
+                   "upload_url" => upload_url
+                 }
+               ]
+             }
+           } = json_response(conn, 200)
+
+    assert upload_url =~ "https://uploads.example.test/"
+    assert_received {:media_storage_called, _storage_key, _opts}
+  end
+
+  test "POST /api/v1/products/:id/prepare_uploads returns absolute upgrade_url in 402 responses",
+       %{conn: conn, user: user} do
+    {:ok, user} = Billing.apply_subscription(user, %{plan: "starter", plan_status: "active"})
+    product = product_fixture(user, %{"title" => "Upload blocked"})
+
+    for _ <- 1..51 do
+      gemini_event_fixture(user, product, %{operation: "recognition"})
+    end
+
+    conn =
+      post(conn, "/api/v1/products/#{product.id}/prepare_uploads", %{
+        "uploads" => [
+          %{
+            "filename" => "shoe-2.jpg",
+            "content_type" => "image/jpeg",
+            "byte_size" => 456_789
+          }
+        ]
+      })
+
+    assert json_response(conn, 402) == %{
+             "error" => "limit_exceeded",
+             "operation" => "ai_drafts",
+             "used" => 51,
+             "limit" => 50,
+             "upgrade_url" => "https://resellerio.com/pricing"
+           }
   end
 
   test "POST /api/v1/products/:id/finalize_uploads rejects image ids from another product", %{

@@ -246,6 +246,47 @@ defmodule Reseller.Storefronts do
     end
   end
 
+  @spec reorder_storefront_pages_for_user(User.t(), [term()]) ::
+          {:ok, [StorefrontPage.t()]} | {:error, :not_found | :invalid_ids | Ecto.Changeset.t()}
+  def reorder_storefront_pages_for_user(%User{} = user, ordered_page_ids)
+      when is_list(ordered_page_ids) do
+    pages = list_storefront_pages_for_user(user)
+    page_ids = Enum.map(pages, & &1.id)
+
+    cond do
+      ordered_page_ids == [] ->
+        {:ok, pages}
+
+      Enum.uniq(ordered_page_ids) != ordered_page_ids ->
+        {:error, :invalid_ids}
+
+      not Enum.all?(ordered_page_ids, &(&1 in page_ids)) ->
+        {:error, :not_found}
+
+      true ->
+        ordered_page_ids
+        |> Enum.with_index(1)
+        |> Enum.reduce(Multi.new(), fn {page_id, position}, multi ->
+          Multi.run(multi, {:reorder, page_id}, fn repo, _changes ->
+            case repo.get(StorefrontPage, page_id) do
+              nil ->
+                {:error, :not_found}
+
+              page ->
+                page
+                |> StorefrontPage.update_changeset(%{"position" => position})
+                |> repo.update()
+            end
+          end)
+        end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, _changes} -> {:ok, list_storefront_pages_for_user(user)}
+          {:error, _step, reason, _changes} -> {:error, reason}
+        end
+    end
+  end
+
   @spec get_storefront_asset_for_user(User.t(), String.t()) :: StorefrontAsset.t() | nil
   def get_storefront_asset_for_user(%User{id: user_id}, kind) when is_binary(kind) do
     normalized_kind = normalize_asset_kind(kind)
@@ -285,6 +326,50 @@ defmodule Reseller.Storefronts do
             asset
             |> StorefrontAsset.update_changeset(asset_attrs)
             |> Repo.update()
+        end
+    end
+  end
+
+  @spec prepare_storefront_asset_upload_for_user(User.t(), String.t(), map(), keyword()) ::
+          {:ok, %{asset: StorefrontAsset.t(), upload_instruction: map()}}
+          | {:error, :storefront_not_found | Ecto.Changeset.t() | term()}
+  def prepare_storefront_asset_upload_for_user(%User{} = user, kind, attrs, opts \\ [])
+      when is_binary(kind) and is_map(attrs) do
+    case storefront_record_for_user(user.id) do
+      nil ->
+        {:error, :storefront_not_found}
+
+      storefront ->
+        normalized_kind = normalize_asset_kind(kind)
+        original_filename = map_value(attrs, "filename") || map_value(attrs, :filename) || "asset"
+
+        content_type =
+          map_value(attrs, "content_type") || map_value(attrs, :content_type) ||
+            "application/octet-stream"
+
+        byte_size = map_value(attrs, "byte_size") || map_value(attrs, :byte_size)
+        checksum = map_value(attrs, "checksum") || map_value(attrs, :checksum)
+        width = map_value(attrs, "width") || map_value(attrs, :width)
+        height = map_value(attrs, "height") || map_value(attrs, :height)
+
+        storage_key =
+          build_storefront_asset_storage_key(storefront, normalized_kind, original_filename)
+
+        storage_opts =
+          [provider: Keyword.get(opts, :storage, Storage.provider()), content_type: content_type]
+
+        with {:ok, upload_instruction} <- Storage.sign_upload(storage_key, storage_opts),
+             {:ok, asset} <-
+               upsert_storefront_asset_for_user(user, normalized_kind, %{
+                 "storage_key" => storage_key,
+                 "content_type" => content_type,
+                 "original_filename" => original_filename,
+                 "byte_size" => byte_size,
+                 "checksum" => checksum,
+                 "width" => width,
+                 "height" => height
+               }) do
+          {:ok, %{asset: asset, upload_instruction: upload_instruction}}
         end
     end
   end

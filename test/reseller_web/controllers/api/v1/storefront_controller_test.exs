@@ -168,6 +168,106 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
     end
   end
 
+  describe "PUT /api/v1/storefront/pages/order" do
+    test "reorders owned pages", %{conn: conn, user: user} do
+      first_page = storefront_page_fixture(user, %{"title" => "About"})
+      second_page = storefront_page_fixture(user, %{"title" => "Shipping"})
+
+      conn =
+        put(conn, "/api/v1/storefront/pages/order", %{
+          "page_ids" => [second_page.id, first_page.id]
+        })
+
+      assert %{
+               "data" => %{
+                 "pages" => [
+                   %{"id" => returned_first_id, "position" => 1},
+                   %{"id" => returned_second_id, "position" => 2}
+                 ]
+               }
+             } = json_response(conn, 200)
+
+      assert returned_first_id == second_page.id
+      assert returned_second_id == first_page.id
+    end
+  end
+
+  describe "POST /api/v1/storefront/assets/:kind/prepare_upload" do
+    test "prepares upload instructions for logo and header assets", %{conn: conn, user: user} do
+      storefront_fixture(user, %{"slug" => "my-store"})
+
+      logo_conn =
+        post(conn, "/api/v1/storefront/assets/logo/prepare_upload", %{
+          "asset" => %{
+            "filename" => "logo.png",
+            "content_type" => "image/png",
+            "byte_size" => 12_345,
+            "width" => 400,
+            "height" => 400
+          }
+        })
+
+      assert %{
+               "data" => %{
+                 "asset" => %{
+                   "kind" => "logo",
+                   "content_type" => "image/png",
+                   "original_filename" => "logo.png"
+                 },
+                 "upload_instruction" => %{
+                   "method" => "PUT",
+                   "headers" => %{"content-type" => "image/png"},
+                   "upload_url" => logo_upload_url
+                 }
+               }
+             } = json_response(logo_conn, 200)
+
+      assert logo_upload_url =~ "https://uploads.example.test/"
+
+      header_conn =
+        post(conn, "/api/v1/storefront/assets/header/prepare_upload", %{
+          "asset" => %{
+            "filename" => "header.jpg",
+            "content_type" => "image/jpeg",
+            "byte_size" => 54_321,
+            "width" => 1800,
+            "height" => 600
+          }
+        })
+
+      assert %{
+               "data" => %{
+                 "asset" => %{
+                   "kind" => "header",
+                   "content_type" => "image/jpeg",
+                   "original_filename" => "header.jpg"
+                 },
+                 "upload_instruction" => %{
+                   "method" => "PUT",
+                   "headers" => %{"content-type" => "image/jpeg"},
+                   "upload_url" => header_upload_url
+                 }
+               }
+             } = json_response(header_conn, 200)
+
+      assert header_upload_url =~ "https://uploads.example.test/"
+      assert_received {:media_storage_called, _logo_storage_key, _logo_opts}
+      assert_received {:media_storage_called, _header_storage_key, _header_opts}
+    end
+
+    test "returns 422 when storefront does not exist", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/storefront/assets/logo/prepare_upload", %{
+          "asset" => %{
+            "filename" => "logo.png",
+            "content_type" => "image/png"
+          }
+        })
+
+      assert %{"error" => %{"code" => "storefront_not_found"}} = json_response(conn, 422)
+    end
+  end
+
   describe "DELETE /api/v1/storefront/assets/:kind" do
     test "returns 404 when no asset exists", %{conn: conn} do
       conn = delete(conn, "/api/v1/storefront/assets/logo")

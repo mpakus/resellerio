@@ -116,6 +116,76 @@ defmodule ResellerWeb.API.V1.StorefrontController do
     end
   end
 
+  def reorder_pages(conn, %{"page_ids" => page_ids}) when is_list(page_ids) do
+    parsed_ids = Enum.map(page_ids, &parse_integer/1) |> Enum.reject(&is_nil/1)
+
+    case Storefronts.reorder_storefront_pages_for_user(conn.assigns.current_user, parsed_ids) do
+      {:ok, pages} ->
+        json(conn, %{data: %{pages: Enum.map(pages, &page_json/1)}})
+
+      {:error, :not_found} ->
+        APIError.render(conn, :not_found, "not_found", "Storefront page not found")
+
+      {:error, :invalid_ids} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "reorder_failed",
+          "page_ids contains duplicate values"
+        )
+
+      {:error, reason} ->
+        APIError.render(conn, :unprocessable_entity, "reorder_failed", inspect(reason))
+    end
+  end
+
+  def reorder_pages(conn, _params) do
+    APIError.render(conn, :bad_request, "bad_request", "page_ids must be a list")
+  end
+
+  def prepare_asset_upload(conn, %{"kind" => kind, "asset" => asset_params})
+      when is_map(asset_params) do
+    case Storefronts.prepare_storefront_asset_upload_for_user(
+           conn.assigns.current_user,
+           kind,
+           asset_params
+         ) do
+      {:ok, %{asset: asset, upload_instruction: upload_instruction}} ->
+        json(conn, %{data: %{asset: asset_json(asset), upload_instruction: upload_instruction}})
+
+      {:error, :storefront_not_found} ->
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "storefront_not_found",
+          "Save storefront details before uploading branding assets"
+        )
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        APIError.validation(conn, changeset)
+
+      {:error, {:missing_config, config_key}} ->
+        APIError.render(
+          conn,
+          :bad_gateway,
+          "storage_unavailable",
+          "Storage upload signing is not configured: #{humanize_config_key(config_key)}"
+        )
+
+      {:error, reason} ->
+        APIError.render(
+          conn,
+          :bad_gateway,
+          "upload_signing_failed",
+          "Upload signing failed: #{inspect(reason)}"
+        )
+    end
+  end
+
+  def prepare_asset_upload(conn, _params) do
+    APIError.render(conn, :bad_request, "invalid_request", "asset payload is required")
+  end
+
   def delete_asset(conn, %{"kind" => kind}) do
     case Storefronts.delete_storefront_asset_for_user(conn.assigns.current_user, kind) do
       {:ok, _asset} ->
@@ -181,4 +251,20 @@ defmodule ResellerWeb.API.V1.StorefrontController do
 
   defp datetime_to_iso8601(nil), do: nil
   defp datetime_to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+
+  defp humanize_config_key(:access_key_id), do: "TIGRIS_ACCESS_KEY_ID"
+  defp humanize_config_key(:secret_access_key), do: "TIGRIS_SECRET_ACCESS_KEY"
+  defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
+  defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
+  defp humanize_config_key(config_key), do: to_string(config_key)
+
+  defp parse_integer(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {integer, ""} -> integer
+      _other -> nil
+    end
+  end
+
+  defp parse_integer(value) when is_integer(value), do: value
+  defp parse_integer(_value), do: nil
 end

@@ -13,6 +13,18 @@ defmodule Reseller.Accounts.User do
     field :is_admin, :boolean, default: false
     field :selected_marketplaces, {:array, :string}, default: []
 
+    field :plan, :string, default: "free"
+    field :plan_status, :string, default: "free"
+    field :plan_period, :string
+    field :plan_expires_at, :utc_datetime
+    field :trial_ends_at, :utc_datetime
+    field :ls_subscription_id, :string
+    field :ls_customer_id, :string
+    field :ls_variant_id, :string
+    field :addon_credits, :map, default: %{}
+    field :subscription_reminder_7d_sent_at, :utc_datetime
+    field :subscription_reminder_2d_sent_at, :utc_datetime
+
     has_many :api_tokens, Reseller.Accounts.ApiToken
     has_many :products, Reseller.Catalog.Product
     has_one :storefront, Reseller.Storefronts.Storefront
@@ -75,6 +87,20 @@ defmodule Reseller.Accounts.User do
     |> cast(attrs, [:selected_marketplaces])
     |> normalize_selected_marketplaces()
     |> validate_selected_marketplaces()
+  end
+
+  @subscription_fields ~w(
+    plan plan_status plan_period plan_expires_at trial_ends_at
+    ls_subscription_id ls_customer_id ls_variant_id addon_credits
+    subscription_reminder_7d_sent_at subscription_reminder_2d_sent_at
+  )a
+
+  def subscription_changeset(user, attrs) do
+    user
+    |> cast(attrs, @subscription_fields)
+    |> validate_inclusion(:plan, ~w(free starter growth pro))
+    |> validate_inclusion(:plan_status, ~w(free trialing active canceling past_due expired))
+    |> validate_inclusion(:plan_period, ~w(monthly annual), allow_nil: true)
   end
 
   defp put_hashed_password(changeset) do

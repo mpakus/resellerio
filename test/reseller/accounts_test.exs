@@ -19,6 +19,20 @@ defmodule Reseller.AccountsTest do
       assert is_binary(user.hashed_password)
     end
 
+    test "starts a 7-day trial on registration" do
+      assert {:ok, %User{} = user} =
+               Accounts.register_user(%{
+                 "email" => "trial@example.com",
+                 "password" => "very-secure-password"
+               })
+
+      assert user.plan_status == "trialing"
+      assert %DateTime{} = user.trial_ends_at
+      diff = DateTime.diff(user.trial_ends_at, DateTime.utc_now(), :second)
+      assert diff > 6 * 86_400
+      assert diff <= 7 * 86_400 + 5
+    end
+
     test "validates unique email and password length" do
       assert {:ok, _user} =
                Accounts.register_user(%{

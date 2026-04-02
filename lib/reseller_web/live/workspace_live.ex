@@ -72,7 +72,20 @@ defmodule ResellerWeb.WorkspaceLive do
 
   @impl true
   def handle_params(params, uri, socket) do
-    {:noreply, assign_workspace(socket, params, uri)}
+    socket = assign_workspace(socket, params, uri)
+
+    socket =
+      if Map.get(params, "checkout") == "success" do
+        put_flash(
+          socket,
+          :info,
+          "🎉 Welcome! Your plan is being activated — it'll reflect here momentarily."
+        )
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -421,6 +434,21 @@ defmodule ResellerWeb.WorkspaceLive do
               <.link patch={~p"/app/exports"} class="btn btn-outline btn-sm rounded-full">
                 Exports & imports
               </.link>
+            </div>
+
+            <div class="mt-4 border-t border-base-300/50 pt-4">
+              <p class="text-xs uppercase tracking-[0.22em] text-base-content/45">
+                {String.capitalize(@current_user.plan || "free")} plan
+              </p>
+              <div class="mt-2 flex flex-wrap gap-3">
+                <.link navigate={~p"/pricing"} class="text-xs text-primary hover:underline">
+                  <%= if @current_user.plan in ["free", nil] or @current_user.plan_status in ["expired", "free"] do %>
+                    Upgrade plan →
+                  <% else %>
+                    View plans & add-ons →
+                  <% end %>
+                </.link>
+              </div>
             </div>
           </.surface>
         </div>
@@ -1137,6 +1165,83 @@ defmodule ResellerWeb.WorkspaceLive do
                       <.button class="btn btn-primary rounded-full">Save marketplaces</.button>
                     </div>
                   </.form>
+                </.surface>
+
+                <.surface tag="article">
+                  <p class="text-xs uppercase tracking-[0.28em] text-base-content/50">Subscription</p>
+                  <div class="mt-3 flex items-center gap-3">
+                    <span class={[
+                      "badge rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em]",
+                      cond do
+                        @current_user.plan_status in ["active", "trialing"] ->
+                          "badge-primary badge-outline"
+
+                        @current_user.plan_status == "canceling" ->
+                          "badge-warning badge-outline"
+
+                        @current_user.plan_status == "past_due" ->
+                          "badge-error badge-outline"
+
+                        true ->
+                          "badge-ghost border border-base-300 text-base-content/55"
+                      end
+                    ]}>
+                      {String.capitalize(@current_user.plan || "free")}
+                    </span>
+                    <span class="text-sm text-base-content/55">
+                      {cond do
+                        @current_user.plan_status == "trialing" -> "Trial active"
+                        @current_user.plan_status == "active" -> "Active"
+                        @current_user.plan_status == "canceling" -> "Canceling"
+                        @current_user.plan_status == "past_due" -> "Payment past due"
+                        @current_user.plan_status == "expired" -> "Expired"
+                        true -> "No active plan"
+                      end}
+                    </span>
+                  </div>
+                  <%= if @current_user.plan_expires_at do %>
+                    <p class="mt-2 text-xs text-base-content/50">
+                      <%= if @current_user.plan_status == "canceling" do %>
+                        Access until {Calendar.strftime(@current_user.plan_expires_at, "%b %d, %Y")}
+                      <% else %>
+                        Renews {Calendar.strftime(@current_user.plan_expires_at, "%b %d, %Y")}
+                      <% end %>
+                    </p>
+                  <% end %>
+                  <div class="mt-5 flex flex-wrap gap-2">
+                    <%= if @current_user.plan in ["free", nil] or @current_user.plan_status in ["expired", "free"] do %>
+                      <.link navigate={~p"/pricing"} class="btn btn-primary btn-sm rounded-full">
+                        Choose a plan
+                      </.link>
+                    <% else %>
+                      <a
+                        href="https://app.lemonsqueezy.com/my-orders"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-outline btn-sm rounded-full"
+                      >
+                        Manage billing
+                      </a>
+                      <.link navigate={~p"/pricing"} class="btn btn-ghost btn-sm rounded-full">
+                        Upgrade
+                      </.link>
+                    <% end %>
+                  </div>
+                  <%= if map_size(@current_user.addon_credits || %{}) > 0 do %>
+                    <div class="mt-5 border-t border-base-300/60 pt-4">
+                      <p class="text-xs uppercase tracking-[0.22em] text-base-content/45">
+                        Add-on credits
+                      </p>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <span
+                          :for={{key, qty} <- @current_user.addon_credits}
+                          class="badge badge-ghost rounded-full border border-base-300 px-3 py-2 text-xs"
+                        >
+                          {qty} × {String.replace(key, "_", " ")}
+                        </span>
+                      </div>
+                    </div>
+                  <% end %>
                 </.surface>
 
                 <.surface tag="article">

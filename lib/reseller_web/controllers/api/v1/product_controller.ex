@@ -2,6 +2,7 @@ defmodule ResellerWeb.API.V1.ProductController do
   use ResellerWeb, :controller
 
   alias Reseller.Catalog
+  alias Reseller.Metrics
   alias ResellerWeb.APIError
 
   def index(conn, params) do
@@ -51,14 +52,30 @@ defmodule ResellerWeb.API.V1.ProductController do
   end
 
   def update(conn, %{"id" => product_id} = params) do
-    product_attrs = Map.get(params, "product", %{})
+    raw_product_attrs = Map.get(params, "product", %{})
+    product_attrs = Map.delete(raw_product_attrs, "marketplace_external_urls")
 
-    case Catalog.update_product_for_user(conn.assigns.current_user, product_id, product_attrs) do
+    marketplace_external_urls =
+      case Map.get(params, "marketplace_external_urls") ||
+             Map.get(raw_product_attrs, "marketplace_external_urls") do
+        value when is_map(value) -> value
+        _other -> %{}
+      end
+
+    case Catalog.update_product_review_for_user(
+           conn.assigns.current_user,
+           product_id,
+           product_attrs,
+           marketplace_external_urls
+         ) do
       {:ok, product} ->
         json(conn, %{data: %{product: product_json(product)}})
 
       {:error, :not_found} ->
         APIError.render(conn, :not_found, "not_found", "Product not found")
+
+      {:error, {:marketplace_listing, marketplace, %Ecto.Changeset{} = changeset}} ->
+        marketplace_external_url_validation(conn, marketplace, changeset)
 
       {:error, %Ecto.Changeset{} = changeset} ->
         APIError.validation(conn, changeset)
@@ -112,48 +129,110 @@ defmodule ResellerWeb.API.V1.ProductController do
   end
 
   def finalize_uploads(conn, %{"id" => product_id} = params) do
-    uploads = Map.get(params, "uploads", [])
+    with :ok <- Metrics.check_processing_limit(conn.assigns.current_user) do
+      uploads = Map.get(params, "uploads", [])
 
-    case Catalog.finalize_product_uploads_for_user(conn.assigns.current_user, product_id, uploads) do
-      {:ok,
-       %{product: product, finalized_images: finalized_images, processing_run: processing_run}} ->
-        json(conn, %{
-          data: %{
-            product: product_json(product),
-            finalized_images: Enum.map(finalized_images, &image_json/1),
-            processing_run: processing_run && processing_run_json(processing_run)
-          }
-        })
+      case Catalog.finalize_product_uploads_for_user(
+             conn.assigns.current_user,
+             product_id,
+             uploads
+           ) do
+        {:ok,
+         %{product: product, finalized_images: finalized_images, processing_run: processing_run}} ->
+          json(conn, %{
+            data: %{
+              product: product_json(product),
+              finalized_images: Enum.map(finalized_images, &image_json/1),
+              processing_run: processing_run && processing_run_json(processing_run)
+            }
+          })
 
-      {:error, :not_found} ->
-        APIError.render(conn, :not_found, "not_found", "Product not found")
+        {:error, :not_found} ->
+          APIError.render(conn, :not_found, "not_found", "Product not found")
 
-      {:error, :no_product_images} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_product_state",
-          "Product has no images to finalize"
-        )
+        {:error, :no_product_images} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_product_state",
+            "Product has no images to finalize"
+          )
 
-      {:error, :invalid_product_images} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_uploads",
-          "Uploads must belong to the selected product"
-        )
+        {:error, :invalid_product_images} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_uploads",
+            "Uploads must belong to the selected product"
+          )
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        APIError.validation(conn, changeset)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          APIError.validation(conn, changeset)
 
-      {:error, reason} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "finalize_failed",
-          "Could not finalize uploads: #{inspect(reason)}"
-        )
+        {:error, reason} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "finalize_failed",
+            "Could not finalize uploads: #{inspect(reason)}"
+          )
+      end
+    else
+      {:error, :limit_exceeded, details} ->
+        render_limit_exceeded(conn, details)
+    end
+  end
+
+  def prepare_uploads(conn, %{"id" => product_id} = params) do
+    with :ok <- Metrics.check_processing_limit(conn.assigns.current_user) do
+      uploads = Map.get(params, "uploads", [])
+
+      case Catalog.prepare_product_uploads_for_user(
+             conn.assigns.current_user,
+             product_id,
+             uploads
+           ) do
+        {:ok, %{product: product, upload_bundle: upload_bundle}} ->
+          json(conn, %{
+            data: %{
+              product: product_json(product),
+              upload_instructions: upload_bundle.upload_instructions
+            }
+          })
+
+        {:error, :not_found} ->
+          APIError.render(conn, :not_found, "not_found", "Product not found")
+
+        {:error, :invalid_product_state} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_product_state",
+            "Images can be changed only while the product is in draft, review, or ready"
+          )
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          APIError.validation(conn, changeset)
+
+        {:error, {:missing_config, config_key}} ->
+          APIError.render(
+            conn,
+            :bad_gateway,
+            "storage_unavailable",
+            "Storage upload signing is not configured: #{humanize_config_key(config_key)}"
+          )
+
+        {:error, reason} ->
+          APIError.render(
+            conn,
+            :bad_gateway,
+            "upload_signing_failed",
+            "Upload signing failed: #{inspect(reason)}"
+          )
+      end
+    else
+      {:error, :limit_exceeded, details} ->
+        render_limit_exceeded(conn, details)
     end
   end
 
@@ -173,91 +252,101 @@ defmodule ResellerWeb.API.V1.ProductController do
   end
 
   def reprocess(conn, %{"id" => product_id}) do
-    case Catalog.retry_product_processing_for_user(conn.assigns.current_user, product_id) do
-      {:ok, %{product: product, processing_run: processing_run}} ->
-        conn
-        |> put_status(:accepted)
-        |> json(%{
-          data: %{
-            product: product_json(product),
-            processing_run: processing_run_json(processing_run)
-          }
-        })
+    with :ok <- Metrics.check_processing_limit(conn.assigns.current_user) do
+      case Catalog.retry_product_processing_for_user(conn.assigns.current_user, product_id) do
+        {:ok, %{product: product, processing_run: processing_run}} ->
+          conn
+          |> put_status(:accepted)
+          |> json(%{
+            data: %{
+              product: product_json(product),
+              processing_run: processing_run_json(processing_run)
+            }
+          })
 
-      {:error, :not_found} ->
-        APIError.render(conn, :not_found, "not_found", "Product not found")
+        {:error, :not_found} ->
+          APIError.render(conn, :not_found, "not_found", "Product not found")
 
-      {:error, :no_product_images} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_product_state",
-          "Product has no images available for reprocessing"
-        )
+        {:error, :no_product_images} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_product_state",
+            "Product has no images available for reprocessing"
+          )
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        APIError.validation(conn, changeset)
+        {:error, %Ecto.Changeset{} = changeset} ->
+          APIError.validation(conn, changeset)
 
-      {:error, reason} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "reprocess_failed",
-          "Could not restart processing: #{inspect(reason)}"
-        )
+        {:error, reason} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "reprocess_failed",
+            "Could not restart processing: #{inspect(reason)}"
+          )
+      end
+    else
+      {:error, :limit_exceeded, details} ->
+        render_limit_exceeded(conn, details)
     end
   end
 
   def generate_lifestyle_images(conn, %{"id" => product_id} = params) do
-    generation_opts =
-      case Map.get(params, "scene_key") do
-        scene_key when is_binary(scene_key) and scene_key != "" -> [scene_key: scene_key]
-        _other -> []
+    with :ok <- Metrics.check_processing_limit(conn.assigns.current_user) do
+      generation_opts =
+        case Map.get(params, "scene_key") do
+          scene_key when is_binary(scene_key) and scene_key != "" -> [scene_key: scene_key]
+          _other -> []
+        end
+
+      case Catalog.generate_lifestyle_images_for_user(
+             conn.assigns.current_user,
+             product_id,
+             generation_opts
+           ) do
+        {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
+          conn
+          |> put_status(:accepted)
+          |> json(%{
+            data: %{
+              product: product_json(product),
+              lifestyle_generation_run:
+                lifestyle_generation_run &&
+                  lifestyle_generation_run_json(lifestyle_generation_run)
+            }
+          })
+
+        {:error, :not_found} ->
+          APIError.render(conn, :not_found, "not_found", "Product not found")
+
+        {:error, :no_product_images} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_product_state",
+            "Product has no images available for lifestyle generation"
+          )
+
+        {:error, :invalid_product_state} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "invalid_product_state",
+            "Lifestyle generation is only available after image processing has finished"
+          )
+
+        {:error, reason} ->
+          APIError.render(
+            conn,
+            :unprocessable_entity,
+            "lifestyle_generation_failed",
+            "Could not start lifestyle generation: #{inspect(reason)}"
+          )
       end
-
-    case Catalog.generate_lifestyle_images_for_user(
-           conn.assigns.current_user,
-           product_id,
-           generation_opts
-         ) do
-      {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
-        conn
-        |> put_status(:accepted)
-        |> json(%{
-          data: %{
-            product: product_json(product),
-            lifestyle_generation_run:
-              lifestyle_generation_run &&
-                lifestyle_generation_run_json(lifestyle_generation_run)
-          }
-        })
-
-      {:error, :not_found} ->
-        APIError.render(conn, :not_found, "not_found", "Product not found")
-
-      {:error, :no_product_images} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_product_state",
-          "Product has no images available for lifestyle generation"
-        )
-
-      {:error, :invalid_product_state} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "invalid_product_state",
-          "Lifestyle generation is only available after image processing has finished"
-        )
-
-      {:error, reason} ->
-        APIError.render(
-          conn,
-          :unprocessable_entity,
-          "lifestyle_generation_failed",
-          "Could not start lifestyle generation: #{inspect(reason)}"
-        )
+    else
+      {:error, :limit_exceeded, details} ->
+        render_limit_exceeded(conn, details)
     end
   end
 
@@ -441,6 +530,8 @@ defmodule ResellerWeb.API.V1.ProductController do
       ai_confidence: product.ai_confidence,
       sold_at: datetime_to_iso8601(product.sold_at),
       archived_at: datetime_to_iso8601(product.archived_at),
+      storefront_enabled: product.storefront_enabled,
+      storefront_published_at: datetime_to_iso8601(product.storefront_published_at),
       inserted_at: datetime_to_iso8601(product.inserted_at),
       updated_at: datetime_to_iso8601(product.updated_at),
       latest_processing_run:
@@ -495,6 +586,8 @@ defmodule ResellerWeb.API.V1.ProductController do
       source_image_ids: image.source_image_ids || [],
       seller_approved: image.seller_approved,
       approved_at: datetime_to_iso8601(image.approved_at),
+      storefront_visible: image.storefront_visible,
+      storefront_position: image.storefront_position,
       inserted_at: datetime_to_iso8601(image.inserted_at),
       updated_at: datetime_to_iso8601(image.updated_at)
     }
@@ -602,6 +695,8 @@ defmodule ResellerWeb.API.V1.ProductController do
       generated_price_suggestion: decimal_to_string(listing.generated_price_suggestion),
       generation_version: listing.generation_version,
       compliance_warnings: listing.compliance_warnings,
+      external_url: listing.external_url,
+      external_url_added_at: datetime_to_iso8601(listing.external_url_added_at),
       last_generated_at: datetime_to_iso8601(listing.last_generated_at),
       inserted_at: datetime_to_iso8601(listing.inserted_at),
       updated_at: datetime_to_iso8601(listing.updated_at)
@@ -633,6 +728,56 @@ defmodule ResellerWeb.API.V1.ProductController do
   defp humanize_config_key(:base_url), do: "TIGRIS_BUCKET_URL"
   defp humanize_config_key(:bucket_name), do: "TIGRIS_BUCKET_NAME"
   defp humanize_config_key(config_key), do: to_string(config_key)
+
+  defp render_limit_exceeded(conn, details) do
+    conn
+    |> put_status(402)
+    |> json(%{
+      error: "limit_exceeded",
+      operation: details.operation,
+      used: details.used,
+      limit: details.limit,
+      upgrade_url: absolute_pricing_url(details)
+    })
+  end
+
+  defp absolute_pricing_url(%{upgrade_path: url}) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{scheme: scheme, host: host} when is_binary(scheme) and is_binary(host) -> url
+      _other -> URI.merge(ResellerWeb.Endpoint.url(), url) |> to_string()
+    end
+  end
+
+  defp absolute_pricing_url(_details) do
+    URI.merge(ResellerWeb.Endpoint.url(), "/pricing") |> to_string()
+  end
+
+  defp marketplace_external_url_validation(conn, marketplace, %Ecto.Changeset{} = changeset) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{
+      error: %{
+        code: "validation_failed",
+        detail: "Validation failed",
+        status: 422,
+        fields: %{
+          "marketplace_external_urls" => %{
+            marketplace => errors_for_field(changeset, :external_url)
+          }
+        }
+      }
+    })
+  end
+
+  defp errors_for_field(%Ecto.Changeset{} = changeset, field) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+      Regex.replace(~r"%{(\w+)}", message, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> Map.get(field, ["is invalid"])
+  end
 
   defp parse_integer(value) when is_binary(value) do
     case Integer.parse(value) do

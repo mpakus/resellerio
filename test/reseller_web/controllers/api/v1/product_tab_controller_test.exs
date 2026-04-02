@@ -104,7 +104,7 @@ defmodule ResellerWeb.API.V1.ProductTabControllerTest do
            }
   end
 
-  test "DELETE /api/v1/product_tabs/:id returns 401 when unauthenticated", %{conn: conn} do
+  test "DELETE /api/v1/product_tabs/:id returns 401 when unauthenticated", %{conn: _conn} do
     unauthed_conn = build_conn()
     conn = delete(unauthed_conn, "/api/v1/product_tabs/1")
     assert json_response(conn, 401)

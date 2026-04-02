@@ -8,8 +8,15 @@ defmodule Reseller.Accounts do
   alias Reseller.Repo
 
   def register_user(attrs) do
+    trial_ends_at =
+      DateTime.utc_now()
+      |> DateTime.add(7, :day)
+      |> DateTime.truncate(:second)
+
     %User{}
     |> User.registration_changeset(attrs)
+    |> Ecto.Changeset.put_change(:plan_status, "trialing")
+    |> Ecto.Changeset.put_change(:trial_ends_at, trial_ends_at)
     |> Repo.insert()
   end
 
@@ -131,7 +138,7 @@ defmodule Reseller.Accounts do
   end
 
   defp api_token_ttl_days do
-    Application.get_env(:reseller, :api_token_ttl_days, 30)
+    Application.get_env(:reseller, :api_token_ttl_days, 365)
   end
 
   defp normalize_marketplace_settings_attrs(attrs) do

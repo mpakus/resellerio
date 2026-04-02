@@ -45,6 +45,7 @@ defmodule Reseller.Storefronts.StorefrontAsset do
     |> validate_inclusion(:kind, @kinds)
     |> validate_length(:storage_key, max: 500)
     |> validate_length(:content_type, max: 120)
+    |> validate_format(:content_type, ~r/^image\//, message: "must be an image content type")
     |> validate_length(:original_filename, max: 255)
     |> validate_length(:checksum, max: 128)
     |> validate_number(:width, greater_than: 0)

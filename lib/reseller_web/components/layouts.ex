@@ -57,6 +57,7 @@ defmodule ResellerWeb.Layouts do
             <a href="#lifestyle" class="btn btn-ghost btn-sm rounded-full">Lifestyle AI</a>
             <a href="#marketplace-strip" class="btn btn-ghost btn-sm rounded-full">Markets</a>
             <a href="#storefront" class="btn btn-ghost btn-sm rounded-full">Storefront</a>
+            <.link navigate={~p"/pricing"} class="btn btn-ghost btn-sm rounded-full">Pricing</.link>
             <%= if @current_user do %>
               <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
               <%= if @current_user.is_admin do %>
@@ -106,7 +107,12 @@ defmodule ResellerWeb.Layouts do
           </a>
           <a href={~p"/privacy"} class="hover:text-base-content transition-colors">Privacy Policy</a>
           <a href={~p"/dpa"} class="hover:text-base-content transition-colors">DPA</a>
-          <.link navigate={~p"/docs/api"} class="hover:text-base-content transition-colors">API Docs</.link>
+          <.link navigate={~p"/pricing"} class="hover:text-base-content transition-colors">
+            Pricing
+          </.link>
+          <.link navigate={~p"/docs/api"} class="hover:text-base-content transition-colors">
+            API Docs
+          </.link>
           <a href={~p"/api/v1"} class="hover:text-base-content transition-colors">API v1</a>
           <a href="https://made-by-human.com" target="_blank" rel="noopener noreferrer">
             <img

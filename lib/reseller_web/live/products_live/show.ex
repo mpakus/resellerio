@@ -6,6 +6,7 @@ defmodule ResellerWeb.ProductsLive.Show do
   alias Reseller.Catalog.Product
   alias Reseller.Marketplaces
   alias Reseller.Media.Storage
+  alias Reseller.Metrics
   alias Reseller.Storefronts
   alias ResellerWeb.ProductsLive.Helpers
   alias ResellerWeb.WorkspaceNavigation
@@ -252,28 +253,27 @@ defmodule ResellerWeb.ProductsLive.Show do
     if upload_entries == [] do
       {:noreply, put_flash(socket, :error, "Choose at least one image to upload.")}
     else
-      upload_specs = build_upload_specs(upload_entries)
-
-      case Catalog.prepare_product_uploads_for_user(
-             socket.assigns.current_user,
-             socket.assigns.product.id,
-             upload_specs
-           ) do
-        {:ok, %{upload_bundle: upload_bundle}} ->
-          case upload_and_finalize_product(
-                 socket,
-                 socket.assigns.product.id,
-                 upload_bundle.images
-               ) do
-            {:ok, finalized_product} ->
-              {:noreply,
-               socket
-               |> assign_product(finalized_product, rebuild_form: false)
-               |> put_flash(:info, "Images uploaded. AI processing restarted.")}
-
-            {:error, reason} ->
-              {:noreply, put_flash(socket, :error, "Uploads failed: #{format_reason(reason)}")}
-          end
+      with :ok <- Metrics.check_processing_limit(socket.assigns.current_user),
+           upload_specs = build_upload_specs(upload_entries),
+           {:ok, %{upload_bundle: upload_bundle}} <-
+             Catalog.prepare_product_uploads_for_user(
+               socket.assigns.current_user,
+               socket.assigns.product.id,
+               upload_specs
+             ),
+           {:ok, finalized_product} <-
+             upload_and_finalize_product(
+               socket,
+               socket.assigns.product.id,
+               upload_bundle.images
+             ) do
+        {:noreply,
+         socket
+         |> assign_product(finalized_product, rebuild_form: false)
+         |> put_flash(:info, "Images uploaded. AI processing restarted.")}
+      else
+        {:error, :limit_exceeded, details} ->
+          {:noreply, put_flash(socket, :error, limit_flash(details))}
 
         {:error, :invalid_product_state} ->
           {:noreply,
@@ -284,8 +284,7 @@ defmodule ResellerWeb.ProductsLive.Show do
            )}
 
         {:error, reason} ->
-          {:noreply,
-           put_flash(socket, :error, "Could not prepare uploads: #{format_reason(reason)}")}
+          {:noreply, put_flash(socket, :error, "Uploads failed: #{format_reason(reason)}")}
       end
     end
   end
@@ -326,22 +325,27 @@ defmodule ResellerWeb.ProductsLive.Show do
   end
 
   def handle_event("retry_processing", _params, socket) do
-    case Catalog.retry_product_processing_for_user(
-           socket.assigns.current_user,
-           socket.assigns.product.id
-         ) do
-      {:ok, %{product: product, processing_run: processing_run}} ->
-        {:noreply,
-         socket
-         |> assign_product(product, rebuild_form: false)
-         |> put_flash(:info, "AI processing restarted with run ##{processing_run.id}.")}
+    with :ok <- Metrics.check_processing_limit(socket.assigns.current_user) do
+      case Catalog.retry_product_processing_for_user(
+             socket.assigns.current_user,
+             socket.assigns.product.id
+           ) do
+        {:ok, %{product: product, processing_run: processing_run}} ->
+          {:noreply,
+           socket
+           |> assign_product(product, rebuild_form: false)
+           |> put_flash(:info, "AI processing restarted with run ##{processing_run.id}.")}
 
-      {:error, :no_product_images} ->
-        {:noreply, put_flash(socket, :error, "This product has no uploaded images to process.")}
+        {:error, :no_product_images} ->
+          {:noreply, put_flash(socket, :error, "This product has no uploaded images to process.")}
 
-      {:error, reason} ->
-        {:noreply,
-         put_flash(socket, :error, "Could not restart AI processing: #{format_reason(reason)}")}
+        {:error, reason} ->
+          {:noreply,
+           put_flash(socket, :error, "Could not restart AI processing: #{format_reason(reason)}")}
+      end
+    else
+      {:error, :limit_exceeded, details} ->
+        {:noreply, put_flash(socket, :error, limit_flash(details))}
     end
   end
 
@@ -352,49 +356,54 @@ defmodule ResellerWeb.ProductsLive.Show do
         _other -> []
       end
 
-    case Catalog.generate_lifestyle_images_for_user(
-           socket.assigns.current_user,
-           socket.assigns.product.id,
-           generation_opts
-         ) do
-      {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
-        if connected?(socket) do
-          Process.send_after(self(), :refresh_product, 150)
-        end
-
-        message =
-          case params["scene_key"] do
-            scene_key when is_binary(scene_key) and scene_key != "" ->
-              "Lifestyle preview regeneration started for #{Helpers.humanize_scene_key(scene_key)}."
-
-            _other ->
-              "Lifestyle preview generation started#{run_suffix(lifestyle_generation_run)}."
+    with :ok <- Metrics.check_processing_limit(socket.assigns.current_user) do
+      case Catalog.generate_lifestyle_images_for_user(
+             socket.assigns.current_user,
+             socket.assigns.product.id,
+             generation_opts
+           ) do
+        {:ok, %{product: product, lifestyle_generation_run: lifestyle_generation_run}} ->
+          if connected?(socket) do
+            Process.send_after(self(), :refresh_product, 150)
           end
 
-        {:noreply,
-         socket
-         |> assign_product(product, rebuild_form: false)
-         |> put_flash(:info, message)}
+          message =
+            case params["scene_key"] do
+              scene_key when is_binary(scene_key) and scene_key != "" ->
+                "Lifestyle preview regeneration started for #{Helpers.humanize_scene_key(scene_key)}."
 
-      {:error, :no_product_images} ->
-        {:noreply,
-         put_flash(socket, :error, "This product has no images available for previews.")}
+              _other ->
+                "Lifestyle preview generation started#{run_suffix(lifestyle_generation_run)}."
+            end
 
-      {:error, :invalid_product_state} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Lifestyle preview generation unlocks after image processing finishes."
-         )}
+          {:noreply,
+           socket
+           |> assign_product(product, rebuild_form: false)
+           |> put_flash(:info, message)}
 
-      {:error, reason} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Could not start lifestyle generation: #{format_reason(reason)}"
-         )}
+        {:error, :no_product_images} ->
+          {:noreply,
+           put_flash(socket, :error, "This product has no images available for previews.")}
+
+        {:error, :invalid_product_state} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "Lifestyle preview generation unlocks after image processing finishes."
+           )}
+
+        {:error, reason} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "Could not start lifestyle generation: #{format_reason(reason)}"
+           )}
+      end
+    else
+      {:error, :limit_exceeded, details} ->
+        {:noreply, put_flash(socket, :error, limit_flash(details))}
     end
   end
 
@@ -2045,6 +2054,21 @@ defmodule ResellerWeb.ProductsLive.Show do
 
   defp format_reason(%Changeset{} = changeset), do: inspect(changeset.errors)
   defp format_reason(reason), do: inspect(reason)
+
+  defp limit_flash(%{operation: op, used: used, limit: limit}) do
+    label =
+      case op do
+        :ai_drafts -> "AI product drafts"
+        :background_removals -> "background removals"
+        :lifestyle -> "lifestyle image generations"
+        :price_research -> "price research runs"
+        _ -> to_string(op)
+      end
+
+    "Monthly limit reached: #{used}/#{limit} #{label} used. Upgrade your plan at resellerio.com/pricing."
+  end
+
+  defp limit_flash(_), do: "Monthly processing limit reached. Upgrade your plan to continue."
 
   defp error_to_string(:too_large), do: "File is too large"
   defp error_to_string(:too_many_files), do: "Too many files selected"

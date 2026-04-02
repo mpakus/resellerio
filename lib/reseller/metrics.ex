@@ -436,6 +436,121 @@ defmodule Reseller.Metrics do
     |> Keyword.get(:daily_limits, %{})
   end
 
+  @doc """
+  Returns monthly operation counts for a user, used for plan limit enforcement.
+
+  Returns a map with keys: `:ai_drafts`, `:background_removals`, `:lifestyle`, `:price_research`.
+  """
+  @spec monthly_usage_for_user(pos_integer(), Date.t()) :: map()
+  def monthly_usage_for_user(user_id, month \\ Date.utc_today()) do
+    month_start = %{month | day: 1} |> Date.to_iso8601()
+
+    month_start_dt =
+      NaiveDateTime.from_iso8601!("#{month_start} 00:00:00") |> DateTime.from_naive!("Etc/UTC")
+
+    rows =
+      from(e in ApiUsageEvent,
+        where: e.user_id == ^user_id,
+        where: e.inserted_at >= ^month_start_dt,
+        where: e.status == "success",
+        select: {e.provider, e.operation, count(e.id)}
+      )
+      |> group_by([e], [e.provider, e.operation])
+      |> Repo.all()
+
+    base = %{ai_drafts: 0, background_removals: 0, lifestyle: 0, price_research: 0}
+
+    Enum.reduce(rows, base, fn {provider, operation, count}, acc ->
+      case {provider, operation} do
+        {"gemini", op} when op in ["recognition", "description", "reconciliation"] ->
+          Map.update!(acc, :ai_drafts, &(&1 + count))
+
+        {"photoroom", _} ->
+          Map.update!(acc, :background_removals, &(&1 + count))
+
+        {"gemini", op} when op in ["lifestyle_image"] ->
+          Map.update!(acc, :lifestyle, &(&1 + count))
+
+        {"gemini", op} when op in ["price_research", "price_research_grounded"] ->
+          Map.update!(acc, :price_research, &(&1 + count))
+
+        {"serp_api", _} ->
+          Map.update!(acc, :price_research, &(&1 + count))
+
+        _ ->
+          acc
+      end
+    end)
+  end
+
+  @doc """
+  Checks whether a user (by struct) has exceeded their plan's monthly limits.
+
+  Consults `Billing.Plans` for the user's plan limits, then subtracts any
+  `addon_credits` from consumed counts before comparing.
+
+  Users on the "free" plan (no subscription) are only governed by the existing
+  daily API cost ceiling — no monthly op limits apply.
+
+  Returns `:ok` or `{:error, :limit_exceeded, details}`.
+  """
+  @spec check_plan_limit(map()) :: :ok | {:error, :limit_exceeded, map()}
+  def check_plan_limit(%{plan: plan}) when plan in [nil, "free"], do: :ok
+
+  def check_plan_limit(%{plan: _} = user) do
+    limits = Reseller.Billing.Plans.limits_for_user(user)
+    usage = monthly_usage_for_user(user.id)
+    credits = user.addon_credits || %{}
+
+    checks = [
+      {:ai_drafts, usage.ai_drafts, Map.get(credits, "ai_drafts", 0)},
+      {:background_removals, usage.background_removals,
+       Map.get(credits, "background_removals", 0)},
+      {:lifestyle, usage.lifestyle, Map.get(credits, "lifestyle", 0)},
+      {:price_research, usage.price_research, Map.get(credits, "price_research", 0)}
+    ]
+
+    Enum.find_value(checks, :ok, fn {op, used, addon_credit} ->
+      plan_limit = Map.get(limits, op)
+      effective_limit = (plan_limit || 0) + addon_credit
+
+      if not is_nil(plan_limit) and used >= effective_limit do
+        {:error, :limit_exceeded,
+         %{
+           operation: op,
+           used: used,
+           limit: plan_limit,
+           addon_credits: addon_credit,
+           upgrade_path: "https://resellerio.com/pricing"
+         }}
+      end
+    end)
+  end
+
+  def check_plan_limit(_), do: :ok
+
+  @doc """
+  Combined limit gate for API processing actions.
+
+  - Paid/trialing users: checked against monthly plan limits.
+  - Free users: checked against the daily hard ceiling.
+
+  Returns `:ok` or `{:error, :limit_exceeded, details}`.
+  """
+  @spec check_processing_limit(map()) :: :ok | {:error, :limit_exceeded, map()}
+  def check_processing_limit(%{plan: plan, id: user_id} = _user) when plan in [nil, "free"] do
+    case check_limit(user_id) do
+      :ok ->
+        :ok
+
+      {:error, :limit_exceeded, details} ->
+        {:error, :limit_exceeded,
+         Map.merge(details, %{upgrade_path: "https://resellerio.com/pricing"})}
+    end
+  end
+
+  def check_processing_limit(user), do: check_plan_limit(user)
+
   defp exceeds?(_used, nil), do: false
   defp exceeds?(used, limit) when is_integer(used) and is_integer(limit), do: used >= limit
   defp exceeds?(_used, _limit), do: false

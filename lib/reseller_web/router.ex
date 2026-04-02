@@ -32,6 +32,12 @@ defmodule ResellerWeb.Router do
     plug ResellerWeb.BrowserAuth, :ensure_authenticated
   end
 
+  scope "/webhooks", ResellerWeb.Webhooks do
+    pipe_through :api
+
+    post "/lemonsqueezy", LemonSqueezyController, :handle
+  end
+
   scope "/", ResellerWeb do
     pipe_through :browser
 
@@ -42,6 +48,7 @@ defmodule ResellerWeb.Router do
 
     live_session :current_user, on_mount: [{ResellerWeb.LiveUserAuth, :mount_current_user}] do
       live "/", HomeLive
+      live "/pricing", PricingLive
       live "/privacy", PrivacyLive
       live "/dpa", DPALive
       live "/docs/api", APIDocsLive
@@ -97,6 +104,7 @@ defmodule ResellerWeb.Router do
 
     scope "/v1", API.V1 do
       get "/", RootController, :show
+      get "/openapi.json", OpenAPIController, :show
       get "/health", HealthController, :show
 
       scope "/auth" do
@@ -110,6 +118,7 @@ defmodule ResellerWeb.Router do
 
       get "/me", MeController, :show
       patch "/me", MeController, :update
+      get "/me/usage", MeController, :usage
       get "/product_tabs", ProductTabController, :index
       post "/product_tabs", ProductTabController, :create
       patch "/product_tabs/:id", ProductTabController, :update
@@ -120,6 +129,8 @@ defmodule ResellerWeb.Router do
       post "/storefront/pages", StorefrontController, :create_page
       patch "/storefront/pages/:page_id", StorefrontController, :update_page
       delete "/storefront/pages/:page_id", StorefrontController, :delete_page
+      put "/storefront/pages/order", StorefrontController, :reorder_pages
+      post "/storefront/assets/:kind/prepare_upload", StorefrontController, :prepare_asset_upload
       delete "/storefront/assets/:kind", StorefrontController, :delete_asset
       get "/inquiries", InquiryController, :index
       delete "/inquiries/:id", InquiryController, :delete
@@ -128,6 +139,7 @@ defmodule ResellerWeb.Router do
       get "/products/:id", ProductController, :show
       patch "/products/:id", ProductController, :update
       delete "/products/:id", ProductController, :delete
+      post "/products/:id/prepare_uploads", ProductController, :prepare_uploads
       post "/products/:id/finalize_uploads", ProductController, :finalize_uploads
       post "/products/:id/reprocess", ProductController, :reprocess
 

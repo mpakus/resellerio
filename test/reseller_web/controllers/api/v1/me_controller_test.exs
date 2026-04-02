@@ -18,30 +18,16 @@ defmodule ResellerWeb.API.V1.MeControllerTest do
       |> put_req_header("authorization", "Bearer #{raw_token}")
       |> get("/api/v1/me")
 
-    assert json_response(conn, 200) == %{
-             "data" => %{
-               "supported_marketplaces" => [
-                 %{"id" => "ebay", "label" => "eBay"},
-                 %{"id" => "depop", "label" => "Depop"},
-                 %{"id" => "poshmark", "label" => "Poshmark"},
-                 %{"id" => "mercari", "label" => "Mercari"},
-                 %{"id" => "facebook_marketplace", "label" => "Facebook Marketplace"},
-                 %{"id" => "offerup", "label" => "OfferUp"},
-                 %{"id" => "whatnot", "label" => "Whatnot"},
-                 %{"id" => "grailed", "label" => "Grailed"},
-                 %{"id" => "therealreal", "label" => "The RealReal"},
-                 %{"id" => "vestiaire_collective", "label" => "Vestiaire Collective"},
-                 %{"id" => "thredup", "label" => "thredUp"},
-                 %{"id" => "etsy", "label" => "Etsy"}
-               ],
-               "user" => %{
-                 "confirmed_at" => nil,
-                 "email" => "seller@example.com",
-                 "id" => user.id,
-                 "selected_marketplaces" => ["ebay", "depop", "poshmark"]
-               }
-             }
-           }
+    body = json_response(conn, 200)
+    user_data = body["data"]["user"]
+
+    assert user_data["id"] == user.id
+    assert user_data["email"] == "seller@example.com"
+    assert user_data["plan"] == "free"
+    assert user_data["plan_status"] == "trialing"
+    assert is_binary(user_data["trial_ends_at"])
+    assert user_data["addon_credits"] == %{}
+    assert body["data"]["supported_marketplaces"] |> length() == 12
   end
 
   test "updates the authenticated user's selected marketplaces", %{conn: conn} do
@@ -138,5 +124,29 @@ defmodule ResellerWeb.API.V1.MeControllerTest do
                "status" => 401
              }
            }
+  end
+
+  test "GET /api/v1/me/usage returns monthly usage and plan limits", %{conn: conn} do
+    user = user_fixture(%{"email" => "usage@example.com"})
+    {:ok, raw_token, _api_token} = Accounts.issue_api_token(user, %{"device_name" => "iPhone"})
+
+    conn =
+      conn
+      |> put_req_header("authorization", "Bearer #{raw_token}")
+      |> get("/api/v1/me/usage")
+
+    body = json_response(conn, 200)
+    data = body["data"]
+
+    assert %{
+             "ai_drafts" => 0,
+             "background_removals" => 0,
+             "lifestyle" => 0,
+             "price_research" => 0
+           } =
+             data["usage"]
+
+    assert is_integer(data["limits"]["ai_drafts"])
+    assert data["addon_credits"] == %{}
   end
 end

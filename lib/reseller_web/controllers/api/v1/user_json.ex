@@ -21,7 +21,13 @@ defmodule ResellerWeb.API.V1.UserJSON do
       id: user.id,
       email: user.email,
       confirmed_at: user.confirmed_at && DateTime.to_iso8601(user.confirmed_at),
-      selected_marketplaces: Accounts.selected_marketplaces(user)
+      selected_marketplaces: Accounts.selected_marketplaces(user),
+      plan: user.plan,
+      plan_status: user.plan_status,
+      plan_period: user.plan_period,
+      plan_expires_at: user.plan_expires_at && DateTime.to_iso8601(user.plan_expires_at),
+      trial_ends_at: user.trial_ends_at && DateTime.to_iso8601(user.trial_ends_at),
+      addon_credits: user.addon_credits || %{}
     }
   end
 end

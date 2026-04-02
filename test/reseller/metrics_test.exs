@@ -2,7 +2,6 @@ defmodule Reseller.MetricsTest do
   use Reseller.DataCase, async: true
 
   alias Reseller.Metrics
-  alias Reseller.Metrics.ApiUsageEvent
   alias Reseller.Metrics.UserUsageSummary
 
   describe "record_event/1" do

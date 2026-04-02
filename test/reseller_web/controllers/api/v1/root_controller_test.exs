@@ -8,37 +8,56 @@ defmodule ResellerWeb.API.V1.RootControllerTest do
     assert body["data"]["name"] == "resellerio"
     assert body["data"]["version"] == "v1"
     assert body["data"]["docs_path"] == "/docs/API.md"
+    assert body["data"]["docs_ui_path"] == "/docs/api"
+    assert body["data"]["openapi_path"] == "/api/v1/openapi.json"
 
     endpoints = body["data"]["endpoints"]
-    paths = Enum.map(endpoints, & &1["path"])
+    method_paths = MapSet.new(Enum.map(endpoints, &{&1["method"], &1["path"]}))
 
-    assert "/api/v1" in paths
-    assert "/api/v1/health" in paths
-    assert "/api/v1/auth/register" in paths
-    assert "/api/v1/auth/login" in paths
-    assert "/api/v1/me" in paths
-    assert "/api/v1/product_tabs" in paths
-    assert "/api/v1/product_tabs/:id" in paths
-    assert "/api/v1/storefront" in paths
-    assert "/api/v1/storefront/pages" in paths
-    assert "/api/v1/storefront/pages/:page_id" in paths
-    assert "/api/v1/storefront/assets/:kind" in paths
-    assert "/api/v1/inquiries" in paths
-    assert "/api/v1/inquiries/:id" in paths
-    assert "/api/v1/products" in paths
-    assert "/api/v1/products/:id" in paths
-    assert "/api/v1/products/:id/finalize_uploads" in paths
-    assert "/api/v1/products/:id/reprocess" in paths
-    assert "/api/v1/products/:id/generate_lifestyle_images" in paths
-    assert "/api/v1/products/:id/generated_images/:image_id/approve" in paths
-    assert "/api/v1/products/:id/generated_images/:image_id" in paths
-    assert "/api/v1/products/:id/images/:image_id" in paths
-    assert "/api/v1/products/:id/mark_sold" in paths
-    assert "/api/v1/products/:id/archive" in paths
-    assert "/api/v1/products/:id/unarchive" in paths
-    assert "/api/v1/exports" in paths
-    assert "/api/v1/exports/:id" in paths
-    assert "/api/v1/imports" in paths
-    assert "/api/v1/imports/:id" in paths
+    assert {"GET", "/api/v1"} in method_paths
+    assert {"GET", "/api/v1/openapi.json"} in method_paths
+    assert {"GET", "/api/v1/health"} in method_paths
+    assert {"POST", "/api/v1/auth/register"} in method_paths
+    assert {"POST", "/api/v1/auth/login"} in method_paths
+    assert {"GET", "/api/v1/me"} in method_paths
+    assert {"PATCH", "/api/v1/me"} in method_paths
+    assert {"GET", "/api/v1/me/usage"} in method_paths
+    assert {"GET", "/api/v1/product_tabs"} in method_paths
+    assert {"POST", "/api/v1/product_tabs"} in method_paths
+    assert {"PATCH", "/api/v1/product_tabs/:id"} in method_paths
+    assert {"DELETE", "/api/v1/product_tabs/:id"} in method_paths
+    assert {"GET", "/api/v1/storefront"} in method_paths
+    assert {"PUT", "/api/v1/storefront"} in method_paths
+    assert {"GET", "/api/v1/storefront/pages"} in method_paths
+    assert {"POST", "/api/v1/storefront/pages"} in method_paths
+    assert {"PATCH", "/api/v1/storefront/pages/:page_id"} in method_paths
+    assert {"DELETE", "/api/v1/storefront/pages/:page_id"} in method_paths
+    assert {"PUT", "/api/v1/storefront/pages/order"} in method_paths
+    assert {"POST", "/api/v1/storefront/assets/:kind/prepare_upload"} in method_paths
+    assert {"DELETE", "/api/v1/storefront/assets/:kind"} in method_paths
+    assert {"GET", "/api/v1/inquiries"} in method_paths
+    assert {"DELETE", "/api/v1/inquiries/:id"} in method_paths
+    assert {"GET", "/api/v1/products"} in method_paths
+    assert {"POST", "/api/v1/products"} in method_paths
+    assert {"GET", "/api/v1/products/:id"} in method_paths
+    assert {"PATCH", "/api/v1/products/:id"} in method_paths
+    assert {"DELETE", "/api/v1/products/:id"} in method_paths
+    assert {"POST", "/api/v1/products/:id/prepare_uploads"} in method_paths
+    assert {"POST", "/api/v1/products/:id/finalize_uploads"} in method_paths
+    assert {"POST", "/api/v1/products/:id/reprocess"} in method_paths
+    assert {"POST", "/api/v1/products/:id/generate_lifestyle_images"} in method_paths
+    assert {"GET", "/api/v1/products/:id/lifestyle_generation_runs"} in method_paths
+    assert {"POST", "/api/v1/products/:id/generated_images/:image_id/approve"} in method_paths
+    assert {"DELETE", "/api/v1/products/:id/generated_images/:image_id"} in method_paths
+    assert {"DELETE", "/api/v1/products/:id/images/:image_id"} in method_paths
+    assert {"PATCH", "/api/v1/products/:id/images/:image_id/storefront"} in method_paths
+    assert {"PUT", "/api/v1/products/:id/images/storefront_order"} in method_paths
+    assert {"POST", "/api/v1/products/:id/mark_sold"} in method_paths
+    assert {"POST", "/api/v1/products/:id/archive"} in method_paths
+    assert {"POST", "/api/v1/products/:id/unarchive"} in method_paths
+    assert {"POST", "/api/v1/exports"} in method_paths
+    assert {"GET", "/api/v1/exports/:id"} in method_paths
+    assert {"POST", "/api/v1/imports"} in method_paths
+    assert {"GET", "/api/v1/imports/:id"} in method_paths
   end
 end

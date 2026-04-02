@@ -65,7 +65,8 @@ Core flow: create `Product` → upload originals to Tigris → finalize & proces
 - `docs/API.md` — routes, payloads, auth, response shapes.
 - `docs/ARCHITECTURE.md` — schemas, relationships, workers, integrations.
 - `docs/UIUX.md` — shared LiveView patterns and components.
-- `docs/PLANS.md`, `docs/PLAN-AI.md`, `docs/PLAN-WEB.md` — milestone status.
+- `docs/PLANS.md`, `docs/PLAN-AI.md`, `docs/PLAN-GENERATE-IMAGE.md` — milestone status and open items.
+- `docs/PRICING_PLAN.md`, `docs/PRICING_CHECKS.md` — billing milestone status and audit gaps.
 - `docs/METRICS-LIMITS-PLAN.md` — metrics, cost config, limit logic.
 
 ## Testing

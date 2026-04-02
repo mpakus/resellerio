@@ -11,7 +11,7 @@ config :reseller,
   ecto_repos: [Reseller.Repo],
   generators: [timestamp_type: :utc_datetime],
   password_hash_iterations: 100_000,
-  api_token_ttl_days: 30
+  api_token_ttl_days: 365
 
 config :reseller, Reseller.AI,
   provider: Reseller.AI.Providers.Gemini,
@@ -89,6 +89,8 @@ config :reseller, Reseller.Exports,
   from_email: "exports@resellerio.local"
 
 config :reseller, Reseller.Imports, processing_mode: :async
+
+config :reseller, Reseller.Billing, from_email: "billing@resellerio.local"
 
 config :reseller, Reseller.Metrics,
   daily_limits: %{

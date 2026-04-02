@@ -13,6 +13,7 @@ defmodule Reseller.Application do
       {DNSCluster, query: Application.get_env(:reseller, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Reseller.PubSub},
       {Task.Supervisor, name: Reseller.Workers.TaskSupervisor},
+      Reseller.Workers.ExpiryScheduler,
       # Start to serve requests, typically the last entry
       ResellerWeb.Endpoint
     ]

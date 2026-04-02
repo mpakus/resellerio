@@ -37,6 +37,10 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
       api_token = Repo.get_by!(ApiToken, user_id: user_id)
       assert api_token.context == "mobile"
       assert api_token.device_name == "iPhone"
+      assert expires_at == DateTime.to_iso8601(api_token.expires_at)
+
+      {:ok, parsed_expires_at, 0} = DateTime.from_iso8601(expires_at)
+      assert DateTime.diff(parsed_expires_at, DateTime.utc_now(), :day) >= 364
     end
 
     test "ignores admin privilege escalation fields", %{conn: conn} do
@@ -111,6 +115,11 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
 
       assert is_binary(token)
       assert Enum.any?(supported_marketplaces, &(&1["id"] == "etsy"))
+
+      api_token =
+        Repo.get_by!(ApiToken, user_id: Accounts.get_user_by_email("seller@example.com").id)
+
+      assert DateTime.diff(api_token.expires_at, DateTime.utc_now(), :day) >= 364
     end
 
     test "rejects invalid credentials", %{conn: conn} do

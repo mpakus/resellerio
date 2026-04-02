@@ -1,230 +1,232 @@
-# PRICING
+# ResellerIO Pricing
 
-## Recommended pricing summary for ResellerIO
+## Positioning
 
-### Positioning
-ResellerIO should be priced as an **AI-first reseller workflow platform**, not just a cheap crosslisting tool.
+ResellerIO is an **AI-first reseller workflow platform** — not a bargain crosslisting tool.
 
-Current public-facing product already shows these core capabilities:
+Core capabilities justifying premium positioning:
+- AI item recognition and structured metadata extraction (Gemini)
+- Background removal and image cleanup (Photoroom)
+- AI lifestyle photo generation (Gemini + Photoroom)
+- AI price research from real comparable sold listings (SerpApi + Gemini)
+- Marketplace-specific listing copy for 12 channels
+- Seller storefront with custom branding
 
-- batch photo upload / capture
-- AI item recognition and metadata extraction
-- background removal
-- AI lifestyle photo generation
-- AI price research from comparable sold listings
-- marketplace-specific listing copy
-- review before publish
-- seller storefront
-- multi-market workflow
-
-That puts ResellerIO closer to:
-
-**inventory intake + AI enrichment + listing generation + image prep + pricing + storefront**
+That positions us against mid-market tools (Vendoo, List Perfectly, Crosslist at $29–$69/mo)
+while offering capabilities none of them have (AI drafting, lifestyle generation, price research).
 
 ---
 
-## Competitor positioning snapshot
+## Competitor Snapshot
 
-### Low-cost crosslisting tools
-- **Flyp** is positioned as a low-cost / near-free crosslisting option.
-- Cheap tools usually compete on simple reposting, not advanced AI workflow.
+| Tool | Price Range | Key Gap vs. ResellerIO |
+|---|---|---|
+| Flyp | ~$0 (fee-based) | No AI drafting, no lifestyle photos |
+| Vendoo | $14–$49/mo | No AI enrichment, no image gen |
+| List Perfectly | $29–$69/mo | No image gen, no price research |
+| Crosslist | $19–$49/mo | No AI metadata, no storefront |
 
-### Mid-market crosslisting tools
-- **Vendoo**
-- **List Perfectly**
-- **Crosslist**
-
-These tools commonly sit around the **$29–$69/month** range for meaningful usage, depending on limits and plan level.
-
-### ResellerIO differentiation
-ResellerIO appears stronger in:
-
-- AI product drafting
-- image cleanup
-- lifestyle image generation
-- pricing assistance
-- marketplace-specific rewriting
-- seller storefront
-
-So the product should **not** compete mainly on being the cheapest.
+ResellerIO is the only tool in the category combining **intake + AI enrichment + image prep + pricing + listing generation + storefront** in one workflow.
 
 ---
 
-## Best pricing model
+## Plans
 
-Recommended model:
-
-**Subscription + usage buckets**
-
-### What should be included in subscription
-Do not meter things that feel annoying or “too SaaS-y”:
-
-- stored inventory
-- number of photos uploaded
-- manual edits
-- basic exports
-- storefront pages
-- normal workspace usage
-
-### What should be usage-limited
-Meter the expensive AI actions:
-
-- AI item drafts
-- lifestyle image generations
-- maybe advanced price research credits
-
-This keeps pricing fair while protecting margins.
+### Free Trial
+- 7 days full access, no card required
+- After trial: account locked until plan selected (products and data preserved)
+- Alternative entry: 25 free AI drafts without a card (better for acquisition)
 
 ---
-
-## Recommended launch pricing plans
 
 ### Starter — $19/month
-For casual or part-time sellers.
 
-Suggested limits:
-- 50 AI item drafts / month
-- 20 background removals
-- 10 lifestyle generations
-- marketplace copy generation
-- 1 storefront
-- basic export/share tools
+For casual or part-time sellers getting started.
 
-Why:
-- low enough to convert new users
-- still premium enough to avoid looking like a toy
+| Feature | Limit |
+|---|---|
+| AI product drafts (recognition + metadata) | 50 / month |
+| Background removals (Photoroom) | 150 / month |
+| AI lifestyle image generations | 150 / month |
+| Price research runs | 50 / month |
+| Marketplace listing copies generated | included |
+| Storefront | 1 (full branding) |
+| Product inventory stored | unlimited |
+| Image originals stored | unlimited |
+| ZIP export/import | included |
+| API access | included |
+| Support | Email & support system |
+
+**Daily API cost ceiling (enforced):** ~$0.50 / day
 
 ---
 
-### Growth — $39/month
-Recommended default plan.
+### Growth — $39/month ⭐ Most popular
 
-Suggested limits:
-- 250 AI item drafts / month
-- 150 background removals
-- 75 lifestyle generations
-- price research
-- marketplace-specific copy
-- storefront
-- batch workflow
-- priority processing
+The recommended default plan for active resellers.
 
-Why:
-- strong balance of value and margin
-- close to reseller-tool market expectations
-- best candidate for the “most popular” plan
+| Feature | Limit |
+|---|---|
+| AI product drafts | 250 / month |
+| Background removals | 750 / month |
+| AI lifestyle image generations | 750 / month |
+| Price research runs | 250 / month |
+| Marketplace listing copies | included |
+| Storefront | 1 (full branding) |
+| Product inventory stored | unlimited |
+| Image originals stored | unlimited |
+| ZIP export/import | included |
+| API access | included |
+| Support | Priority email & support system |
+
+**Daily API cost ceiling (enforced):** ~$2.00 / day
 
 ---
 
 ### Pro — $79/month
+
 For serious solo resellers and small teams.
 
-Suggested limits:
-- 1000 AI item drafts / month
-- 500 background removals
-- 250 lifestyle generations
-- advanced pricing insights
-- faster queues
-- multi-storefront or branded storefront extras
-- CSV/API export
-- 1–2 seats included
+| Feature | Limit |
+|---|---|
+| AI product drafts | 1,000 / month |
+| Background removals | 3,000 / month |
+| AI lifestyle image generations | 3,000 / month |
+| Price research runs | 1,000 / month |
+| Marketplace listing copies | included |
+| Storefront | 1 (full branding) |
+| Product inventory stored | unlimited |
+| Image originals stored | unlimited |
+| ZIP export/import | included |
+| API access | included |
+| Seats | 2 included |
+| Support | Priority email & support system |
 
-Why:
-- captures power users
-- gives room for higher-margin usage
-- supports more professional sellers
-
----
-
-## Add-ons
-
-Suggested add-ons:
-
-- **100 extra AI drafts** — $7–9
-- **50 lifestyle image generations** — $9–12
-- **extra seat** — $12–15
-- **extra storefront / custom domain** — $8–12
-
-Why:
-- reduces churn from temporary spikes
-- avoids forcing upgrades too early
-- improves expansion revenue
+**Daily API cost ceiling (enforced):** ~$5.00 / day
 
 ---
 
-## Free trial recommendation
+## Add-on Packs (one-time purchases)
 
-Recommended launch offer:
+Add-ons are processed via LemonSqueezy one-time payments and credited immediately to the account.
 
-- **7-day free trial**, or
-- **25 free AI drafts without card**
+| Add-on | Price | Credits |
+|---|---|---|
+| AI Draft Pack | $8 | +100 AI product drafts |
+| Lifestyle Image Pack | $10 | +50 lifestyle image generations |
+| Background Removal Pack | $7 | +100 background removals |
+| Extra Seat | $14/mo | +1 additional workspace seat |
 
-The second option may work especially well for user acquisition because it lets sellers test real outcomes quickly.
-
----
-
-## What to avoid
-
-Avoid these launch mistakes:
-
-- **$9/month all-in pricing**
-  - too hard to sustain with AI costs
-  - pushes product into the “cheap tool” bucket
-
-- **starting at $69+**
-  - too expensive for a new brand without strong trust signals
-
-- **too many plans**
-  - 3 paid plans is enough for launch
-
-- **charging for stored inventory**
-  - sellers dislike paying for inactive or unsold items
-
-- **treating AI as a tiny add-on**
-  - AI is the core value, not a side feature
+Add-on credits roll over month-to-month (they do not expire with the billing cycle).
 
 ---
 
-## Recommended public pricing to launch with
+## Annual Billing
 
-### Monthly
-- **Starter** — $19/mo
-- **Growth** — $39/mo
-- **Pro** — $79/mo
+Annual plans offer ~2 months free:
 
-### Billing strategy
-- launch with monthly first
-- later add annual plans with about **2 months free**
+| Plan | Monthly | Annual (÷12) | Savings |
+|---|---|---|---|
+| Starter | $19/mo | $15.83/mo ($190/yr) | ~17% |
+| Growth | $39/mo | $32.50/mo ($390/yr) | ~17% |
+| Pro | $79/mo | $65.83/mo ($790/yr) | ~17% |
 
----
-
-## Mobile app note (iOS and Android)
-
-Because ResellerIO is becoming a mobile app for iOS and Android, subscription economics must account for mobile store billing rules and fees.
-
-Practical recommendation:
-
-- keep the same plan names across web and mobile
-- use web pricing as the base reference
-- leave enough margin for App Store / Play Store fees
-- avoid ultra-low pricing that becomes unprofitable on mobile
+Launch with monthly only. Add annual billing as a growth lever once monthly retention is established.
 
 ---
 
-## Final recommendation
+## Limit-to-Metric Mapping
 
-ResellerIO should launch as an **AI reseller operating system**, not as a bargain crosslister.
+Plan limits map directly to existing `Reseller.Metrics` infrastructure:
 
-### Best launch pricing:
-- **Starter** — $19/mo
-- **Growth** — $39/mo
-- **Pro** — $79/mo
+| Plan Limit | Metric Field | Provider |
+|---|---|---|
+| AI product drafts | `gemini_calls` (operation: recognition, description) | Gemini |
+| Background removals | `photoroom_calls` | Photoroom |
+| Lifestyle image generations | `gemini_calls` (operation: lifestyle_image) | Gemini + Photoroom |
+| Price research runs | `serp_api_calls` + `gemini_calls` (operation: price_research_*) | SerpApi + Gemini |
 
-### Recommended default:
-**Growth — $39/month**
+Monthly limits are checked against `api_usage_events` aggregated by `user_id` and month.
+Daily hard ceilings map to the existing `daily_limits` config in `Reseller.Metrics`.
 
-This structure gives:
-- a low-friction entry point
-- a strong mid-tier conversion plan
-- room for AI costs and margin
-- clear upsell paths through add-ons
+Plan-level monthly limits will require a new `user_plan_limits` lookup in `check_limit/2`.
+
+---
+
+## Mobile / App Store Consideration
+
+Because ResellerIO targets iOS and Android:
+- Keep the same plan names across web and mobile
+- Web billing (LemonSqueezy) is the canonical source of truth
+- Leave margin headroom for App Store (30%) and Play Store (15–30%) fees if in-app billing is added later
+- Do not set pricing so low it becomes unprofitable on mobile
+
+---
+
+## What to Avoid at Launch
+
+- **$9/mo all-in** — unsustainable with Gemini + Photoroom + SerpApi costs
+- **Starting at $69+** — too expensive for a new brand without established trust
+- **More than 3 paid plans** — adds decision paralysis
+- **Charging for stored inventory** — sellers hate paying for unsold items
+- **Treating AI as a minor add-on** — AI is the core product differentiator
+
+---
+
+## LemonSqueezy Integration
+
+### Subscriptions
+Use [LemonSqueezy Subscriptions](https://www.lemonsqueezy.com/ecommerce/subscriptions) for recurring plan billing.
+
+Key flows:
+1. User selects plan on `/pricing` → redirected to hosted LemonSqueezy checkout
+2. On successful payment: webhook → update `users.plan` + `users.plan_expires_at`
+3. On renewal: webhook → extend `plan_expires_at`
+4. On cancellation: webhook → set `plan_status = "canceling"`, access continues until `plan_expires_at`
+5. On expiry: access gated to free-tier limits
+
+### One-time Payments
+Use [LemonSqueezy Payments](https://www.lemonsqueezy.com/ecommerce/payments) for add-on credit packs.
+
+Key flows:
+1. User clicks add-on → LemonSqueezy checkout for one-time payment
+2. On successful payment: webhook → credit `users.addon_credits` map
+3. Credits consumed from addon bucket before monthly plan bucket
+
+### Webhook Events to Handle
+| Event | Action |
+|---|---|
+| `subscription_created` | Assign plan, set `plan_expires_at`, send welcome email |
+| `subscription_updated` | Update plan tier or status |
+| `subscription_renewed` | Extend `plan_expires_at`, send renewal confirmation |
+| `subscription_cancelled` | Set `plan_status = "canceling"` |
+| `subscription_expired` | Downgrade to free/locked, send expiry email |
+| `subscription_payment_failed` | Send payment failure email, set `plan_status = "past_due"` |
+| `order_created` (add-on) | Credit addon pack to user account |
+
+### Expiration Email Cadence
+- **7 days before** expiry: "Your ResellerIO plan expires in 7 days" — include renewal CTA
+- **2 days before** expiry: "Last chance — your plan expires in 2 days" — urgent CTA
+- **On expiry**: "Your ResellerIO plan has expired" — offer to reactivate, data preserved
+- **After payment failure**: "Action required — update your billing information"
+
+---
+
+## Pricing Page Sections
+
+The public `/pricing` page should include:
+
+1. **Header** — "Simple, transparent pricing for serious resellers."
+2. **Billing toggle** — Monthly / Annual (annual shows savings badge)
+3. **Plan cards** — Starter / Growth / Pro with feature comparison
+4. **Add-on section** — "Need more? Grab a credit pack."
+5. **FAQ** — Common questions about trials, cancellation, data, mobile
+6. **Final CTA** — "Start your 7-day free trial. No card required."
+
+### FAQ Content
+- *Can I cancel anytime?* — Yes. Your data is preserved. You can reactivate at any time.
+- *What happens when I hit my limit?* — Processing is paused for that operation until the next billing cycle or you buy a pack.
+- *Do add-on credits expire?* — No. Add-on credits roll over indefinitely.
+- *Is there a free trial?* — 7 days free, no card required.
+- *Can I use the mobile app on any plan?* — Yes, all plans include API access for mobile.
+- *What if I need more than Pro?* — Contact us for a custom arrangement.

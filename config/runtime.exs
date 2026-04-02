@@ -69,6 +69,26 @@ config :reseller, Reseller.Media.Storage.Tigris,
 config :reseller, Reseller.Media.Processors.Photoroom,
   api_key: System.get_env("PHOTOROOM_API_KEY")
 
+config :reseller, Reseller.Billing.LemonSqueezy,
+  api_key: System.get_env("LEMONSQUEEZY_API_KEY"),
+  webhook_secret: System.get_env("LEMONSQUEEZY_WEBHOOK_SECRET"),
+  store_id: System.get_env("LEMONSQUEEZY_STORE_ID"),
+  variants: %{
+    "starter_monthly" => System.get_env("LS_VARIANT_STARTER_MONTHLY"),
+    "starter_annual" => System.get_env("LS_VARIANT_STARTER_ANNUAL"),
+    "growth_monthly" => System.get_env("LS_VARIANT_GROWTH_MONTHLY"),
+    "growth_annual" => System.get_env("LS_VARIANT_GROWTH_ANNUAL"),
+    "pro_monthly" => System.get_env("LS_VARIANT_PRO_MONTHLY"),
+    "pro_annual" => System.get_env("LS_VARIANT_PRO_ANNUAL"),
+    "addon_ai_drafts" => System.get_env("LS_VARIANT_ADDON_AI_DRAFTS"),
+    "addon_lifestyle" => System.get_env("LS_VARIANT_ADDON_LIFESTYLE"),
+    "addon_bg_removals" => System.get_env("LS_VARIANT_ADDON_BG_REMOVALS"),
+    "addon_extra_seat" => System.get_env("LS_VARIANT_ADDON_EXTRA_SEAT")
+  }
+
+config :reseller, Reseller.Billing,
+  from_email: System.get_env("BILLING_FROM_EMAIL") || "billing@resellerio.com"
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
