@@ -82,6 +82,11 @@ Authenticated:
 - `GET /api/v1/me/usage`
 - product tabs, storefront, inquiries, products, exports, and imports endpoints under `/api/v1`
 
+Current media payload convention:
+
+- product responses include `image_urls` plus `images[*].url`
+- storefront responses include `image_urls` for branding assets plus `assets[*].url`
+
 See [`docs/API.md`](docs/API.md) and [`docs/MOBILE_API_GUIDE.md`](docs/MOBILE_API_GUIDE.md) for endpoint details.
 
 ## Product Capabilities

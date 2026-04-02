@@ -316,7 +316,7 @@ defmodule ResellerWeb.APIDocsLive do
               ]}
               request_example={nil}
               response_example={
-                ~s({\n  "data": {\n    "products": [\n      {\n        "id": 1,\n        "status": "ready",\n        "title": "Vintage blazer",\n        "brand": "Ralph Lauren",\n        "category": "Blazers",\n        "price": "89.00",\n        "tags": ["vintage", "wool"],\n        "images": [],\n        "latest_processing_run": null\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 15, "total_count": 1, "total_pages": 1},\n    "filters": {"status": "all", "query": null, "sort": "updated_at", "dir": "desc"}\n  }\n})
+                ~s({\n  "data": {\n    "products": [\n      {\n        "id": 1,\n        "status": "ready",\n        "title": "Vintage blazer",\n        "brand": "Ralph Lauren",\n        "category": "Blazers",\n        "price": "89.00",\n        "tags": ["vintage", "wool"],\n        "image_urls": ["https://cdn.example.test/users/1/products/1/originals/front.jpg"],\n        "images": [{"id": 31, "kind": "original", "url": "https://cdn.example.test/users/1/products/1/originals/front.jpg"}],\n        "latest_processing_run": null\n      }\n    ],\n    "pagination": {"page": 1, "page_size": 15, "total_count": 1, "total_pages": 1},\n    "filters": {"status": "all", "query": null, "sort": "updated_at", "dir": "desc"}\n  }\n})
               }
             />
             <.endpoint
@@ -353,7 +353,7 @@ defmodule ResellerWeb.APIDocsLive do
                 ~s({\n  "product": {\n    "title": "Nike Air Max",\n    "brand": "Nike",\n    "category": "Sneakers",\n    "tags": ["running", "air-max"]\n  },\n  "uploads": [\n    {"filename": "shoe-1.jpg", "content_type": "image/jpeg", "byte_size": 345678}\n  ]\n})
               }
               response_example={
-                ~s({\n  "data": {\n    "product": {\n      "id": 1,\n      "status": "uploading",\n      "title": "Nike Air Max",\n      "images": [{"id": 1, "kind": "original", "processing_status": "pending_upload"}]\n    },\n    "upload_instructions": [\n      {\n        "image_id": 1,\n        "method": "PUT",\n        "upload_url": "https://bucket.tigris.dev/...",\n        "headers": {"content-type": "image/jpeg"},\n        "expires_at": "2026-03-29T18:40:00Z"\n      }\n    ]\n  }\n})
+                ~s({\n  "data": {\n    "product": {\n      "id": 1,\n      "status": "uploading",\n      "title": "Nike Air Max",\n      "image_urls": ["https://cdn.example.test/users/1/products/1/originals/front.jpg"],\n      "images": [{"id": 1, "kind": "original", "url": "https://cdn.example.test/users/1/products/1/originals/front.jpg", "processing_status": "pending_upload"}]\n    },\n    "upload_instructions": [\n      {\n        "image_id": 1,\n        "method": "PUT",\n        "upload_url": "https://bucket.tigris.dev/...",\n        "headers": {"content-type": "image/jpeg"},\n        "expires_at": "2026-03-29T18:40:00Z"\n      }\n    ]\n  }\n})
               }
             />
             <.endpoint
@@ -367,7 +367,7 @@ defmodule ResellerWeb.APIDocsLive do
               ]}
               request_example={nil}
               response_example={
-                ~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90",\n      "brand": "Nike",\n      "price": "125.00",\n      "tags": ["running", "air-max"],\n      "storefront_enabled": true,\n      "storefront_published_at": "2026-03-29T12:00:00Z",\n      "description_draft": {\n        "suggested_title": "Nike Air Max 90",\n        "short_description": "Classic Nike Air Max 90 sneakers in white mesh."\n      },\n      "price_research": {\n        "suggested_target_price": "125.00",\n        "pricing_confidence": 0.82\n      },\n      "marketplace_listings": [\n        {"marketplace": "ebay", "status": "generated", "generated_title": "Nike Air Max 90 Sneakers White Mesh", "external_url": "https://www.ebay.com/itm/1234567890"}\n      ],\n      "images": [\n        {"id": 31, "kind": "original", "processing_status": "ready", "storefront_visible": true, "storefront_position": 1},\n        {"id": 32, "kind": "background_removed", "processing_status": "ready", "storefront_visible": false, "storefront_position": null}\n      ]\n    }\n  }\n})
+                ~s({\n  "data": {\n    "product": {\n      "id": 12,\n      "status": "ready",\n      "title": "Nike Air Max 90",\n      "brand": "Nike",\n      "price": "125.00",\n      "tags": ["running", "air-max"],\n      "storefront_enabled": true,\n      "storefront_published_at": "2026-03-29T12:00:00Z",\n      "image_urls": [\n        "https://cdn.example.test/users/1/products/12/originals/front.jpg",\n        "https://cdn.example.test/users/1/products/12/processed/background-removed.png"\n      ],\n      "description_draft": {\n        "suggested_title": "Nike Air Max 90",\n        "short_description": "Classic Nike Air Max 90 sneakers in white mesh."\n      },\n      "price_research": {\n        "suggested_target_price": "125.00",\n        "pricing_confidence": 0.82\n      },\n      "marketplace_listings": [\n        {"marketplace": "ebay", "status": "generated", "generated_title": "Nike Air Max 90 Sneakers White Mesh", "external_url": "https://www.ebay.com/itm/1234567890"}\n      ],\n      "images": [\n        {"id": 31, "kind": "original", "url": "https://cdn.example.test/users/1/products/12/originals/front.jpg", "processing_status": "ready", "storefront_visible": true, "storefront_position": 1},\n        {"id": 32, "kind": "background_removed", "url": "https://cdn.example.test/users/1/products/12/processed/background-removed.png", "processing_status": "ready", "storefront_visible": false, "storefront_position": null}\n      ]\n    }\n  }\n})
               }
             />
             <.endpoint
@@ -789,7 +789,7 @@ defmodule ResellerWeb.APIDocsLive do
               args={[]}
               request_example={nil}
               response_example={
-                ~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "neutral-warm",\n      "enabled": true,\n      "assets": [{"id": 1, "kind": "logo", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    }\n  }\n})
+                ~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "neutral-warm",\n      "enabled": true,\n      "image_urls": ["https://cdn.example.test/users/1/storefronts/3/logo/logo.png"],\n      "assets": [{"id": 1, "kind": "logo", "url": "https://cdn.example.test/users/1/storefronts/3/logo/logo.png", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    }\n  }\n})
               }
             />
             <.endpoint

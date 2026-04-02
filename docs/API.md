@@ -626,6 +626,8 @@ Unknown or unauthorized tab IDs return `404`.
 
 Returns the authenticated user's storefront configuration. If no storefront has been saved yet, returns an unsaved record with `id: null`.
 
+Storefront responses include `image_urls`, an ordered list of storefront asset URLs, and each entry in `assets` also includes its own `url`.
+
 Required header:
 
 ```text
@@ -645,11 +647,15 @@ Response:
       "description": "Secondhand fashion with fast shipping.",
       "theme_id": "neutral-warm",
       "enabled": true,
+      "image_urls": [
+        "https://cdn.example.test/users/1/storefronts/3/logo/logo.png"
+      ],
       "assets": [
         {
           "id": 1,
           "kind": "logo",
-          "storage_key": "users/1/storefronts/3/logo.png",
+          "storage_key": "users/1/storefronts/3/logo/logo.png",
+          "url": "https://cdn.example.test/users/1/storefronts/3/logo/logo.png",
           "content_type": "image/png",
           "original_filename": "logo.png",
           "width": 400,
@@ -1131,12 +1137,16 @@ Response:
       "description_draft": null,
       "price_research": null,
       "marketplace_listings": [],
+      "image_urls": [
+        "https://cdn.example.test/users/1/products/1/originals/uuid.jpg"
+      ],
       "images": [
         {
           "id": 1,
           "kind": "original",
           "position": 1,
           "storage_key": "users/1/products/1/originals/uuid.jpg",
+          "url": "https://cdn.example.test/users/1/products/1/originals/uuid.jpg",
           "content_type": "image/jpeg",
           "processing_status": "pending_upload",
           "original_filename": "shoe-1.jpg",
@@ -1193,6 +1203,8 @@ Product payload notes:
 - `latest_processing_run` returns the newest core AI-processing run, if one exists.
 - `latest_lifestyle_generation_run` returns the newest dedicated lifestyle-image generation run, if one exists.
 - `marketplace_listings[*].external_url` stores the seller-managed live listing URL for each marketplace when available.
+- `image_urls` returns the ordered list of product image URLs for the current payload.
+- `images[*].url` returns the CDN/public URL for that specific image record.
 - `images[*].storefront_visible` and `images[*].storefront_position` control storefront gallery selection and ordering.
 - each image now reserves lifecycle metadata for AI-generated lifestyle previews:
   - `lifestyle_generation_run_id`
@@ -1212,6 +1224,10 @@ Example excerpt:
       "status": "ready",
       "storefront_enabled": true,
       "storefront_published_at": "2026-03-29T12:00:00Z",
+      "image_urls": [
+        "https://cdn.example.test/users/1/products/12/originals/front.jpg",
+        "https://cdn.example.test/users/1/products/12/generated/model-studio-1.png"
+      ],
       "latest_lifestyle_generation_run": {
         "id": 4,
         "status": "completed",
@@ -1226,12 +1242,14 @@ Example excerpt:
         {
           "id": 31,
           "kind": "original",
+          "url": "https://cdn.example.test/users/1/products/12/originals/front.jpg",
           "storefront_visible": true,
           "storefront_position": 1
         },
         {
           "id": 44,
           "kind": "lifestyle_generated",
+          "url": "https://cdn.example.test/users/1/products/12/generated/model-studio-1.png",
           "scene_key": "model_studio",
           "variant_index": 1,
           "lifestyle_generation_run_id": 4,

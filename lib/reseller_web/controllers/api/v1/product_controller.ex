@@ -2,6 +2,7 @@ defmodule ResellerWeb.API.V1.ProductController do
   use ResellerWeb, :controller
 
   alias Reseller.Catalog
+  alias Reseller.Media
   alias Reseller.Metrics
   alias ResellerWeb.APIError
 
@@ -552,6 +553,7 @@ defmodule ResellerWeb.API.V1.ProductController do
       price_research: price_research_json(product.price_research),
       marketplace_listings:
         Enum.map(product.marketplace_listings || [], &marketplace_listing_json/1),
+      image_urls: image_urls(product.images || []),
       images: Enum.map(product.images || [], &image_json/1)
     }
   end
@@ -572,6 +574,7 @@ defmodule ResellerWeb.API.V1.ProductController do
       kind: image.kind,
       position: image.position,
       storage_key: image.storage_key,
+      url: image_url(image),
       content_type: image.content_type,
       width: image.width,
       height: image.height,
@@ -591,6 +594,19 @@ defmodule ResellerWeb.API.V1.ProductController do
       inserted_at: datetime_to_iso8601(image.inserted_at),
       updated_at: datetime_to_iso8601(image.updated_at)
     }
+  end
+
+  defp image_urls(images) do
+    images
+    |> Enum.map(&image_url/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp image_url(image) do
+    case Media.public_url_for_image(image) do
+      {:ok, url} -> url
+      {:error, _reason} -> nil
+    end
   end
 
   defp datetime_to_iso8601(nil), do: nil

@@ -3,6 +3,9 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
 
   import Reseller.StorefrontFixtures
 
+  alias Reseller.Media
+  alias Reseller.Storefronts
+
   setup %{conn: conn} do
     user = user_fixture(%{"email" => "storefront-api@example.com"})
     {raw_token, _api_token} = api_token_fixture(user, %{"device_name" => "iPhone"})
@@ -32,6 +35,50 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
       assert body["data"]["storefront"]["id"] == storefront.id
       assert body["data"]["storefront"]["slug"] == "mystore"
       assert body["data"]["storefront"]["title"] == "My Store"
+    end
+
+    test "returns storefront asset urls", %{conn: conn, user: user} do
+      storefront = storefront_fixture(user, %{"slug" => "mystore", "title" => "My Store"})
+
+      {:ok, _logo} =
+        Storefronts.upsert_storefront_asset_for_user(user, "logo", %{
+          "storage_key" => "users/#{user.id}/storefronts/#{storefront.id}/logo/logo.png",
+          "content_type" => "image/png",
+          "original_filename" => "logo.png",
+          "width" => 400,
+          "height" => 400,
+          "byte_size" => 45_000
+        })
+
+      {:ok, _header} =
+        Storefronts.upsert_storefront_asset_for_user(user, "header", %{
+          "storage_key" => "users/#{user.id}/storefronts/#{storefront.id}/header/header.jpg",
+          "content_type" => "image/jpeg",
+          "original_filename" => "header.jpg",
+          "width" => 1800,
+          "height" => 600,
+          "byte_size" => 54_000
+        })
+
+      header_storage_key = "users/#{user.id}/storefronts/#{storefront.id}/header/header.jpg"
+      logo_storage_key = "users/#{user.id}/storefronts/#{storefront.id}/logo/logo.png"
+
+      header_url = Media.public_url_for_storage_key!(header_storage_key)
+      logo_url = Media.public_url_for_storage_key!(logo_storage_key)
+
+      conn = get(conn, "/api/v1/storefront")
+
+      assert %{
+               "data" => %{
+                 "storefront" => %{
+                   "image_urls" => [^header_url, ^logo_url],
+                   "assets" => [
+                     %{"kind" => "header", "url" => ^header_url},
+                     %{"kind" => "logo", "url" => ^logo_url}
+                   ]
+                 }
+               }
+             } = json_response(conn, 200)
     end
 
     test "returns 401 when unauthenticated" do

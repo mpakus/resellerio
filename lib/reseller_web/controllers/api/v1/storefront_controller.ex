@@ -1,6 +1,7 @@
 defmodule ResellerWeb.API.V1.StorefrontController do
   use ResellerWeb, :controller
 
+  alias Reseller.Media
   alias Reseller.Storefronts
   alias ResellerWeb.APIError
 
@@ -213,6 +214,7 @@ defmodule ResellerWeb.API.V1.StorefrontController do
       description: storefront.description,
       theme_id: storefront.theme_id,
       enabled: storefront.enabled,
+      image_urls: asset_urls(storefront.assets || []),
       assets: Enum.map(storefront.assets || [], &asset_json/1),
       pages: Enum.map(storefront.pages || [], &page_json/1),
       inserted_at: datetime_to_iso8601(storefront.inserted_at),
@@ -239,6 +241,7 @@ defmodule ResellerWeb.API.V1.StorefrontController do
       id: asset.id,
       kind: asset.kind,
       storage_key: asset.storage_key,
+      url: asset_url(asset),
       content_type: asset.content_type,
       original_filename: asset.original_filename,
       width: asset.width,
@@ -247,6 +250,19 @@ defmodule ResellerWeb.API.V1.StorefrontController do
       inserted_at: datetime_to_iso8601(asset.inserted_at),
       updated_at: datetime_to_iso8601(asset.updated_at)
     }
+  end
+
+  defp asset_urls(assets) do
+    assets
+    |> Enum.map(&asset_url/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp asset_url(asset) do
+    case Media.public_url_for_storage_key(asset.storage_key) do
+      {:ok, url} -> url
+      {:error, _reason} -> nil
+    end
   end
 
   defp datetime_to_iso8601(nil), do: nil

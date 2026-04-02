@@ -372,6 +372,11 @@ Current authenticated API surface (see `docs/API.md` for full reference):
 - `POST /api/v1/exports`, `GET /api/v1/exports/:id`
 - `POST /api/v1/imports`, `GET /api/v1/imports/:id`
 
+Media URL response convention:
+
+- product payloads expose `image_urls` and `images[*].url`
+- storefront payloads expose branding `image_urls` and `assets[*].url`
+
 ### Admin
 
 Backpex resources:

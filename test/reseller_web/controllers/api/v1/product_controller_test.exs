@@ -5,6 +5,7 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
 
   alias Reseller.AI
   alias Reseller.Billing
+  alias Reseller.Media
   alias Reseller.Repo
 
   setup %{conn: conn} do
@@ -555,6 +556,25 @@ defmodule ResellerWeb.API.V1.ProductControllerTest do
     assert image_id == image.id
     assert storefront_published_at == DateTime.to_iso8601(published_at)
     assert external_url == "https://example.com/ebay/#{product.id}"
+  end
+
+  test "GET /api/v1/products/:id includes image urls", %{conn: conn, user: user} do
+    product = lifestyle_ready_product_fixture(user)
+    [image | _rest] = product.images
+
+    conn = get(conn, "/api/v1/products/#{product.id}")
+
+    assert %{
+             "data" => %{
+               "product" => %{
+                 "image_urls" => [image_url],
+                 "images" => [%{"id" => image_id, "url" => image_url} | _]
+               }
+             }
+           } = json_response(conn, 200)
+
+    assert image_id == image.id
+    assert {:ok, ^image_url} = Media.public_url_for_image(image)
   end
 
   test "PATCH /api/v1/products/:id accepts marketplace external urls", %{conn: conn, user: user} do

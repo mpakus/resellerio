@@ -188,6 +188,8 @@ Notable mobile-facing fields now included in the product payload:
 
 - `storefront_enabled`
 - `storefront_published_at`
+- `image_urls`
+- `images[*].url`
 - `images[*].storefront_visible`
 - `images[*].storefront_position`
 - `marketplace_listings[*].external_url`
@@ -539,6 +541,11 @@ GET /api/v1/storefront
 ```
 
 Returns the storefront config with `assets` (logo, header images) and `pages`. Returns `id: null` if no storefront has been saved yet.
+
+Storefront payloads also include:
+
+- `image_urls` for the ordered storefront branding asset URLs
+- `assets[*].url` for each individual logo or header asset
 
 ### Create or Update Storefront
 
