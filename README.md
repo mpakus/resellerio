@@ -1,333 +1,356 @@
 # ResellerIO
 
-ResellerIO is a Phoenix backend for a mobile app used by resellers to create and manage product inventory from photos.
+ResellerIO is an API-first Phoenix application for resellers. It powers:
 
-The long-term product flow is:
+- a mobile-facing JSON API
+- a LiveView workspace for day-to-day operations
+- public seller storefronts
+- a Backpex admin surface
 
-1. User taps `+Add` in the mobile app.
-2. Photos are uploaded and attached to a new product.
-3. The backend stores originals in Tigris.
-4. AI recognizes the item and fills product details.
-5. The system generates marketplace-specific listing copy for eBay, Depop, Poshmark, and future channels.
+The core product flow is:
 
-## Current Status
+1. Create a `Product`.
+2. Upload original photos to Tigris with signed upload instructions.
+3. Finalize uploads and enqueue processing.
+4. Run AI recognition and enrichment.
+5. Generate seller-reviewable description, price research, and marketplace drafts.
+6. Optionally create background-removed and lifestyle-generated images.
+7. Publish to a storefront, export a ZIP archive, or import archived inventory back in.
 
-The project is in early backend foundation work.
+## What The App Includes
 
-Implemented already:
+- Versioned JSON API under `/api/v1`
+- OpenAPI document at `/api/v1/openapi.json`
+- Interactive API docs at `/docs/api`
+- Browser auth at `/sign-up`, `/sign-in`, and `DELETE /sign-out`
+- LiveView workspace at `/app`, `/app/products`, `/app/inquiries`, `/app/exports`, and `/app/settings`
+- Public storefronts at `/store/:slug`
+- Backpex admin at `/admin`
+- Pricing page and LemonSqueezy webhook handling
+- API usage tracking for Gemini, SerpApi, and Photoroom calls
+- ZIP export and ZIP import flows
 
-- Versioned JSON API namespace at `/api/v1`
-- API root endpoint at `GET /api/v1`
-- Health endpoint at `GET /api/v1/health`
-- Stable JSON error payload shape for API errors
-- Password-based user registration and login
-- Bearer-token authentication for `GET /api/v1/me`
-- Authenticated product endpoints at `GET /api/v1/products`, `POST /api/v1/products`, `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id`, and `DELETE /api/v1/products/:id`
-- Product lifecycle endpoints at `POST /api/v1/products/:id/finalize_uploads`, `POST /api/v1/products/:id/mark_sold`, `POST /api/v1/products/:id/archive`, and `POST /api/v1/products/:id/unarchive`
-- Browser sign-in and sign-up LiveViews
-- Protected web workspace at `/app`, `/app/products`, `/app/listings`, `/app/exports`, and `/app/settings`
-- Web product intake with browser photo uploads and product creation
-- Web product detail editing with seller-managed tags and statuses, plus sold/archive/restore/delete lifecycle actions
-- Web export requests and ZIP imports from the ResellerIO workspace
-- Backpex admin interface under `/admin` for admin users
-- AI foundation contexts `Reseller.AI` and `Reseller.Search`
-- Req-backed Gemini and SerpApi client modules with tests
-- Recognition orchestration with image selection, confidence gating, Lens fallback, and reconciliation
-- Product and product-image schemas plus signed upload intent generation
-- ExAws-backed Tigris S3 storage for presigned uploads and object PUTs
-- Uploaded-image finalization and product state transitions into `processing`
-- Product processing run records and lightweight background worker execution
-- Real AI-backed product processing that persists recognition fields and closes image states
-- AI-generated base description drafts stored separately from editable product fields
-- AI-generated price research stored separately from editable product pricing
-- Marketplace-specific listing records for eBay, Depop, and Poshmark
-- Photoroom-backed processed image variants
-- ZIP export generation with email-ready notifications
-- ZIP import flow that recreates products, images, and generated metadata from reseller archives
-- Product tags stored directly on `products` and preserved through ZIP export/import
-- In-repo API reference in `docs/API.md`
-- Planning tracker in `docs/PLANS.md`
+## Main Surfaces
 
-Not implemented yet:
+### Public
 
-- Passkey authentication
+- `/`
+- `/pricing`
+- `/privacy`
+- `/dpa`
+- `/docs/api`
+
+### Storefront
+
+- `/store/:slug`
+- `/store/:slug/products/:product_ref`
+- `/store/:slug/pages/:page_slug`
+
+### Workspace
+
+- `/app`
+- `/app/products`
+- `/app/products/new`
+- `/app/products/:id`
+- `/app/inquiries`
+- `/app/exports`
+- `/app/settings`
+
+Legacy routes still present:
+
+- `GET /app/listings` redirects to `/app/products`
+- `GET /app/products/export.xls`
+
+### Admin
+
+- `/admin`
+- `/admin/usage-dashboard`
+- `/admin/api-usage-events`
+
+### API
+
+Public:
+
+- `GET /api/v1`
+- `GET /api/v1/health`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+
+Authenticated:
+
+- `GET /api/v1/me`
+- `PATCH /api/v1/me`
+- `GET /api/v1/me/usage`
+- product tabs, storefront, inquiries, products, exports, and imports endpoints under `/api/v1`
+
+See [`docs/API.md`](docs/API.md) and [`docs/MOBILE_API_GUIDE.md`](docs/MOBILE_API_GUIDE.md) for endpoint details.
+
+## Product Capabilities
+
+- Product CRUD with ownership-scoped access
+- Seller-managed product tabs for workspace organization
+- Signed upload preparation for product and storefront assets
+- Upload finalization batches
+- AI recognition with Gemini
+- Lens and shopping enrichment with SerpApi
+- Description drafts stored separately from seller-edited fields
+- Price research stored separately from seller-edited pricing
+- Marketplace-specific listing generation with separate listing records
+- Processed media variants, including background removal
+- Manual and optional pipeline-driven lifestyle image generation
+- Storefront publication controls and gallery image curation
+- Storefront inquiries with notification delivery
+- ZIP export generation and ZIP import recreation
+- Usage metrics, cost estimation, and admin reporting
+- Subscription and checkout plumbing through LemonSqueezy
+
+## Bounded Contexts
+
+- `Reseller.Accounts` - users, passwords, browser auth, API tokens, admin grants, marketplace defaults
+- `Reseller.Catalog` - products, product tabs, lifecycle, ownership-scoped access
+- `Reseller.Media` - upload intents, finalization, storage, processed variants
+- `Reseller.AI` - recognition, normalization, description drafts, price research, lifestyle generation
+- `Reseller.Search` - Google Lens and shopping enrichment through SerpApi
+- `Reseller.Marketplaces` - supported marketplaces and generated listing persistence
+- `Reseller.Storefronts` - storefront settings, branding assets, pages, public rendering, inquiries
+- `Reseller.Exports` - ZIP creation, upload, notifications
+- `Reseller.Imports` - ZIP parsing and inventory recreation
+- `Reseller.Metrics` - external API usage events, summaries, cost estimation
+- `Reseller.Billing` - plans, checkout links, webhook processing, expiry reminders
+- `Reseller.Workers` - async orchestration for processing, exports, imports, and reminders
+
+## Architecture Notes
+
+- Phoenix 1.8 + LiveView application
+- PostgreSQL via Ecto
+- Tigris for S3-compatible object storage
+- Req for external HTTP integrations
+- Backpex for admin CRUD screens
+- Background work currently runs through `Task.Supervisor`
+- Background jobs are asynchronous but not durable across process or node crashes
+
+The current supervision tree starts:
+
+- `ResellerWeb.Telemetry`
+- `Reseller.Repo`
+- `DNSCluster`
+- `Phoenix.PubSub`
+- `Task.Supervisor` as `Reseller.Workers.TaskSupervisor`
+- `Reseller.Workers.ExpiryScheduler`
+- `ResellerWeb.Endpoint`
+
+For a deeper walkthrough, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Local Development
 
-1. Run `mix setup`
-2. Create a local `.env` from `.env.example` and fill in the credentials you need
-3. Start the server with `mix phx.server`
-4. Open [http://localhost:4000](http://localhost:4000)
-5. Check the API with `GET /api/v1`
+### Prerequisites
 
-`mix setup` already runs [priv/repo/seeds.exs](/Users/mpak/www/elixir/reseller/priv/repo/seeds.exs), which now creates local starter data:
+- Elixir and Erlang/OTP compatible with the project
+- PostgreSQL
+- Node is not required for normal Phoenix dev because asset tooling is managed through Mix tasks
+
+### Quick Start
+
+```bash
+mix setup
+cp .env.example .env
+mix phx.server
+```
+
+Open:
+
+- `http://localhost:4000`
+- `http://localhost:4000/docs/api`
+- `http://localhost:4000/api/v1`
+
+`mix setup` will:
+
+- fetch dependencies
+- create and migrate the database
+- seed local data
+- install/build front-end assets
+
+### Seed Accounts
+
+`mix setup` runs `priv/repo/seeds.exs`, which creates:
 
 - `admin@resellerio.local` / `very-secure-password`
 - `seller@resellerio.local` / `very-secure-password`
 
-It also creates a few starter products in `draft`, `ready`, `sold`, and `archived` states so the UI and API are useful on first boot.
+It also creates starter products in `draft`, `ready`, `sold`, and `archived` states so the workspace and API are useful immediately.
 
-## Project Docs
+## Environment Variables
 
-- Implementation plan and progress tracker: `docs/PLANS.md`
-- API reference: `docs/API.md`
-- Web implementation plan: `docs/PLAN-WEB.md`
-- AI implementation plan: `docs/PLAN-AI.md`
-- Project-specific coding guidance for agents and contributors: `AGENTS.md`
+The app loads dotenv files in development and test using `Nvir`.
 
-## Credentials
-
-This project reads runtime credentials from environment variables in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs) and uses `Nvir` to load local dotenv files during development and test.
-
-For local development, the simplest path is:
-
-```bash
-cp .env.example .env
-```
-
-Then fill in the values you need and start Phoenix. In development, the app loads these files automatically if they exist:
+Development load order:
 
 - `.env`
 - `.env.dev`
 - `.env.local`
 - `.env.dev.local`
 
-In test, the app loads:
+Test load order:
 
 - `.env.test`
 - `.env.test.local`
 
-After changing credentials or `config/*.exs`, restart the Phoenix server.
+After changing runtime config or environment variables, restart Phoenix.
 
-You can still export variables in the shell if you prefer. Example:
-
-```bash
-export GEMINI_API_KEY="..."
-export SERPAPI_API_KEY="..."
-export TIGRIS_ACCESS_KEY_ID="..."
-export TIGRIS_SECRET_ACCESS_KEY="..."
-export AWS_ENDPOINT_URL_S3="https://fly.storage.tigris.dev"
-export TIGRIS_PUBLIC_URL="https://t3.storage.dev"
-export TIGRIS_BUCKET_NAME="your-public-bucket-name"
-export PHOTOROOM_API_KEY="..."
-mix phx.server
-```
-
-If you use `direnv`, `mise`, Docker, Fly.io, Render, Railway, or another deploy system, put the same variable names there. `.env` files are for local development and test convenience and should not be committed.
-
-### Required in Production
+### Required In Production
 
 - `DATABASE_URL`
-  PostgreSQL connection string used by Ecto.
-  Example: `ecto://USER:PASS@HOST/DATABASE`
-
 - `SECRET_KEY_BASE`
-  Phoenix secret used to sign/encrypt cookies and tokens.
-  Generate with `mix phx.gen.secret`
-
 - `PHX_HOST`
-  Public host name for the app.
-  Example: `api.example.com`
-
 - `PORT`
-  HTTP port for the Phoenix endpoint.
-  Defaults to `4000` if omitted
 
-### Required For AI, Search, and Media Features
+### AI, Search, and Media
 
 - `GEMINI_API_KEY`
-  Google Gemini API key used for image recognition, reconciliation, description generation, price research, and marketplace listing generation
-
 - `SERPAPI_API_KEY`
-  SerpApi key used for Google Lens and Shopping enrichment
-
 - `TIGRIS_ACCESS_KEY_ID`
-  Tigris S3-compatible access key ID used for upload signing and object uploads
-
 - `TIGRIS_SECRET_ACCESS_KEY`
-  Tigris S3-compatible secret key used for upload signing and object uploads
-
 - `AWS_ENDPOINT_URL_S3` or `TIGRIS_ENDPOINT_URL`
-  Tigris S3-compatible API endpoint used for upload signing and object uploads
-  Examples:
-  `https://fly.storage.tigris.dev`
-
-- `TIGRIS_PUBLIC_URL`
-  Public base URL used to build image/object URLs for AI fetches and downloads
-  Examples:
-  `https://t3.storage.dev`
-  `https://bucket-name.region.tigris.dev`
-  When this is a generic endpoint such as `https://t3.storage.dev`, the app now builds public URLs as `https://<bucket>.t3.storage.dev/...`
-
-- `TIGRIS_BUCKET_URL`
-  Backward-compatible fallback for the public base URL
-  If set alone, it is also used as the upload endpoint fallback
-
+- `TIGRIS_PUBLIC_URL` or `TIGRIS_BUCKET_URL`
 - `TIGRIS_BUCKET_NAME`
-  Required when the upload endpoint points at a generic Tigris endpoint instead of a bucket-specific domain
-  Example: `summer-grass-2004`
-  This is the bucket name Tigris or Fly.io gives you separately from the endpoint URL
-  Newer Tigris buckets use virtual-hosted bucket URLs, so this value is required for correct upload and public URL generation
-  The AI pipeline now prefers signed download URLs for Gemini and Photoroom, so the bucket no longer has to be fully public for background processing to work
-
 - `PHOTOROOM_API_KEY`
-  Photoroom API key used for background removal image variants
-  If this is missing, the main AI pipeline still completes, but `background_removed` variants are skipped and the processing run records a variant-generation failure
 
-### Optional Runtime Variables
+### Billing
+
+- `LEMONSQUEEZY_API_KEY`
+- `LEMONSQUEEZY_WEBHOOK_SECRET`
+- `LEMONSQUEEZY_STORE_ID`
+- `LS_VARIANT_STARTER_MONTHLY`
+- `LS_VARIANT_STARTER_ANNUAL`
+- `LS_VARIANT_GROWTH_MONTHLY`
+- `LS_VARIANT_GROWTH_ANNUAL`
+- `LS_VARIANT_PRO_MONTHLY`
+- `LS_VARIANT_PRO_ANNUAL`
+- `LS_VARIANT_ADDON_AI_DRAFTS`
+- `LS_VARIANT_ADDON_LIFESTYLE`
+- `LS_VARIANT_ADDON_BG_REMOVALS`
+- `LS_VARIANT_ADDON_EXTRA_SEAT`
+- `BILLING_FROM_EMAIL`
+
+### Common Optional Runtime Config
 
 - `PHX_SERVER`
-  Set to `true` when starting a release if you want the web server enabled
-
 - `POOL_SIZE`
-  Database pool size in production
-  Defaults to `10`
-
 - `ECTO_IPV6`
-  Set to `true` or `1` to enable IPv6 socket options for Postgres connections
-
 - `DNS_CLUSTER_QUERY`
-  Optional DNS cluster query used for clustered deployments
-
-### Optional Gemini Model Overrides
-
-If you want to override the default Gemini model per operation, set any of:
-
 - `GEMINI_MODEL_RECOGNITION`
 - `GEMINI_MODEL_DESCRIPTION`
 - `GEMINI_MODEL_MARKETPLACE_LISTING`
 - `GEMINI_MODEL_PRICE_RESEARCH`
 - `GEMINI_MODEL_RECONCILIATION`
 - `GEMINI_MODEL_LIFESTYLE_IMAGE`
-
-Current defaults in runtime config are `gemini-2.5-flash` for recognition, description, marketplace, price-research, and reconciliation requests, plus `gemini-2.5-flash-image` for lifestyle-image generation.
-
-### Optional Gemini Retry Controls
-
 - `GEMINI_TIMEOUT_MS`
-  HTTP receive timeout for Gemini requests in milliseconds
-  Defaults to `45000`
-
 - `GEMINI_MAX_RETRIES`
-  Number of retry attempts for retryable Gemini `429` / temporary capacity responses
-  Defaults to `1`
-
 - `GEMINI_RETRY_BACKOFF_MS`
-  Base backoff in milliseconds used between Gemini retries
-  Defaults to `750`
 
-### Optional Mailer Credentials
-
-The repo uses the local Swoosh adapter in development and test, so no mail credentials are required locally by default.
-
-If you switch production email delivery to a real provider, add the provider-specific credentials in your deployment environment. The example already noted in [config/runtime.exs](/Users/mpak/www/elixir/reseller/config/runtime.exs) is:
-
-- `MAILGUN_API_KEY`
-- `MAILGUN_DOMAIN`
-
-You will also need to change the Swoosh adapter config accordingly.
-
-### Where To Add Them
-
-- Local terminal session:
-  Export variables in your shell before `mix phx.server`
-
-- Shell profile:
-  Add `export ...` lines to `~/.zshrc`, `~/.bashrc`, or equivalent if you want them loaded automatically
-
-- `direnv` / `.envrc`:
-  Good for project-local development secrets without committing them
-
-- Docker / Compose:
-  Put them in `environment:` or `env_file`
-
-- Production hosting:
-  Add them in your platform's secrets/settings UI, because `runtime.exs` reads them at boot time
+See [`config/runtime.exs`](config/runtime.exs) and [`.env.example`](.env.example) for the current source of truth.
 
 ## Docker
 
-This repo now includes:
+This repo includes:
 
-- [Dockerfile](/Users/mpak/www/elixir/reseller/Dockerfile)
-  Multi-stage production image that builds a Phoenix release
+- `Dockerfile` for a production release image
+- `docker-compose.yml` for app + Postgres
 
-- [docker-compose.yml](/Users/mpak/www/elixir/reseller/docker-compose.yml)
-  Production-style app + Postgres setup with automatic migrations on boot
+The compose setup expects runtime secrets such as:
 
-- [.dockerignore](/Users/mpak/www/elixir/reseller/.dockerignore)
-  Keeps the build context small and avoids copying local build artifacts into the image
+- `POSTGRES_PASSWORD`
+- `SECRET_KEY_BASE`
+- `DATABASE_URL`
+- `PHX_HOST`
+- any optional AI, storage, and billing credentials you want enabled
 
-### Docker Compose Credentials
-
-For `docker compose`, set the same runtime secrets in your shell or in a compose `.env` file before starting:
-
-```bash
-export POSTGRES_PASSWORD="change-me"
-export SECRET_KEY_BASE="$(mix phx.gen.secret)"
-export DATABASE_URL="ecto://reseller:${POSTGRES_PASSWORD}@db/reseller_prod"
-export PHX_HOST="your-domain.example"
-export GEMINI_API_KEY="..."
-export SERPAPI_API_KEY="..."
-export TIGRIS_ACCESS_KEY_ID="..."
-export TIGRIS_SECRET_ACCESS_KEY="..."
-export AWS_ENDPOINT_URL_S3="https://fly.storage.tigris.dev"
-export TIGRIS_PUBLIC_URL="https://t3.storage.dev"
-export TIGRIS_BUCKET_NAME="your-public-bucket-name"
-export PHOTOROOM_API_KEY="..."
-```
-
-Then run:
+Start it with:
 
 ```bash
 docker compose up -d --build
 ```
 
-The compose setup will:
+On container boot, the app service runs:
 
-- build the release image
-- start Postgres
-- wait for Postgres health checks
-- run `Reseller.Release.migrate()`
-- start the Phoenix release on port `4000`
+```bash
+/app/bin/reseller eval 'Reseller.Release.migrate()'
+/app/bin/reseller start
+```
 
-### Docker Notes
+## Admin
 
-- The app container expects `DATABASE_URL` explicitly, even though the compose file also starts Postgres
-- The published port is controlled by `APP_PORT`, which defaults to `4000`
-- `PHX_HOST` should match the external host you use in production
-- If you use an external managed Postgres instead of the included `db` service, point `DATABASE_URL` at that database and remove or ignore the compose `db` service
+Backpex is used for the admin UI.
 
-## Implementation Notes
+- Admin dashboard: `/admin`
+- Usage dashboard: `/admin/usage-dashboard`
+- Raw API usage events: `/admin/api-usage-events`
 
-- Use `AWS_ENDPOINT_URL_S3` or `TIGRIS_ENDPOINT_URL` for upload signing and object PUTs
-- Use `TIGRIS_PUBLIC_URL` for public image URLs consumed by Gemini, SerpApi, export downloads, and import archive fetches
-- If you use a generic endpoint like `https://fly.storage.tigris.dev`, you must also set `TIGRIS_BUCKET_NAME`
-- recognized products can now also receive a generated `product_description_draft` during the same processing run
-- recognized products can now also receive a generated `product_price_research` during the same processing run
-- recognized products can now also receive generated `marketplace_listings` during the same processing run
-- recognized products can now also receive a Photoroom-backed `background_removed` image variant during the same processing run
-- authenticated users can now request ZIP exports that are uploaded in the background and emailed when ready
-- authenticated users can now import ResellerIO ZIP archives via `POST /api/v1/imports`; the current API accepts the archive as base64 JSON and recreates products without re-running AI
-- authenticated users can now update product details, delete products, mark products as sold, archive them, and restore archived products through explicit lifecycle endpoints
+Grant admin access to an existing user with:
 
-## Admin Access
+```bash
+mix reseller.make_admin EMAIL
+```
 
-Backpex is installed for the admin interface.
+## API Docs And Mobile Integration
 
-- Admin UI: `/admin`
-- Bootstrap an admin user: `mix reseller.make_admin EMAIL`
+- Human-readable API reference: [`docs/API.md`](docs/API.md)
+- Mobile integration guide: [`docs/MOBILE_API_GUIDE.md`](docs/MOBILE_API_GUIDE.md)
+- Architecture reference: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- UI system guidance: [`docs/UIUX.md`](docs/UIUX.md)
 
-Admin routes are protected and only users with `is_admin = true` can access them.
+## Related Docs
 
-## Workflow
+- [`docs/PLANS.md`](docs/PLANS.md) - project progress tracker
+- [`docs/PLAN-AI.md`](docs/PLAN-AI.md) - AI pipeline milestones
+- [`docs/PLAN-GENERATE-IMAGE.md`](docs/PLAN-GENERATE-IMAGE.md) - lifestyle image generation plan
+- [`docs/PRICING_PLAN.md`](docs/PRICING_PLAN.md) - billing implementation status
+- [`docs/PRICING_CHECKS.md`](docs/PRICING_CHECKS.md) - billing audit gaps
+- [`docs/METRICS-LIMITS-PLAN.md`](docs/METRICS-LIMITS-PLAN.md) - metrics and quota design
+- [`docs/MARKETS.md`](docs/MARKETS.md) - marketplace-specific generation rules
+- [`docs/MARKETPLACE_RULES.md`](docs/MARKETPLACE_RULES.md) - marketplace policy references
 
-- Update `docs/PLANS.md` as each feature starts or completes.
-- Keep each feature in its own git commit.
-- Run `mix precommit` before finishing a feature.
+## Development Rules
 
-## Phoenix References
+- Keep business logic in contexts, not controllers or LiveViews
+- Reuse `Reseller.Media.Storage` for upload signing and download URLs
+- Reuse `Reseller.Workers` for async orchestration
+- Use `Req` for HTTP integrations
+- Make auth, ownership, and admin checks explicit and regression-tested
+- Return `404` for foreign-owned resources
+- Propagate `user_id` and `product_id` through worker opts for metric attribution
+
+## Testing
+
+Useful commands:
+
+```bash
+mix test
+mix precommit
+```
+
+`mix precommit` runs:
+
+- compile with warnings as errors
+- `deps.unlock --unused`
+- formatter
+- test suite
+
+Add tests with every auth, ownership, admin, API, or worker change. Fixtures live under `test/support/fixtures`.
+
+## Current Status
+
+The core inventory, AI enrichment, storefront, imports/exports, admin, metrics, and billing foundations are all present in the codebase.
+
+Open follow-up work is tracked in:
+
+- [`docs/PLANS.md`](docs/PLANS.md)
+- [`docs/PLAN-GENERATE-IMAGE.md`](docs/PLAN-GENERATE-IMAGE.md)
+- [`docs/PRICING_CHECKS.md`](docs/PRICING_CHECKS.md)
+
+## References
 
 - [Phoenix](https://www.phoenixframework.org/)
 - [Phoenix Guides](https://hexdocs.pm/phoenix/overview.html)
-- [Phoenix Docs](https://hexdocs.pm/phoenix)
-- [Phoenix Forum](https://elixirforum.com/c/phoenix-forum)
+- [Phoenix LiveView](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html)
+- [Backpex](https://hexdocs.pm/backpex/readme.html)
