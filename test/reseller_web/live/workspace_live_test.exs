@@ -216,18 +216,6 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert_route_section(conn, "/app/settings", "#workspace-settings")
   end
 
-  test "legacy listings route redirects to products", %{conn: conn} do
-    user = user_fixture(%{"email" => "seller@example.com"})
-
-    conn =
-      conn
-      |> init_test_session(%{user_id: user.id})
-      |> get("/app/listings")
-
-    assert redirected_to(conn) == "/app/products"
-    assert Phoenix.Flash.get(conn.assigns.flash, :info) == "Listings moved to Products."
-  end
-
   test "updates marketplace defaults from the settings screen", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})

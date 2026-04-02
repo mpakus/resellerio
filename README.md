@@ -56,9 +56,8 @@ The core product flow is:
 - `/app/exports`
 - `/app/settings`
 
-Legacy routes still present:
+Additional workspace endpoint:
 
-- `GET /app/listings` redirects to `/app/products`
 - `GET /app/products/export.xls`
 
 ### Admin

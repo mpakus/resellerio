@@ -63,7 +63,6 @@ defmodule ResellerWeb.Router do
     scope "/" do
       pipe_through :browser_authenticated
 
-      get "/app/listings", WorkspaceRedirectController, :listings
       get "/app/products/export.xls", ProductsExcelController, :download
     end
 
