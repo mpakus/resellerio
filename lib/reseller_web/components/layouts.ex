@@ -52,11 +52,11 @@ defmodule ResellerWeb.Layouts do
           </.link>
 
           <div class="hidden items-center gap-3 md:flex">
-            <a href="#workflow" class="btn btn-ghost btn-sm rounded-full">Workflow</a>
-            <a href="#features" class="btn btn-ghost btn-sm rounded-full">Features</a>
-            <a href="#lifestyle" class="btn btn-ghost btn-sm rounded-full">Lifestyle AI</a>
-            <a href="#marketplace-strip" class="btn btn-ghost btn-sm rounded-full">Markets</a>
-            <a href="#storefront" class="btn btn-ghost btn-sm rounded-full">Storefront</a>
+            <a href="/#workflow" class="btn btn-ghost btn-sm rounded-full">Workflow</a>
+            <a href="/#features" class="btn btn-ghost btn-sm rounded-full">Features</a>
+            <a href="/#lifestyle" class="btn btn-ghost btn-sm rounded-full">Lifestyle AI</a>
+            <a href="/#marketplace-strip" class="btn btn-ghost btn-sm rounded-full">Markets</a>
+            <a href="/#storefront" class="btn btn-ghost btn-sm rounded-full">Storefront</a>
             <.link navigate={~p"/pricing"} class="btn btn-ghost btn-sm rounded-full">Pricing</.link>
             <%= if @current_user do %>
               <.link navigate={~p"/app"} class="btn btn-ghost btn-sm rounded-full">Workspace</.link>
