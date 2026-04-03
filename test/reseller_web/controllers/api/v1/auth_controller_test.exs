@@ -4,6 +4,7 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
   alias Reseller.Accounts
   alias Reseller.Accounts.ApiToken
   alias Reseller.Repo
+  alias Phoenix.ConnTest
 
   describe "POST /api/v1/auth/register" do
     test "creates a user and returns a bearer token", %{conn: conn} do
@@ -154,6 +155,59 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
                  "status" => 400
                }
              }
+    end
+  end
+
+  describe "API CORS" do
+    test "answers preflight requests for auth login", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("origin", "https://app.reseller.test")
+        |> put_req_header("access-control-request-method", "POST")
+        |> put_req_header("access-control-request-headers", "authorization, content-type")
+        |> ConnTest.dispatch(@endpoint, :options, "/api/v1/auth/login")
+
+      assert response(conn, 204) == ""
+      assert get_resp_header(conn, "access-control-allow-origin") == ["https://app.reseller.test"]
+
+      assert get_resp_header(conn, "access-control-allow-methods") == [
+               "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+             ]
+
+      assert get_resp_header(conn, "access-control-allow-headers") == [
+               "authorization, content-type"
+             ]
+
+      assert get_resp_header(conn, "access-control-max-age") == ["86400"]
+
+      assert get_resp_header(conn, "vary") == [
+               "Origin, Access-Control-Request-Headers, Access-Control-Request-Method"
+             ]
+    end
+
+    test "includes CORS headers on auth responses", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("origin", "https://app.reseller.test")
+        |> post("/api/v1/auth/login", %{"email" => "seller@example.com"})
+
+      assert json_response(conn, 400) == %{
+               "error" => %{
+                 "code" => "invalid_request",
+                 "detail" => "Email and password are required",
+                 "status" => 400
+               }
+             }
+
+      assert get_resp_header(conn, "access-control-allow-origin") == ["https://app.reseller.test"]
+
+      assert get_resp_header(conn, "access-control-allow-methods") == [
+               "GET, POST, PATCH, PUT, DELETE, OPTIONS"
+             ]
+
+      assert get_resp_header(conn, "access-control-allow-headers") == [
+               "authorization, content-type, accept"
+             ]
     end
   end
 end

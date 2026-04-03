@@ -1,40 +1,49 @@
-# ResellerIO Pricing System — Audit Gaps
+# Pricing and Limits Checks
 
-Last analysed: `Reseller.Billing`, `Reseller.Billing.Plans`, `Reseller.Metrics`,
-`ResellerWeb.API.V1.ProductController`, `ResellerWeb.API.V1.UserJSON`.
+This file records the remaining pricing/billing items worth revisiting after the current implementation pass.
 
-## Open Issues
+## Verified in Code
 
-| # | Area | Issue | Severity |
-|---|---|---|---|
-| T1 | Trial | Trial not started on web or API registration — new users get `plan_status: "free"` immediately | 🔴 Critical |
-| T2 | Trial | `users_expiring_within/2` excludes `"trialing"` users from reminder sweeps | 🟠 High |
-| T3 | Trial | `users_past_expiry/0` excludes trialing users — lapsed trials stay `"trialing"` indefinitely | 🔴 Critical |
-| T5 | Trial | No expired-trial gate on API or LiveView | 🟠 High |
-| L1 | Limits | `generate_lifestyle_images` has no `check_plan_limit` call | 🔴 Critical |
-| L2 | Limits | Workspace LiveView processing actions bypass monthly plan limits | 🟠 High |
-| L3 | Limits | Addon credit math double-counts (effective_used = max(0, used - addon) is wrong; should be effective_limit = plan_limit + addon) | 🟡 Medium |
-| L4 | Limits | Expired trial users bypass plan limits | 🟠 High |
-| L5 | Limits | Daily hard ceiling and monthly plan limit are separate — `finalize_uploads` only calls `check_plan_limit` | 🟡 Medium |
-| L6 | Limits | Free users have no daily limit gate in the API | 🟠 High |
-| A1 | API | `GET /api/v1/me` does not expose `plan`, `plan_status`, `plan_period`, `plan_expires_at`, `trial_ends_at`, `addon_credits` | 🔴 Critical |
-| A3 | API | No `GET /api/v1/me/usage` endpoint for mobile quota display | 🟡 Medium |
-Note: A2 = L1, A4 = T1 (same issues from different angles).
+- registration starts users as `plan_status: "trialing"` with `trial_ends_at`
+- `GET /api/v1/me` exposes plan and add-on fields
+- `GET /api/v1/me/usage` exists
+- addon credits are added to the effective plan limit in `Reseller.Metrics.check_plan_limit/1`
+- `generate_lifestyle_images` is gated through `Metrics.check_processing_limit/1`
 
-## Recently Resolved
+## Remaining Review Items
 
-| # | Area | Resolution | Date |
-|---|---|---|---|
-| A5 | API | `402` `limit_exceeded` responses now return an absolute `upgrade_url` (`https://resellerio.com/pricing`) for mobile upgrade CTAs | 2026-04-02 |
+### 1. Trial semantics
 
-## Recommended Fix Order
+Registration leaves `plan: "free"` while setting `plan_status: "trialing"`.
 
-1. **T1/A4** — Start trial on registration (`register_user/1` + `AuthController.register/2`)
-2. **A1** — Expose plan fields in `UserJSON`
-3. **L1/A2** — Add `check_plan_limit` to `generate_lifestyle_images`
-4. **T3** — Fix `users_past_expiry` to include trialing users
-5. **L6** — Call daily `check_limit` for free users in `finalize_uploads`/`reprocess`
-6. **T2** — Include trialing users in expiry reminder sweeps
-7. **L3** — Fix addon credit math: `effective_limit = plan_limit + addon_credit`, compare `used >= effective_limit`
-8. **A3** — `GET /api/v1/me/usage` returning current-month quota counts and limits
-9. **L2/T5** — Add plan/trial gate to workspace LiveView processing actions
+Implication:
+
+- trial users currently follow the free-plan branch in `check_processing_limit/1`
+- that means daily hard ceilings apply, not paid-plan monthly quotas
+
+Question:
+
+- is that intentional product behavior, or should trial users map to a paid plan tier for quota purposes?
+
+### 2. Seat enforcement
+
+Pricing UI sells an `Extra Seat` add-on, but the app does not currently implement multi-user workspace seats.
+
+Question:
+
+- should this stay as roadmap copy, or should seat-aware authorization and invitations be added?
+
+### 3. Annual billing truth
+
+Annual pricing is rendered on `/pricing`, but the actual rollout status depends on LemonSqueezy variant configuration.
+
+Question:
+
+- should annual pricing remain visible in all environments, or be hidden unless variants are configured?
+
+## Source of Truth
+
+- billing state: `lib/reseller/billing.ex`
+- plan metadata: `lib/reseller/billing/plans.ex`
+- limits: `lib/reseller/metrics.ex`
+- pricing page: `lib/reseller_web/live/pricing_live.ex`

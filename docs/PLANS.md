@@ -1,48 +1,31 @@
-# ResellerIO Backend Plan
+# Project Plan Snapshot
 
-## Progress Tracker
+This file is the compressed status board for the repo.
 
-- [x] Step 1: API foundation with versioned `/api/v1`, health check endpoint, and stable JSON error shape.
-- [x] Step 2: Accounts foundation with `users`, password auth, and mobile session tokens.
-- [x] Step 3.1: Product and product image schemas plus signed upload intent generation.
-- [x] Step 3.2: Finalize-upload endpoint and uploaded-image state transitions.
-- [x] Step 4.1: Product processing run records and lightweight async worker foundation.
-- [x] Step 4.2: Connect processing runs to the real AI/media worker pipeline.
-- [x] Step 5.1: Base AI description generation and product description draft storage.
-- [x] Step 5.2: Grounded price research with Gemini plus SerpApi comparables.
-- [x] Step 5.3: Marketplace listing generation.
-- [x] Step 6: Photoroom-powered image processing variants.
-- [x] Step 7: ZIP export generation and export-ready email flow.
-- [x] Step 8: ZIP import flow.
-- [x] Step 9: Product lifecycle endpoints for edit, delete, sold, archive, and restore flows.
-- [x] Step 10: Production Docker packaging with release-based container startup.
-- [x] Step 11: Product tags plus seller-managed status changes in API and web workspace.
-- [x] Step 11.1: Per-user marketplace defaults plus expanded marketplace catalog.
+## Shipped
 
-## Open Items
+- API foundation and bearer auth
+- product CRUD and product tabs
+- upload preparation and upload finalization
+- core AI pipeline
+- background removal
+- marketplace listing generation
+- seller storefront configuration and public rendering
+- storefront inquiries
+- ZIP exports and imports
+- metrics, usage reporting, and limit checks
+- pricing page, LemonSqueezy webhook handling, and expiry reminders
+- lifestyle image generation, approval, and deletion
 
-- Step GI7: Cost controls, rate limits, observability, and rollout guardrails for lifestyle image generation. See `docs/PLAN-GENERATE-IMAGE.md`.
-- Step SF7: SEO and social card meta tags (canonical URL, Open Graph image, description) for public storefront pages.
-- Step AI6: Admin observability, retries, and cost controls. See `docs/PLAN-AI.md`.
-- Pricing system audit gaps: trial start on registration, trial expiry enforcement, lifestyle limit gate, addon credit math fix. See `docs/PRICING_CHECKS.md`.
+## Current Open Themes
 
-## Docs
+- clarify trial-versus-free-plan quota semantics
+- decide how real seat management should work for the `Extra Seat` add-on
+- keep docs compressed and aligned with router/controllers instead of duplicating generated examples
 
-- `docs/API.md` — routes, payloads, auth, response shapes.
-- `docs/ARCHITECTURE.md` — schemas, relationships, workers, integrations.
-- `docs/UIUX.md` — shared LiveView patterns and components.
-- `docs/PLAN-AI.md` — AI pipeline milestone status.
-- `docs/PLAN-GENERATE-IMAGE.md` — lifestyle image generation status.
-- `docs/PRICING_PLAN.md` — billing and subscription milestone status.
-- `docs/PRICING_CHECKS.md` — billing system audit gaps and fix recommendations.
-- `docs/METRICS-LIMITS-PLAN.md` — metrics, cost config, limit logic.
-- `docs/MOBILE_API_GUIDE.md` — mobile integration guide.
-- `docs/MARKETS.md` — marketplace-specific copy generation rules.
-- `docs/MARKETPLACE_RULES.md` — marketplace policy reference.
-- `docs/PRICING.md` — pricing positioning and competitor analysis.
+## Pointers
 
-## Working Rules
-
-- Update this file before creating each feature commit.
-- Keep one feature per git commit.
-- Run `mix precommit` before finishing the feature branch or checkpoint.
+- AI status: `docs/PLAN-AI.md`
+- lifestyle-image status: `docs/PLAN-GENERATE-IMAGE.md`
+- pricing status: `docs/PRICING_PLAN.md`
+- metrics status: `docs/METRICS-LIMITS-PLAN.md`

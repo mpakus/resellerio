@@ -1293,7 +1293,6 @@ defmodule ResellerWeb.APIDocsLive do
         <%!-- Back nav --%>
         <div class="mt-12 flex gap-4">
           <.link navigate={~p"/"} class="btn btn-ghost rounded-full">&#8592; Back to home</.link>
-          <.link navigate={~p"/privacy"} class="btn btn-outline rounded-full">Privacy Policy</.link>
         </div>
       </div>
     </Layouts.app>
