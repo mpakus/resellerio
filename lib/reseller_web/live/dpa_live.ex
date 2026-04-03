@@ -238,8 +238,8 @@ defmodule ResellerWeb.DPALive do
           </p>
 
           <div class="mt-12 flex gap-4">
-            <.link navigate={~p"/privacy"} class="btn btn-ghost rounded-full">← Privacy Policy</.link>
-            <.link navigate={~p"/"} class="btn btn-outline rounded-full">Back to home</.link>
+            <.link navigate={~p"/"} class="btn btn-ghost rounded-full">← Back to home</.link>
+            <.link navigate={~p"/privacy"} class="btn btn-outline rounded-full">Privacy Policy</.link>
           </div>
         </div>
       </div>
