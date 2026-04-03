@@ -12,4 +12,10 @@ defmodule ResellerWeb.APIDocsLiveTest do
     assert has_element?(view, ~s(a[href="/#marketplace-strip"]), "Markets")
     assert has_element?(view, ~s(a[href="/#storefront"]), "Storefront")
   end
+
+  test "links to the mobile API guide resource", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/docs/api")
+
+    assert has_element?(view, ~s(a[href="/docs/mobile-api"]), "Mobile API Guide")
+  end
 end

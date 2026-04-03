@@ -21,6 +21,9 @@ defmodule ResellerWeb.API.V1.OpenAPIControllerTest do
 
     assert get_in(body, ["paths", "/api/v1/me/usage", "get", "tags"]) == ["User"]
 
+    assert get_in(body, ["paths", "/api/v1/storefront", "get", "description"]) ==
+             "Returns the authenticated user's storefront configuration and the available theme presets."
+
     assert get_in(body, ["paths", "/api/v1/products/{id}", "get", "parameters"]) == [
              %{
                "description" => "Primary resource identifier.",

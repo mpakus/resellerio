@@ -53,6 +53,7 @@ API:
 
 - public: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`
 - authenticated: products, product tabs, storefront, inquiries, exports, imports, and `GET /api/v1/me`, `PATCH /api/v1/me`, `GET /api/v1/me/usage`
+- browser clients can send `OPTIONS` preflight requests to `/api/v1/*`
 
 ## Source Map
 
@@ -91,6 +92,13 @@ Current media payload convention:
 
 - product API responses include `image_urls` and `images[*].url`
 - storefront API responses include branding `image_urls` and `assets[*].url`
+- storefront API responses also include `themes` for available preset theme choices
+
+Current ID sequence convention for new records:
+
+- `products` start from `16000`
+- `users`, `storefronts`, `imports`, `exports`, and `api_tokens` start from `1000`
+- `product_tabs` start from `1500`
 
 ## Local Development
 

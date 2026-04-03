@@ -24,6 +24,8 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
 
       assert body["data"]["storefront"]["id"] == nil
       assert body["data"]["storefront"]["slug"] == nil
+      assert is_list(body["data"]["themes"])
+      assert Enum.any?(body["data"]["themes"], &(&1["id"] == "desert-clay"))
     end
 
     test "returns the storefront when one exists", %{conn: conn, user: user} do
@@ -35,6 +37,27 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
       assert body["data"]["storefront"]["id"] == storefront.id
       assert body["data"]["storefront"]["slug"] == "mystore"
       assert body["data"]["storefront"]["title"] == "My Store"
+      assert Enum.any?(body["data"]["themes"], &(&1["id"] == storefront.theme_id))
+    end
+
+    test "returns the available storefront themes", %{conn: conn} do
+      conn = get(conn, "/api/v1/storefront")
+
+      assert %{
+               "data" => %{
+                 "themes" => [
+                   %{
+                     "id" => "desert-clay",
+                     "label" => "Desert Clay",
+                     "colors" => %{
+                       "page_background" => "#f6ecdc",
+                       "surface_background" => "#fff9f0"
+                     }
+                   }
+                   | _
+                 ]
+               }
+             } = json_response(conn, 200)
     end
 
     test "returns storefront asset urls", %{conn: conn, user: user} do
@@ -98,6 +121,11 @@ defmodule ResellerWeb.API.V1.StorefrontControllerTest do
       body = json_response(conn, 200)
       assert body["data"]["storefront"]["slug"] == "new-store"
       assert body["data"]["storefront"]["title"] == "New Store"
+
+      assert Enum.any?(
+               body["data"]["themes"],
+               &(&1["id"] == body["data"]["storefront"]["theme_id"])
+             )
     end
 
     test "updates an existing storefront", %{conn: conn, user: user} do

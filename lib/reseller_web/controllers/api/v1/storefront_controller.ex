@@ -7,13 +7,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
 
   def show(conn, _params) do
     storefront = Storefronts.get_or_build_storefront_for_user(conn.assigns.current_user)
-    json(conn, %{data: %{storefront: storefront_json(storefront)}})
+    json(conn, storefront_payload(storefront))
   end
 
   def upsert(conn, %{"storefront" => storefront_params}) when is_map(storefront_params) do
     case Storefronts.upsert_storefront_for_user(conn.assigns.current_user, storefront_params) do
       {:ok, storefront} ->
-        json(conn, %{data: %{storefront: storefront_json(storefront)}})
+        json(conn, storefront_payload(storefront))
 
       {:error, %Ecto.Changeset{} = changeset} ->
         APIError.validation(conn, changeset)
@@ -205,6 +205,15 @@ defmodule ResellerWeb.API.V1.StorefrontController do
     end
   end
 
+  defp storefront_payload(storefront) do
+    %{
+      data: %{
+        storefront: storefront_json(storefront),
+        themes: Enum.map(Storefronts.list_theme_presets(), &theme_json/1)
+      }
+    }
+  end
+
   defp storefront_json(storefront) do
     %{
       id: storefront.id,
@@ -219,6 +228,14 @@ defmodule ResellerWeb.API.V1.StorefrontController do
       pages: Enum.map(storefront.pages || [], &page_json/1),
       inserted_at: datetime_to_iso8601(storefront.inserted_at),
       updated_at: datetime_to_iso8601(storefront.updated_at)
+    }
+  end
+
+  defp theme_json(theme) do
+    %{
+      id: theme.id,
+      label: theme.label,
+      colors: theme.colors
     }
   end
 

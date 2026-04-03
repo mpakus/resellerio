@@ -150,6 +150,7 @@ Supported marketplace ids in code:
 Responsibilities:
 
 - storefront settings
+- storefront theme presets
 - branding assets
 - seller-authored pages
 - public storefront lookup
@@ -162,6 +163,10 @@ Core records:
 - `storefront_assets`
 - `storefront_pages`
 - `storefront_inquiries`
+
+Theme source of truth:
+
+- `Reseller.Storefronts.ThemePresets` defines the preset catalog used by storefront rendering and the authenticated storefront API
 
 Public image selection rule:
 

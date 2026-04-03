@@ -50,6 +50,7 @@ Workspace:
 Storefront:
 
 - storefront theme colors come from `ThemePresets`
+- the authenticated storefront API returns the same preset catalog for mobile theme selection
 - storefront branding assets and gallery images come from shared storefront helpers
 - public product cards should use the storefront gallery selection helpers, not ad hoc image picking
 

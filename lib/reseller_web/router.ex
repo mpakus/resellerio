@@ -45,6 +45,7 @@ defmodule ResellerWeb.Router do
     get "/store/:slug/products/:product_ref", StorefrontController, :show_product
     get "/store/:slug/pages/:page_slug", StorefrontController, :show_page
     post "/store/:slug/products/:product_ref/inquiries", StorefrontController, :create_inquiry
+    get "/docs/mobile-api", DocsController, :mobile_api
 
     live_session :current_user, on_mount: [{ResellerWeb.LiveUserAuth, :mount_current_user}] do
       live "/", HomeLive

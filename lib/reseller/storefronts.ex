@@ -21,6 +21,9 @@ defmodule Reseller.Storefronts do
 
   @public_product_statuses ~w(ready)
 
+  @spec list_theme_presets() :: [map()]
+  def list_theme_presets, do: ThemePresets.all()
+
   @spec get_storefront_for_user(User.t()) :: Storefront.t() | nil
   def get_storefront_for_user(%User{id: user_id}) do
     Storefront

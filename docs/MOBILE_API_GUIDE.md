@@ -151,6 +151,9 @@ Storefront payload notes:
 
 - `assets[*].url` is the public branding asset URL
 - `image_urls` is the ordered list of branding asset URLs
+- `themes` returns the full preset list for the theme picker
+- each `themes[*]` entry includes `id`, `label`, and `colors`
+- send `storefront.theme_id` using one of the returned `themes[*].id` values
 - `pages` is the seller-managed content set
 
 Branding asset upload flow:

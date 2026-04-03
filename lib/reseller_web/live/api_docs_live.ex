@@ -784,12 +784,12 @@ defmodule ResellerWeb.APIDocsLive do
               id="storefront-get"
               method="GET"
               path="/api/v1/storefront"
-              desc="Get storefront config with assets and pages"
+              desc="Get storefront config with assets, pages, and available themes"
               open={open?(@open_endpoints, "storefront-get")}
               args={[]}
               request_example={nil}
               response_example={
-                ~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "neutral-warm",\n      "enabled": true,\n      "image_urls": ["https://cdn.example.test/users/1/storefronts/3/logo/logo.png"],\n      "assets": [{"id": 1, "kind": "logo", "url": "https://cdn.example.test/users/1/storefronts/3/logo/logo.png", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    }\n  }\n})
+                ~s({\n  "data": {\n    "storefront": {\n      "id": 3,\n      "slug": "my-store",\n      "title": "My Store",\n      "tagline": "Curated resale.",\n      "theme_id": "desert-clay",\n      "enabled": true,\n      "image_urls": ["https://cdn.example.test/users/1/storefronts/3/logo/logo.png"],\n      "assets": [{"id": 1, "kind": "logo", "url": "https://cdn.example.test/users/1/storefronts/3/logo/logo.png", "width": 400, "height": 400}],\n      "pages": [{"id": 2, "title": "About", "slug": "about", "published": true}]\n    },\n    "themes": [\n      {\n        "id": "desert-clay",\n        "label": "Desert Clay",\n        "colors": {\n          "page_background": "#f6ecdc",\n          "surface_background": "#fff9f0",\n          "text": "#34261b"\n        }\n      },\n      {\n        "id": "linen-ink",\n        "label": "Linen Ink",\n        "colors": {\n          "page_background": "#f7f2e9",\n          "surface_background": "#fffaf4",\n          "text": "#1f1f1d"\n        }\n      }\n    ]\n  }\n})
               }
             />
             <.endpoint
@@ -827,7 +827,7 @@ defmodule ResellerWeb.APIDocsLive do
                   name: "storefront.theme_id",
                   type: "string",
                   required: false,
-                  desc: "Theme preset ID"
+                  desc: "Theme preset ID. Use one of the IDs returned in data.themes."
                 },
                 %{
                   name: "storefront.enabled",
@@ -837,10 +837,10 @@ defmodule ResellerWeb.APIDocsLive do
                 }
               ]}
               request_example={
-                ~s({\n  "storefront": {\n    "slug": "my-store",\n    "title": "My Store",\n    "tagline": "Curated resale.",\n    "theme_id": "neutral-warm",\n    "enabled": true\n  }\n})
+                ~s({\n  "storefront": {\n    "slug": "my-store",\n    "title": "My Store",\n    "tagline": "Curated resale.",\n    "theme_id": "desert-clay",\n    "enabled": true\n  }\n})
               }
               response_example={
-                ~s({\n  "data": {\n    "storefront": {"id": 3, "slug": "my-store", "title": "My Store", "enabled": true}\n  }\n})
+                ~s({\n  "data": {\n    "storefront": {"id": 3, "slug": "my-store", "title": "My Store", "theme_id": "desert-clay", "enabled": true},\n    "themes": [{"id": "desert-clay", "label": "Desert Clay", "colors": {"page_background": "#f6ecdc"}}]\n  }\n})
               }
             />
             <.endpoint
@@ -1276,12 +1276,10 @@ defmodule ResellerWeb.APIDocsLive do
                 </p>
               </a>
               <a
-                href="https://github.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/docs/mobile-api"
                 class="group rounded-2xl border border-base-300/60 bg-base-100 p-5 transition hover:border-primary/30"
               >
-                <p class="font-semibold group-hover:text-primary">Mobile API Guide &#8599;</p>
+                <p class="font-semibold group-hover:text-primary">Mobile API Guide</p>
                 <p class="mt-1 text-xs text-base-content/60">
                   Human-readable guide with examples, upload flow walkthrough, and status reference.
                 </p>

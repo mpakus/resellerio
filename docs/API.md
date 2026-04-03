@@ -105,6 +105,9 @@ Storefront payload notes:
 - `assets` contains branding asset records
 - `assets[*].url` is the public URL for that asset
 - `image_urls` is the ordered list of storefront branding URLs
+- `themes` lists all available storefront theme presets
+- each `themes[*]` entry includes `id`, `label`, and `colors`
+- set `storefront.theme_id` to one of `themes[*].id`
 - `pages` contains seller-authored page records
 
 ### Inquiries

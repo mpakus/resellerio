@@ -129,12 +129,14 @@ defmodule ResellerWeb.API.V1.APISpec do
     },
     {ResellerWeb.API.V1.StorefrontController, :show} => %{
       summary: "Get storefront",
-      description: "Returns the authenticated user's storefront configuration.",
+      description:
+        "Returns the authenticated user's storefront configuration and the available theme presets.",
       tags: ["Storefront"]
     },
     {ResellerWeb.API.V1.StorefrontController, :upsert} => %{
       summary: "Create or update storefront",
-      description: "Creates or updates the authenticated user's storefront.",
+      description:
+        "Creates or updates the authenticated user's storefront and returns the available theme presets.",
       tags: ["Storefront"],
       request_body: %{
         required: true,
@@ -143,7 +145,8 @@ defmodule ResellerWeb.API.V1.APISpec do
           storefront: %{
             slug: "vintage-vault",
             title: "Vintage Vault",
-            description: "Curated vintage and designer pieces"
+            description: "Curated vintage and designer pieces",
+            theme_id: "desert-clay"
           }
         }
       },
