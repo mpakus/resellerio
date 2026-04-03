@@ -209,5 +209,26 @@ defmodule ResellerWeb.API.V1.AuthControllerTest do
                "authorization, content-type, accept"
              ]
     end
+
+    test "rejects preflight requests from disallowed origins", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("origin", "https://evil.example")
+        |> put_req_header("access-control-request-method", "POST")
+        |> ConnTest.dispatch(@endpoint, :options, "/api/v1/auth/login")
+
+      assert response(conn, 403) == ""
+      assert get_resp_header(conn, "access-control-allow-origin") == []
+    end
+
+    test "does not emit CORS headers for disallowed origins on normal responses", %{conn: conn} do
+      conn =
+        conn
+        |> put_req_header("origin", "https://evil.example")
+        |> post("/api/v1/auth/login", %{"email" => "seller@example.com"})
+
+      assert json_response(conn, 400)["error"]["code"] == "invalid_request"
+      assert get_resp_header(conn, "access-control-allow-origin") == []
+    end
   end
 end

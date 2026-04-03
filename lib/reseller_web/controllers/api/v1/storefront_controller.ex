@@ -19,11 +19,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         APIError.validation(conn, changeset)
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "storefront_upsert_failed",
-          "Could not save storefront: #{inspect(reason)}"
+          "Could not save storefront"
         )
     end
   end
@@ -56,11 +58,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         APIError.validation(conn, changeset)
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "page_create_failed",
-          "Could not create page: #{inspect(reason)}"
+          "Could not create page"
         )
     end
   end
@@ -86,11 +90,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         APIError.validation(conn, changeset)
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "page_update_failed",
-          "Could not update page: #{inspect(reason)}"
+          "Could not update page"
         )
     end
   end
@@ -108,11 +114,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         APIError.render(conn, :not_found, "not_found", "Storefront page not found")
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "page_delete_failed",
-          "Could not delete page: #{inspect(reason)}"
+          "Could not delete page"
         )
     end
   end
@@ -136,7 +144,14 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         )
 
       {:error, reason} ->
-        APIError.render(conn, :unprocessable_entity, "reorder_failed", inspect(reason))
+        _ = reason
+
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "reorder_failed",
+          "Could not reorder storefront pages"
+        )
     end
   end
 
@@ -174,12 +189,8 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         )
 
       {:error, reason} ->
-        APIError.render(
-          conn,
-          :bad_gateway,
-          "upload_signing_failed",
-          "Upload signing failed: #{inspect(reason)}"
-        )
+        _ = reason
+        APIError.render(conn, :bad_gateway, "upload_signing_failed", "Upload signing failed")
     end
   end
 
@@ -196,11 +207,13 @@ defmodule ResellerWeb.API.V1.StorefrontController do
         APIError.render(conn, :not_found, "not_found", "Storefront asset not found")
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "asset_delete_failed",
-          "Could not delete asset: #{inspect(reason)}"
+          "Could not delete asset"
         )
     end
   end

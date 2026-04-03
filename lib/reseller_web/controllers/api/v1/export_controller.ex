@@ -28,7 +28,7 @@ defmodule ResellerWeb.API.V1.ExportController do
           conn,
           :unprocessable_entity,
           "export_failed",
-          "Could not start export: #{inspect(reason)}"
+          export_failed_detail(reason)
         )
     end
   end
@@ -48,7 +48,7 @@ defmodule ResellerWeb.API.V1.ExportController do
           conn,
           :unprocessable_entity,
           "export_failed",
-          "Could not start export: #{inspect(reason)}"
+          export_failed_detail(reason)
         )
     end
   end
@@ -113,4 +113,7 @@ defmodule ResellerWeb.API.V1.ExportController do
   end
 
   defp normalize_export_filters(_current_user, filters), do: filters
+
+  defp export_failed_detail(:no_products), do: "Could not start export: no products matched"
+  defp export_failed_detail(_reason), do: "Could not start export"
 end

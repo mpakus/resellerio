@@ -15,8 +15,15 @@ defmodule Reseller.Imports.ImportRequest do
     |> validate_format(:filename, ~r/\.zip$/i, message: "must be a .zip archive")
     |> validate_change(:archive_base64, fn :archive_base64, archive_base64 ->
       case Base.decode64(archive_base64) do
-        {:ok, _binary} -> []
-        :error -> [archive_base64: "must be valid base64"]
+        {:ok, binary} ->
+          if byte_size(binary) <= max_archive_bytes() do
+            []
+          else
+            [archive_base64: "must be #{max_archive_bytes()} bytes or smaller after decoding"]
+          end
+
+        :error ->
+          [archive_base64: "must be valid base64"]
       end
     end)
   end
@@ -33,5 +40,9 @@ defmodule Reseller.Imports.ImportRequest do
     else
       {:error, changeset}
     end
+  end
+
+  defp max_archive_bytes do
+    Application.get_env(:reseller, Reseller.Imports, [])[:max_archive_bytes] || 25_000_000
   end
 end

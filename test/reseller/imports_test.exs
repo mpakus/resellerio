@@ -187,6 +187,41 @@ defmodule Reseller.ImportsTest do
     assert Catalog.list_products_for_user(user) == []
   end
 
+  test "request_import_for_user/3 marks the import as failed for archives with unsafe paths" do
+    user = user_fixture(%{"email" => "unsafe-path-import@example.com"})
+
+    zip_binary =
+      build_import_zip(
+        [
+          %{
+            "status" => "ready",
+            "title" => "Unsafe Import",
+            "sku" => "UNSAFE-1",
+            "images" => [
+              %{
+                "kind" => "original",
+                "position" => 1,
+                "content_type" => "image/jpeg",
+                "processing_status" => "ready",
+                "path" => "../images/evil.jpg"
+              }
+            ]
+          }
+        ],
+        %{"../images/evil.jpg" => "jpeg-binary"}
+      )
+
+    assert {:ok, import_record} =
+             Imports.request_import_for_user(user, %{
+               "filename" => "unsafe-paths.zip",
+               "archive_base64" => Base.encode64(zip_binary)
+             })
+
+    assert import_record.status == "failed"
+    assert import_record.error_message =~ "invalid_archive_entry_path"
+    assert Catalog.list_products_for_user(user) == []
+  end
+
   test "fetch_archive/2 downloads the stored archive when no inline archive binary is given" do
     user = user_fixture(%{"email" => "fetch-import@example.com"})
     zip_binary = build_import_zip([], %{})

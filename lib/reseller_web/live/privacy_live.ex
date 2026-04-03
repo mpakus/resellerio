@@ -17,7 +17,7 @@ defmodule ResellerWeb.PrivacyLive do
             Privacy Policy
           </h1>
           <p class="mt-2 text-sm text-base-content/60">
-            Effective date: June 1, 2025 · Last updated: June 1, 2025
+            Effective date: June 1, 2025 · Last updated: April 3, 2026
           </p>
 
           <p class="mt-8 text-base leading-7 text-base-content/80">
@@ -38,17 +38,17 @@ defmodule ResellerWeb.PrivacyLive do
 
           <h3 class="mt-6 text-lg font-semibold">1.3 Images and Media</h3>
           <p class="mt-2 text-base leading-7 text-base-content/80">
-            Product images you upload are stored on Amazon S3 (AWS) infrastructure in the United States and may be served via Bunny CDN. Original images are never overwritten. Processed variants (background-removed, lifestyle-generated) are stored alongside originals.
+            Product images and archives you upload are stored using ResellerIO's configured Tigris-compatible object storage infrastructure. Public storefront media may be served from a configured public media URL or CDN. Original images are not overwritten. Processed variants are stored as separate records alongside originals.
           </p>
 
           <h3 class="mt-6 text-lg font-semibold">1.4 Usage and Technical Data</h3>
           <p class="mt-2 text-base leading-7 text-base-content/80">
-            We collect standard server logs including IP addresses, browser type, operating system, referring URLs, and pages visited. This data is used for security, debugging, and improving the Service.
+            We collect standard server logs and operational metadata such as IP addresses, browser type, operating system, referring URLs, pages visited, API token usage timestamps, and public inquiry metadata. This data is used for security, abuse prevention, debugging, and service operations.
           </p>
 
           <h3 class="mt-6 text-lg font-semibold">1.5 API Tokens</h3>
           <p class="mt-2 text-base leading-7 text-base-content/80">
-            If you use our API, we issue bearer tokens that are hashed before storage. We log API requests for security and abuse prevention purposes.
+            If you use our API, we issue bearer tokens that are hashed before storage. We also store limited token metadata such as expiry, device name if supplied, and last-used timestamps.
           </p>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">2. How We Use Your Information</h2>
@@ -67,7 +67,7 @@ defmodule ResellerWeb.PrivacyLive do
             3. Third-Party Service Providers
           </h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            We share data with third-party providers only as necessary to operate the Service. All providers listed below are located in or process data in the United States:
+            We share data with third-party providers only as necessary to operate the Service. The categories below reflect the current service architecture and may change as our infrastructure evolves:
           </p>
           <div class="mt-4 overflow-hidden rounded-2xl border border-base-300">
             <table class="w-full text-sm">
@@ -97,19 +97,21 @@ defmodule ResellerWeb.PrivacyLive do
                   <td class="px-4 py-3">Product images</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">Amazon S3 (AWS)</td>
-                  <td class="px-4 py-3">Object storage for images and export archives</td>
-                  <td class="px-4 py-3">Product images, ZIP export files</td>
+                  <td class="px-4 py-3">Tigris-compatible object storage provider</td>
+                  <td class="px-4 py-3">
+                    Object storage for product media and import/export archives
+                  </td>
+                  <td class="px-4 py-3">Product images, storefront assets, ZIP archives</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">Bunny CDN</td>
-                  <td class="px-4 py-3">Content delivery for public storefront images</td>
-                  <td class="px-4 py-3">Processed product images</td>
+                  <td class="px-4 py-3">Public media delivery / CDN provider</td>
+                  <td class="px-4 py-3">Delivery of public storefront media when configured</td>
+                  <td class="px-4 py-3">Public storefront images and branding assets</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">GitHub</td>
-                  <td class="px-4 py-3">Source code hosting and CI/CD</td>
-                  <td class="px-4 py-3">No user data</td>
+                  <td class="px-4 py-3">LemonSqueezy</td>
+                  <td class="px-4 py-3">Subscription billing, checkout, and webhook events</td>
+                  <td class="px-4 py-3">Account email, billing, and subscription identifiers</td>
                 </tr>
               </tbody>
             </table>
@@ -117,12 +119,12 @@ defmodule ResellerWeb.PrivacyLive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">4. Data Retention</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            We retain your data for as long as your account is active. Export files expire after a configurable retention period (default 30 days). You may request deletion of your account and associated data at any time by contacting us at privacy@resellerio.com.
+            We retain your data for as long as your account is active, subject to any legally required retention periods. Export files expire after a configurable retention period (currently seven days by default). You may request deletion of your account and associated data at any time by contacting us at privacy@resellerio.com.
           </p>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">5. Data Security</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            All data is transmitted over TLS. Passwords and API tokens are hashed using industry-standard algorithms before storage. We apply least-privilege access controls to our infrastructure. Despite these measures, no system is completely secure; you use the Service at your own risk.
+            We use TLS for data in transit. Passwords are hashed with PBKDF2-SHA256 before storage and API bearer tokens are hashed before persistence. Browser sessions use HttpOnly cookies with SameSite protections and Secure cookies in production. The application also applies origin allowlists for browser API access, HMAC verification for billing webhooks, signed object-storage operations, inquiry rate limits, and archive validation checks for imports. Despite these measures, no system is completely secure.
           </p>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">6. Your Rights</h2>
@@ -132,7 +134,7 @@ defmodule ResellerWeb.PrivacyLive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">7. Cookies</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            We use session cookies to keep you signed in and CSRF tokens to protect against cross-site request forgery. We do not use third-party advertising or tracking cookies.
+            We use first-party session cookies to keep you signed in and CSRF protections to defend against cross-site request forgery. Session cookies are intended to be HttpOnly, SameSite-protected, and Secure in production. We do not use third-party advertising cookies.
           </p>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">8. Children's Privacy</h2>

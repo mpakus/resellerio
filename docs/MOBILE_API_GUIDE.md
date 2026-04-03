@@ -25,6 +25,11 @@ Recommended mobile flow:
 3. Fetch `GET /api/v1/me`.
 4. Fetch `GET /api/v1/me/usage` if you display quotas.
 
+Browser-based clients:
+
+- preflight `OPTIONS` is supported for `/api/v1/*`
+- only allowlisted origins receive CORS headers
+
 ## 2. User and Marketplace Settings
 
 Current-user endpoints:
@@ -222,6 +227,7 @@ Mobile expectations:
 - poll the `:id` endpoint after the initial `202 Accepted`
 - export records expose `download_url` when ready
 - import records expose aggregate counts and failure details
+- import archives are capped in decoded size and rejected if they contain unsafe entry paths
 
 ## 11. Error Handling
 

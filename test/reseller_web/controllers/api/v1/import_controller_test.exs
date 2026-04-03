@@ -58,6 +58,41 @@ defmodule ResellerWeb.API.V1.ImportControllerTest do
            }
   end
 
+  test "POST /api/v1/imports returns validation errors for archives above the size limit", %{
+    conn: conn
+  } do
+    previous_config = Application.get_env(:reseller, Reseller.Imports, [])
+
+    Application.put_env(
+      :reseller,
+      Reseller.Imports,
+      Keyword.merge(previous_config, max_archive_bytes: 8)
+    )
+
+    on_exit(fn ->
+      Application.put_env(:reseller, Reseller.Imports, previous_config)
+    end)
+
+    conn =
+      post(conn, "/api/v1/imports", %{
+        "import" => %{
+          "filename" => "too-large.zip",
+          "archive_base64" => Base.encode64("123456789")
+        }
+      })
+
+    assert json_response(conn, 422) == %{
+             "error" => %{
+               "code" => "validation_failed",
+               "detail" => "Validation failed",
+               "fields" => %{
+                 "archive_base64" => ["must be 8 bytes or smaller after decoding"]
+               },
+               "status" => 422
+             }
+           }
+  end
+
   test "GET /api/v1/imports/:id returns not found for another user's import", %{conn: conn} do
     other_user = user_fixture(%{"email" => "other-import@example.com"})
 

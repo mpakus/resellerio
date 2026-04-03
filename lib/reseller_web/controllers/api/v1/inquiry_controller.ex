@@ -38,11 +38,13 @@ defmodule ResellerWeb.API.V1.InquiryController do
         APIError.render(conn, :not_found, "not_found", "Inquiry not found")
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "inquiry_delete_failed",
-          "Could not delete inquiry: #{inspect(reason)}"
+          "Could not delete inquiry"
         )
     end
   end

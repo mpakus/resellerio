@@ -90,6 +90,16 @@ config :reseller, Reseller.Exports,
 
 config :reseller, Reseller.Imports, processing_mode: :async
 
+config :reseller, Reseller.Imports,
+  processing_mode: :async,
+  max_archive_bytes: 25_000_000,
+  max_total_uncompressed_bytes: 75_000_000,
+  max_entry_bytes: 15_000_000,
+  max_entry_count: 500
+
+config :reseller, ResellerWeb.Plugs.APICORS,
+  allowed_origins: ["http://localhost:4000", "http://127.0.0.1:4000"]
+
 config :reseller, Reseller.Billing, from_email: "billing@resellerio.local"
 
 config :reseller, Reseller.Metrics,

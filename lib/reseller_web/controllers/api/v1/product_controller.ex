@@ -120,12 +120,8 @@ defmodule ResellerWeb.API.V1.ProductController do
         )
 
       {:error, reason} ->
-        APIError.render(
-          conn,
-          :bad_gateway,
-          "upload_signing_failed",
-          "Upload signing failed: #{inspect(reason)}"
-        )
+        _ = reason
+        APIError.render(conn, :bad_gateway, "upload_signing_failed", "Upload signing failed")
     end
   end
 
@@ -171,11 +167,13 @@ defmodule ResellerWeb.API.V1.ProductController do
           APIError.validation(conn, changeset)
 
         {:error, reason} ->
+          _ = reason
+
           APIError.render(
             conn,
             :unprocessable_entity,
             "finalize_failed",
-            "Could not finalize uploads: #{inspect(reason)}"
+            "Could not finalize uploads"
           )
       end
     else
@@ -224,12 +222,8 @@ defmodule ResellerWeb.API.V1.ProductController do
           )
 
         {:error, reason} ->
-          APIError.render(
-            conn,
-            :bad_gateway,
-            "upload_signing_failed",
-            "Upload signing failed: #{inspect(reason)}"
-          )
+          _ = reason
+          APIError.render(conn, :bad_gateway, "upload_signing_failed", "Upload signing failed")
       end
     else
       {:error, :limit_exceeded, details} ->
@@ -280,11 +274,13 @@ defmodule ResellerWeb.API.V1.ProductController do
           APIError.validation(conn, changeset)
 
         {:error, reason} ->
+          _ = reason
+
           APIError.render(
             conn,
             :unprocessable_entity,
             "reprocess_failed",
-            "Could not restart processing: #{inspect(reason)}"
+            "Could not restart processing"
           )
       end
     else
@@ -338,11 +334,13 @@ defmodule ResellerWeb.API.V1.ProductController do
           )
 
         {:error, reason} ->
+          _ = reason
+
           APIError.render(
             conn,
             :unprocessable_entity,
             "lifestyle_generation_failed",
-            "Could not start lifestyle generation: #{inspect(reason)}"
+            "Could not start lifestyle generation"
           )
       end
     else
@@ -474,7 +472,14 @@ defmodule ResellerWeb.API.V1.ProductController do
         APIError.render(conn, :not_found, "not_found", "Product not found")
 
       {:error, reason} ->
-        APIError.render(conn, :unprocessable_entity, "reorder_failed", inspect(reason))
+        _ = reason
+
+        APIError.render(
+          conn,
+          :unprocessable_entity,
+          "reorder_failed",
+          "Could not reorder storefront images"
+        )
     end
   end
 

@@ -20,11 +20,13 @@ defmodule ResellerWeb.API.V1.ProductTabController do
         APIError.validation(conn, changeset)
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "product_tab_create_failed",
-          "Could not create product tab: #{inspect(reason)}"
+          "Could not create product tab"
         )
     end
   end
@@ -46,11 +48,13 @@ defmodule ResellerWeb.API.V1.ProductTabController do
         APIError.validation(conn, changeset)
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "product_tab_update_failed",
-          "Could not update product tab: #{inspect(reason)}"
+          "Could not update product tab"
         )
     end
   end
@@ -68,11 +72,13 @@ defmodule ResellerWeb.API.V1.ProductTabController do
         APIError.render(conn, :not_found, "not_found", "Product tab not found")
 
       {:error, reason} ->
+        _ = reason
+
         APIError.render(
           conn,
           :unprocessable_entity,
           "product_tab_delete_failed",
-          "Could not delete product tab: #{inspect(reason)}"
+          "Could not delete product tab"
         )
     end
   end

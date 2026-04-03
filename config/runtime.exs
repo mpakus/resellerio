@@ -134,7 +134,16 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
+    force_ssl: [hsts: true, rewrite_on: [:x_forwarded_proto]],
     secret_key_base: secret_key_base
+
+  allowed_origins =
+    System.get_env("API_ALLOWED_ORIGINS", "")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+
+  config :reseller, ResellerWeb.Plugs.APICORS, allowed_origins: allowed_origins
 
   # ## SSL Support
   #

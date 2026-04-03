@@ -5,6 +5,7 @@ defmodule Reseller.Imports.ZipParser do
 
   def parse_archive(archive_binary) when is_binary(archive_binary) do
     with {:ok, entries} <- extract_entries(archive_binary),
+         :ok <- validate_entries(entries),
          {:ok, manifest_payload} <- decode_manifest(entries),
          {:ok, products} <- fetch_products(manifest_payload) do
       {:ok,
@@ -67,4 +68,42 @@ defmodule Reseller.Imports.ZipParser do
 
   defp fetch_products(%{"products" => products}) when is_list(products), do: {:ok, products}
   defp fetch_products(_payload), do: {:error, :invalid_products_payload}
+
+  defp validate_entries(entries) when is_map(entries) do
+    max_entry_count = import_cfg(:max_entry_count, 500)
+    max_entry_bytes = import_cfg(:max_entry_bytes, 15_000_000)
+    max_total_bytes = import_cfg(:max_total_uncompressed_bytes, 75_000_000)
+
+    cond do
+      map_size(entries) > max_entry_count ->
+        {:error, :archive_too_many_entries}
+
+      Enum.any?(entries, fn {name, _body} -> not safe_entry_name?(name) end) ->
+        {:error, :invalid_archive_entry_path}
+
+      Enum.any?(entries, fn {_name, body} -> byte_size(body) > max_entry_bytes end) ->
+        {:error, :archive_entry_too_large}
+
+      Enum.reduce(entries, 0, fn {_name, body}, acc -> acc + byte_size(body) end) >
+          max_total_bytes ->
+        {:error, :archive_uncompressed_size_exceeded}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp safe_entry_name?(name) when is_binary(name) do
+    name_type = Path.type(name)
+
+    name != "" and name_type == :relative and not String.contains?(name, "\\") and
+      not String.contains?(name, <<0>>) and
+      Enum.all?(String.split(name, "/", trim: true), &(&1 not in [".", ".."]))
+  end
+
+  defp safe_entry_name?(_name), do: false
+
+  defp import_cfg(key, default) do
+    Application.get_env(:reseller, Reseller.Imports, [])[key] || default
+  end
 end

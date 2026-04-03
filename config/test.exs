@@ -75,6 +75,15 @@ config :reseller, Reseller.Exports,
 
 config :reseller, Reseller.Imports, processing_mode: :inline
 
+config :reseller, Reseller.Imports,
+  processing_mode: :inline,
+  max_archive_bytes: 25_000_000,
+  max_total_uncompressed_bytes: 75_000_000,
+  max_entry_bytes: 15_000_000,
+  max_entry_count: 500
+
+config :reseller, ResellerWeb.Plugs.APICORS, allowed_origins: ["https://app.reseller.test"]
+
 config :reseller, Reseller.Storefronts,
   notifier: Reseller.Support.Fakes.StorefrontNotifier,
   from_email: "storefront@test.local",

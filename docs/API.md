@@ -18,7 +18,8 @@ Content type:
 Auth:
 
 - protected routes require `Authorization: Bearer <token>`
-- browser clients can send `OPTIONS` preflight requests to `/api/v1/*`; API responses include CORS headers
+- browser clients can send `OPTIONS` preflight requests to `/api/v1/*`
+- CORS headers are returned only for browser origins explicitly allowlisted by the server
 
 Response envelope:
 
@@ -208,6 +209,12 @@ Import payload fields:
 - `error_message`
 - `failure_details`
 - `payload`
+
+Import limits:
+
+- `archive_base64` must decode to at most `25_000_000` bytes by default
+- unsafe ZIP entry paths are rejected
+- imports are also bounded by file count and total uncompressed size
 
 ## Media Rules
 

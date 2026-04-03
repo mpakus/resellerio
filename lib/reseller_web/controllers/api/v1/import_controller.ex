@@ -19,7 +19,7 @@ defmodule ResellerWeb.API.V1.ImportController do
           conn,
           :unprocessable_entity,
           "import_failed",
-          "Could not start import: #{inspect(reason)}"
+          import_failed_detail(reason)
         )
     end
   end
@@ -60,4 +60,18 @@ defmodule ResellerWeb.API.V1.ImportController do
 
   defp datetime_to_iso8601(nil), do: nil
   defp datetime_to_iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+
+  defp import_failed_detail(:archive_too_many_entries),
+    do: "Could not start import: archive contains too many files"
+
+  defp import_failed_detail(:invalid_archive_entry_path),
+    do: "Could not start import: archive contains an invalid file path"
+
+  defp import_failed_detail(:archive_entry_too_large),
+    do: "Could not start import: archive contains a file that exceeds the allowed size"
+
+  defp import_failed_detail(:archive_uncompressed_size_exceeded),
+    do: "Could not start import: archive is too large after extraction"
+
+  defp import_failed_detail(_reason), do: "Could not start import"
 end

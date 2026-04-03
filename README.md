@@ -53,7 +53,7 @@ API:
 
 - public: `GET /api/v1`, `GET /api/v1/health`, `POST /api/v1/auth/register`, `POST /api/v1/auth/login`
 - authenticated: products, product tabs, storefront, inquiries, exports, imports, and `GET /api/v1/me`, `PATCH /api/v1/me`, `GET /api/v1/me/usage`
-- browser clients can send `OPTIONS` preflight requests to `/api/v1/*`
+- browser clients can send `OPTIONS` preflight requests to `/api/v1/*`, but only allowlisted origins receive CORS headers
 
 ## Source Map
 
@@ -93,6 +93,14 @@ Current media payload convention:
 - product API responses include `image_urls` and `images[*].url`
 - storefront API responses include branding `image_urls` and `assets[*].url`
 - storefront API responses also include `themes` for available preset theme choices
+
+Current security posture:
+
+- browser sessions use `HttpOnly` cookies with `SameSite=Lax` and `Secure` in production
+- production endpoint enforces HTTPS redirects with HSTS enabled
+- browser-origin API access is restricted by an explicit allowlist
+- import archives are capped in size and reject unsafe entry paths
+- API error responses avoid exposing raw internal exception terms
 
 Current ID sequence convention for new records:
 

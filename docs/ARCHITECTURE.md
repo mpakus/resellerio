@@ -41,6 +41,13 @@ API:
 - public auth/health/discovery endpoints
 - authenticated user, product tab, storefront, inquiry, product, export, and import endpoints
 
+Security-relevant edge controls:
+
+- browser sessions are cookie-based with `HttpOnly`, `SameSite=Lax`, and production `Secure`
+- production endpoint is configured for HTTPS redirection + HSTS
+- browser-origin API access is allowlist-based in `ResellerWeb.Plugs.APICORS`
+- browser pages send a restrictive CSP plus `Referrer-Policy` and `Permissions-Policy`
+
 Source of truth: `lib/reseller_web/router.ex`
 
 ## Bounded Contexts
@@ -204,6 +211,12 @@ Core records:
 
 - `imports`
 - `import_requests`
+
+Security constraints:
+
+- import requests are size-limited before decode/processing
+- ZIP entries must use safe relative paths
+- ZIP archives are bounded by file count and total uncompressed size
 
 ### `Reseller.Metrics`
 

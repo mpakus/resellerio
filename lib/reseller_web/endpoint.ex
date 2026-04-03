@@ -8,7 +8,9 @@ defmodule ResellerWeb.Endpoint do
     store: :cookie,
     key: "_reseller_key",
     signing_salt: "xxg1qzsp",
-    same_site: "Lax"
+    same_site: "Lax",
+    http_only: true,
+    secure: Application.compile_env(:reseller, :secure_session_cookies, Mix.env() == :prod)
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
@@ -57,4 +59,6 @@ defmodule ResellerWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug ResellerWeb.Router
+
+  def session_options, do: @session_options
 end

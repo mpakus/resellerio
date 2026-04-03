@@ -18,7 +18,7 @@ defmodule ResellerWeb.DPALive do
             Data Processing Addendum
           </h1>
           <p class="mt-2 text-sm text-base-content/60">
-            Effective date: June 1, 2025 · Last updated: June 1, 2025
+            Effective date: June 1, 2025 · Last updated: April 3, 2026
           </p>
 
           <p class="mt-8 text-base leading-7 text-base-content/80">
@@ -79,7 +79,7 @@ defmodule ResellerWeb.DPALive do
                 <tr>
                   <td class="px-4 py-3 font-semibold">Data types</td>
                   <td class="px-4 py-3">
-                    Email addresses, hashed passwords, product descriptions, product images, marketplace copy, pricing data, and usage logs.
+                    Email addresses, hashed passwords, API token metadata, product descriptions, product images, storefront content, marketplace copy, pricing data, public inquiry metadata, billing identifiers, and usage/security logs.
                   </td>
                 </tr>
                 <tr>
@@ -120,7 +120,7 @@ defmodule ResellerWeb.DPALive do
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">5. Sub-processors</h2>
           <p class="mt-4 text-base leading-7 text-base-content/80">
-            ResellerIO hereby notifies the Controller of the following approved sub-processors. All sub-processors are located in the United States.
+            ResellerIO hereby notifies the Controller of the following approved sub-processors and processing categories used to operate the Service.
           </p>
           <div class="mt-4 overflow-hidden rounded-2xl border border-base-300">
             <table class="w-full text-sm">
@@ -147,21 +147,25 @@ defmodule ResellerWeb.DPALive do
                 <tr>
                   <td class="px-4 py-3">Photoroom SAS</td>
                   <td class="px-4 py-3">Background removal and image cleanup</td>
-                  <td class="px-4 py-3">USA (processing)</td>
+                  <td class="px-4 py-3">As configured by provider</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">Amazon Web Services, Inc. (S3)</td>
-                  <td class="px-4 py-3">Object storage for images and export archives</td>
-                  <td class="px-4 py-3">USA</td>
+                  <td class="px-4 py-3">Tigris-compatible object storage provider</td>
+                  <td class="px-4 py-3">
+                    Object storage for product media and import/export archives
+                  </td>
+                  <td class="px-4 py-3">As configured by ResellerIO</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">BunnyWay d.o.o. (Bunny CDN)</td>
-                  <td class="px-4 py-3">Content delivery for public storefront assets</td>
-                  <td class="px-4 py-3">USA (edge PoPs)</td>
+                  <td class="px-4 py-3">Public media delivery / CDN provider</td>
+                  <td class="px-4 py-3">
+                    Public delivery of storefront assets and images when configured
+                  </td>
+                  <td class="px-4 py-3">As configured by ResellerIO</td>
                 </tr>
                 <tr>
-                  <td class="px-4 py-3">GitHub, Inc.</td>
-                  <td class="px-4 py-3">Source code hosting and CI/CD pipelines</td>
+                  <td class="px-4 py-3">LemonSqueezy</td>
+                  <td class="px-4 py-3">Subscription billing, checkout, and webhook processing</td>
                   <td class="px-4 py-3">USA</td>
                 </tr>
               </tbody>
@@ -183,12 +187,24 @@ defmodule ResellerWeb.DPALive do
           <ul class="mt-4 list-disc pl-6 space-y-2 text-base leading-7 text-base-content/80">
             <li>TLS encryption in transit for all data exchanges.</li>
             <li>
-              Encryption at rest for stored objects (AES-256 via AWS S3 server-side encryption).
+              Encryption at rest for stored objects where supported by the configured storage provider.
             </li>
-            <li>Password hashing using bcrypt before storage; API tokens hashed before storage.</li>
+            <li>
+              Password hashing using PBKDF2-SHA256 before storage; API tokens hashed before storage.
+            </li>
+            <li>
+              HttpOnly session cookies with SameSite protections and Secure cookies in production.
+            </li>
+            <li>HTTPS enforcement and HSTS in production deployments.</li>
+            <li>Origin allowlists for browser-based API access.</li>
+            <li>
+              Signed object-storage upload/download workflows and HMAC-verified billing webhooks.
+            </li>
+            <li>Rate limiting for public storefront inquiries and archive validation for imports.</li>
             <li>Least-privilege access controls and role-based separation for infrastructure.</li>
-            <li>Regular dependency and security patching.</li>
-            <li>Audit logging for authentication events and API access.</li>
+            <li>
+              Operational logging and monitoring for service health, abuse prevention, and incident response.
+            </li>
           </ul>
 
           <h2 class="mt-10 text-2xl font-semibold tracking-tight">
