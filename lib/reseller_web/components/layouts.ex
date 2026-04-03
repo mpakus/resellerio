@@ -319,6 +319,22 @@ defmodule ResellerWeb.Layouts do
 
         <nav class="flex-1 px-4 py-6">
           <ul class="menu gap-2 rounded-box bg-base-100 p-0">
+            <li :if={@current_user.is_admin}>
+              <a
+                href="/admin/users/"
+                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
+              >
+                Admin
+              </a>
+            </li>
+            <li>
+              <a
+                href="/"
+                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
+              >
+                Home
+              </a>
+            </li>
             <li :for={item <- @workspace_nav}>
               <%= if (item[:mode] || @nav_mode) == :patch do %>
                 <.link
@@ -341,22 +357,6 @@ defmodule ResellerWeb.Layouts do
                   {item.label}
                 </.link>
               <% end %>
-            </li>
-            <li :if={@current_user.is_admin}>
-              <a
-                href="/admin/users/"
-                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
-              >
-                Admin
-              </a>
-            </li>
-            <li>
-              <a
-                href="/"
-                class="rounded-2xl transition-colors text-base-content/60 hover:text-base-content"
-              >
-                Home
-              </a>
             </li>
           </ul>
         </nav>

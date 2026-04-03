@@ -32,6 +32,28 @@ defmodule ResellerWeb.WorkspaceLiveTest do
     assert html =~ "Dashboard - Workspace - Resellio - AI Inventory for Resellers"
   end
 
+  test "renders admin and home before workspace items for admin users", %{conn: conn} do
+    user = admin_user_fixture(%{"email" => "admin@example.com"})
+    conn = init_test_session(conn, %{user_id: user.id})
+
+    {:ok, view, _html} = live(conn, "/app")
+
+    [menu_html] =
+      Regex.run(
+        ~r/<ul class="menu gap-2 rounded-box bg-base-100 p-0">(.*?)<\/ul>/s,
+        render(view),
+        capture: :all_but_first
+      )
+
+    {admin_position, _} = :binary.match(menu_html, ~s(href="/admin/users/"))
+    {home_position, _} = :binary.match(menu_html, ~s(href="/"))
+    {dashboard_position, _} = :binary.match(menu_html, ~s(href="/app"))
+
+    assert admin_position < dashboard_position
+    assert home_position < dashboard_position
+    assert admin_position < home_position
+  end
+
   test "sidebar menu switches between workspace sections and products index", %{conn: conn} do
     user = user_fixture(%{"email" => "seller@example.com"})
     conn = init_test_session(conn, %{user_id: user.id})
